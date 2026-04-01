@@ -1,0 +1,22 @@
+# Dependencies
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment
+.env*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db

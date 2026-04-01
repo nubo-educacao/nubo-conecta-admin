@@ -1,0 +1,16 @@
+-- =============================================================================
+-- Migration: v1_setup — Sprint 01 Foundation Baseline
+-- Created:   2026-04-01
+-- Author:    @gsd-executor
+-- =============================================================================
+-- NOTA: Esta migration estabelece o ponto de partida do controle de schema v1.
+-- O banco de dados legado (nubo-hub) é reutilizado integralmente para preservar
+-- a base de usuários e autenticação existentes.
+--
+-- REGRA: NÃO remover colunas legadas de user_profiles nesta sprint.
+-- Se a v1 necessitar de novos campos, adicioná-los como colunas extras aqui.
+-- =============================================================================
+
+-- Placeholder: adicionar novas colunas v1 aqui quando necessário.
+-- Exemplo:
+-- ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS v1_onboarding_completed boolean DEFAULT false;
