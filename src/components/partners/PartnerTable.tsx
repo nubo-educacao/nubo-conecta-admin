@@ -1,12 +1,13 @@
+// PartnerTable.tsx — Sprint 3.8
+// V1 schema table: shows name, location, logo/cover previews, brand color.
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Edit, Image as ImageIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Partner } from "@/services/partnersService";
-import { Badge } from "@/components/ui/badge";
 
 interface PartnerTableProps {
     partners: Partner[];
-    clicksMap: Record<string, number>;
     onEdit: (partner: Partner) => void;
     sortBy?: string;
     sortOrder?: string;
@@ -15,7 +16,6 @@ interface PartnerTableProps {
 
 export function PartnerTable({
     partners,
-    clicksMap,
     onEdit,
     sortBy,
     sortOrder,
@@ -30,33 +30,12 @@ export function PartnerTable({
         );
     };
 
-    const formatDateRange = (dates: any) => {
-        const datesObj = Array.isArray(dates) ? dates[0] : dates;
-
-        if (!datesObj || !(datesObj as any).start_date) return "N/A";
-
-        const formatDate = (dateStr: string) => {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return "";
-            return date.toLocaleDateString("pt-BR", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-                timeZone: "UTC"
-            });
-        };
-
-        const start = formatDate((datesObj as any).start_date);
-        const end = (datesObj as any).end_date ? formatDate((datesObj as any).end_date) : "Indeterminado";
-
-        return `${start} - ${end}`;
-    };
-
     return (
         <div className="rounded-md border">
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-[60px]">Logo</TableHead>
                         <TableHead className="w-[80px]">Capa</TableHead>
                         <TableHead
                             className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -67,55 +46,71 @@ export function PartnerTable({
                                 {renderSortIcon("name")}
                             </div>
                         </TableHead>
-                        <TableHead
-                            className="cursor-pointer hover:bg-muted/50 transition-colors"
-                            onClick={() => onSort?.("type")}
-                        >
-                            <div className="flex items-center">
-                                Tipo
-                                {renderSortIcon("type")}
-                            </div>
-                        </TableHead>
-                        <TableHead>Período</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Total de Cliques</TableHead>
+                        <TableHead>Localização</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="w-[60px]">Cor</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {partners.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
+                            <TableCell colSpan={7} className="h-24 text-center">
                                 Nenhum parceiro encontrado.
                             </TableCell>
                         </TableRow>
                     ) : (
                         partners.map((partner) => (
                             <TableRow key={partner.id}>
+                                {/* Logo */}
                                 <TableCell>
-                                    {partner.coverimage ? (
+                                    {partner.logo_url ? (
                                         <img
-                                            src={partner.coverimage}
+                                            src={partner.logo_url}
                                             alt={partner.name}
-                                            className="h-10 w-10 rounded-md object-cover"
+                                            className="h-10 w-10 rounded-full object-contain border p-0.5"
                                         />
                                     ) : (
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                                            <ImageIcon className="h-5 w-5" />
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                            <ImageIcon className="h-4 w-4" />
                                         </div>
                                     )}
                                 </TableCell>
-                                <TableCell className="font-medium">{partner.name}</TableCell>
-                                <TableCell>{partner.type || "N/A"}</TableCell>
-                                <TableCell>{formatDateRange(partner.dates)}</TableCell>
+                                {/* Cover */}
                                 <TableCell>
-                                    <Badge variant={partner.applications_open ? "default" : "secondary"}>
-                                        {partner.applications_open ? "Abertas" : "Encerradas"}
-                                    </Badge>
+                                    {partner.cover_url ? (
+                                        <img
+                                            src={partner.cover_url}
+                                            alt=""
+                                            className="h-10 w-14 rounded-md object-cover"
+                                        />
+                                    ) : (
+                                        <div className="flex h-10 w-14 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                                            <ImageIcon className="h-4 w-4" />
+                                        </div>
+                                    )}
                                 </TableCell>
-                                <TableCell className="text-right">
-                                    {clicksMap[partner.id] || 0}
+                                {/* Name */}
+                                <TableCell className="font-medium">{partner.name}</TableCell>
+                                {/* Location */}
+                                <TableCell className="text-muted-foreground">{partner.location || "—"}</TableCell>
+                                {/* Description */}
+                                <TableCell className="max-w-xs truncate text-muted-foreground text-sm">
+                                    {partner.description || "—"}
                                 </TableCell>
+                                {/* Brand Color */}
+                                <TableCell>
+                                    {partner.brand_color ? (
+                                        <div
+                                            className="h-6 w-6 rounded-full border"
+                                            style={{ backgroundColor: partner.brand_color }}
+                                            title={partner.brand_color}
+                                        />
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                </TableCell>
+                                {/* Actions */}
                                 <TableCell className="text-right">
                                     <Button
                                         variant="ghost"

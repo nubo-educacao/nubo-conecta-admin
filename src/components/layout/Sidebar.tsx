@@ -26,11 +26,13 @@ import {
   Settings,
   Activity,
   Sliders,
+  Bug,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { IssueModal } from "@/components/support/IssueModal";
 
 interface NavItemProps {
   to: string;
@@ -74,6 +76,7 @@ type NavEntry = NavGroup | NavSingle;
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     "Visão Geral": true,
     "Inteligência": false,
@@ -101,12 +104,12 @@ export default function Sidebar() {
     {
       label: "Inteligência",
       icon: Bot,
-      permission: "Cloudinha",
+      permission: "Dashboard",
       isGroup: true,
       items: [
-        { to: "/match-engine", icon: Sliders, label: "Simulador de Match", permission: "Cloudinha" },
-        { to: "/agent-telemetry", icon: Activity, label: "Telemetria e Erros", permission: "Cloudinha" },
-        { to: "/agent-config", icon: Settings, label: "Prompts & Starters", permission: "Cloudinha" },
+        { to: "/match-engine", icon: Sliders, label: "Simulador de Match", permission: "Dashboard" },
+        { to: "/agent-telemetry", icon: Activity, label: "Telemetria e Erros", permission: "Dashboard" },
+        { to: "/agent-config", icon: Settings, label: "Prompts & Starters", permission: "Dashboard" },
         { to: "/knowledge", icon: BookOpen, label: "Base de Conhecimento", permission: "Conhecimento" },
         { to: "/conversas", icon: MessageSquare, label: "Histórico de Conversas", permission: "Conversas" },
       ],
@@ -156,7 +159,8 @@ export default function Sidebar() {
       ],
     },
     // ── Configurações ──────────────────────────────────────────────────────────
-    { to: "/users", icon: UserCog, label: "Usuários Admin", permission: "Controle de usuários" },
+    { to: "/users", icon: UserCog, label: "Usuários", permission: "Controle de usuários" },
+    { to: "/support", icon: Bug, label: "Suporte e Bugs", permission: "Dashboard" },
   ];
 
   const toggleGroup = (label: string) => {
@@ -248,7 +252,7 @@ export default function Sidebar() {
         {navItems.map(renderNavItem)}
       </nav>
 
-      <div className="p-2 border-t">
+      <div className="p-2 border-t flex flex-col gap-1">
         <Button
           variant="ghost"
           className={cn(
@@ -261,6 +265,7 @@ export default function Sidebar() {
           {!collapsed && <span className="text-sm">Sair</span>}
         </Button>
       </div>
+      <IssueModal isOpen={isIssueModalOpen} onClose={() => setIsIssueModalOpen(false)} />
     </div>
   );
 }

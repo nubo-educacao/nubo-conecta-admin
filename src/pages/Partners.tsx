@@ -1,3 +1,7 @@
+// Partners.tsx — Sprint 3.8
+// Admin page for managing partner institutions via V1 schema.
+// CRUD: institutions (is_partner=true) + partner_institutions.
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2 } from "lucide-react";
@@ -14,7 +18,6 @@ import {
     Partner,
 } from "@/services/partnersService";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 export default function Partners() {
     const queryClient = useQueryClient();
@@ -44,23 +47,6 @@ export default function Partners() {
             setSortOrder("asc");
         }
     };
-
-    const { data: clicksMap = {} } = useQuery({
-        queryKey: ["partners-clicks-map"],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from("partners_click")
-                .select("partner_id, clicks");
-
-            if (error) throw error;
-
-            const map: Record<string, number> = {};
-            data.forEach(item => {
-                map[item.partner_id] = (map[item.partner_id] || 0) + item.clicks;
-            });
-            return map;
-        }
-    });
 
     // Mutations
     const createMutation = useMutation({
@@ -125,7 +111,7 @@ export default function Partners() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Parceiros</h1>
                     <p className="text-muted-foreground">
-                        Gerencie os parceiros e acompanhe o desempenho de cliques.
+                        Gerencie as instituições parceiras e suas informações de branding.
                     </p>
                 </div>
                 <Button onClick={handleAddPartner} className="gap-2">
@@ -141,7 +127,6 @@ export default function Partners() {
                     <h2 className="text-xl font-semibold">Listagem de Parceiros</h2>
                     <PartnerTable
                         partners={partners}
-                        clicksMap={clicksMap}
                         onEdit={handleEditPartner}
                         sortBy={sortBy}
                         sortOrder={sortOrder}
@@ -162,4 +147,3 @@ export default function Partners() {
         </div>
     );
 }
-

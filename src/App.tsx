@@ -16,6 +16,8 @@ import NotFound from "./pages/NotFound";
 // Pages — Inteligência
 import Conversas from "./pages/Conversas";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import AgentConfig from "./pages/AgentConfig";
+import MatchEngine from "./pages/MatchEngine";
 
 // Pages — Dados Educacionais
 import Calendar from "./pages/Calendar";
@@ -30,6 +32,7 @@ import PartnerSolicitations from "./pages/PartnerSolicitations";
 import PartnerForms from "./pages/PartnerForms";
 import PartnerUsers from "./pages/PartnerUsers";
 import PartnerApplications from "./pages/PartnerApplications";
+import PartnerOpportunities from "./pages/PartnerOpportunities";
 import FunnelUsers from "./pages/FunnelUsers";
 
 // Pages — Atendimento e App
@@ -39,6 +42,7 @@ import SeanEllis from "./pages/SeanEllis";
 
 // Pages — Configurações
 import Users from "./pages/Users";
+import Support from "./pages/Support";
 
 // Pages — Partner Portal Sandbox
 import PartnerPortalForms from "./pages/PartnerPortalForms";
@@ -66,9 +70,9 @@ const App = () => (
               <Route path="/conversas" element={<Conversas />} />
               <Route path="/knowledge" element={<KnowledgeBase />} />
               {/* Stub routes para Sprint 2 */}
-              <Route path="/match-engine" element={<NotFound />} />
+              <Route path="/match-engine" element={<MatchEngine />} />
               <Route path="/agent-telemetry" element={<NotFound />} />
-              <Route path="/agent-config" element={<NotFound />} />
+              <Route path="/agent-config" element={<AgentConfig />} />
 
               {/* Dados Educacionais */}
               <Route path="/institutions" element={<Institutions />} />
@@ -80,7 +84,7 @@ const App = () => (
               {/* Parceiros & B2B */}
               <Route path="/b2b-dashboard" element={<NotFound />} />
               <Route path="/partners" element={<Partners />} />
-              <Route path="/partner-opportunities" element={<NotFound />} />
+              <Route path="/partner-opportunities" element={<PartnerOpportunities />} />
               <Route path="/forms" element={<PartnerForms />} />
               <Route path="/applications" element={<PartnerApplications />} />
               <Route path="/solicitations" element={<PartnerSolicitations />} />
@@ -95,6 +99,7 @@ const App = () => (
 
               {/* Configurações */}
               <Route path="/users" element={<Users />} />
+              <Route path="/support" element={<Support />} />
             </Route>
 
             {/* Partner Portal Sandbox */}
