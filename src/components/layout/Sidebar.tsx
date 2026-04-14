@@ -217,14 +217,15 @@ export default function Sidebar() {
 
     if (!permissions.includes(item.permission)) return null;
 
+    const singleItem = item as NavSingle;
     return (
       <NavItem
-        key={item.to}
-        to={item.to}
-        icon={item.icon}
-        label={item.label}
+        key={singleItem.to}
+        to={singleItem.to}
+        icon={singleItem.icon}
+        label={singleItem.label}
         collapsed={collapsed}
-        active={location.pathname === item.to}
+        active={location.pathname === singleItem.to}
       />
     );
   };

@@ -2,7 +2,7 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SystemInstructionsEditor from "@/components/agent/SystemInstructionsEditor";
 import StartersManager from "@/components/agent/StartersManager";
-import SystemIntentsViewer from "@/components/agent/SystemIntentsViewer";
+import SystemIntentsManager from "@/components/agent/SystemIntentsManager";
 
 export default function AgentConfig() {
   return (
@@ -32,7 +32,7 @@ export default function AgentConfig() {
         </TabsContent>
 
         <TabsContent value="intents" className="space-y-4">
-          <SystemIntentsViewer />
+          <SystemIntentsManager />
         </TabsContent>
       </Tabs>
     </div>

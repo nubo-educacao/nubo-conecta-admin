@@ -207,7 +207,7 @@ export function ChatExamplesPanel({ fullPage = false }: ChatExamplesPanelProps) 
           loadConversation(allUsers[0].user_id);
         }
       } else {
-        console.warn('Unexpected data format from RPC:', data);
+        console.warn('No users found for the selected period');
         setUserList([]);
       }
     } catch (e) {
