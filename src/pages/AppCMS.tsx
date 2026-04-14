@@ -80,18 +80,25 @@ export default function AppCMS() {
   useEffect(() => { fetchSections(); }, []);
 
   const toggleActive = async (section: HomeSection) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("home_sections")
       .update({ is_active: !section.is_active, updated_at: new Date().toISOString() })
-      .eq("id", section.id);
+      .eq("id", section.id)
+      .select();
 
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
-      setSections((prev) =>
-        prev.map((s) => (s.id === section.id ? { ...s, is_active: !s.is_active } : s))
-      );
+    if (error || !data?.length) {
+      toast({
+        title: "Erro ao atualizar",
+        description: error?.message ?? "Nenhuma linha atualizada",
+        variant: "destructive",
+      });
+      return;
     }
+
+    setSections((prev) =>
+      prev.map((s) => (s.id === section.id ? { ...s, is_active: !s.is_active } : s))
+    );
+    toast({ title: section.is_active ? "Seção desativada" : "Seção ativada" });
   };
 
   const deleteSection = async (id: string) => {
