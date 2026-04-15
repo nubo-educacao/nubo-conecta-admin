@@ -17,6 +17,7 @@ export interface Partner {
     logo_url: string | null;          // partner_institutions.logo_url
     cover_url: string | null;         // partner_institutions.cover_url
     brand_color: string | null;       // partner_institutions.brand_color
+    applications_open: boolean;       // partner_institutions.applications_open
     created_at: string;               // institutions.created_at
     updated_at: string;               // institutions.updated_at
 }
@@ -57,7 +58,8 @@ export async function getPartners(
                 location,
                 logo_url,
                 cover_url,
-                brand_color
+                brand_color,
+                applications_open
             )
         `)
         .eq("is_partner", true)
@@ -76,6 +78,7 @@ export async function getPartners(
         logo_url:    row.partner_institutions?.logo_url ?? null,
         cover_url:   row.partner_institutions?.cover_url ?? null,
         brand_color: row.partner_institutions?.brand_color ?? null,
+        applications_open: row.partner_institutions?.applications_open ?? false,
         created_at:  row.created_at,
         updated_at:  row.updated_at,
     }));
@@ -98,7 +101,8 @@ export async function getPartnerById(id: string): Promise<Partner> {
                 location,
                 logo_url,
                 cover_url,
-                brand_color
+                brand_color,
+                applications_open
             )
         `)
         .eq("id", id)
@@ -118,6 +122,7 @@ export async function getPartnerById(id: string): Promise<Partner> {
         logo_url:    (data as any).partner_institutions?.logo_url ?? null,
         cover_url:   (data as any).partner_institutions?.cover_url ?? null,
         brand_color: (data as any).partner_institutions?.brand_color ?? null,
+        applications_open: (data as any).partner_institutions?.applications_open ?? false,
         created_at:  data.created_at,
         updated_at:  data.updated_at,
     };
@@ -167,6 +172,7 @@ export async function createPartner(input: PartnerInput): Promise<Partner> {
         logo_url:    input.logo_url ?? null,
         cover_url:   input.cover_url ?? null,
         brand_color: input.brand_color ?? null,
+        applications_open: false,
         created_at:  inst.created_at,
         updated_at:  inst.updated_at,
     };

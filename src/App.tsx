@@ -12,12 +12,14 @@ import Login from "./pages/Login";
 import Index from "./pages/Index";
 import AIInsights from "./pages/AIInsights";
 import NotFound from "./pages/NotFound";
+import AppCMS from "./pages/AppCMS";
 
 // Pages — Inteligência
 import Conversas from "./pages/Conversas";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import AgentConfig from "./pages/AgentConfig";
 import MatchEngine from "./pages/MatchEngine";
+import AgentTelemetry from "./pages/AgentTelemetry";
 
 // Pages — Dados Educacionais
 import Calendar from "./pages/Calendar";
@@ -71,7 +73,7 @@ const App = () => (
               <Route path="/knowledge" element={<KnowledgeBase />} />
               {/* Stub routes para Sprint 2 */}
               <Route path="/match-engine" element={<MatchEngine />} />
-              <Route path="/agent-telemetry" element={<NotFound />} />
+              <Route path="/agent-telemetry" element={<AgentTelemetry />} />
               <Route path="/agent-config" element={<AgentConfig />} />
 
               {/* Dados Educacionais */}
@@ -93,7 +95,7 @@ const App = () => (
 
               {/* Atendimento e App */}
               <Route path="/students" element={<Students />} />
-              <Route path="/app-cms" element={<NotFound />} />
+              <Route path="/app-cms" element={<AppCMS />} />
               <Route path="/influencers" element={<Influencers />} />
               <Route path="/sean-ellis" element={<SeanEllis />} />
 
