@@ -8,7 +8,7 @@ CREATE TABLE public.system_intents (
     trigger_route TEXT,                                    -- regex da rota (ex: "^/oportunidades/.+$")
     trigger_type TEXT NOT NULL DEFAULT 'route_change',     -- "route_change" | "manual" | "timer"
     open_drawer BOOLEAN DEFAULT false,
-    delay_ms INT DEFAULT 5000,                             -- Delay (ms) antes de abrir o drawer
+    delay_ms INT DEFAULT 0,                             -- Delay (ms) antes de abrir o drawer
     response_template TEXT,                                -- Template de resposta (com {{placeholders}})
     description TEXT,
     is_active BOOLEAN DEFAULT true,
@@ -40,7 +40,7 @@ INSERT INTO public.system_intents (command, trigger_route, trigger_type, open_dr
     '^/oportunidades/.+$',
     'route_change',
     true,
-    5000,
+    0,
     'Olá! Vejo que você está explorando **{{title}}** em {{institution}}. 🎓
 
 Posso te ajudar a entender os requisitos, prazos ou como se candidatar. O que você gostaria de saber?',
