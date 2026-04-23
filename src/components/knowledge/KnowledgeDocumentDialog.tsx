@@ -25,7 +25,28 @@ import type { KnowledgeDocument, KnowledgeCategory } from "@/services/knowledgeS
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { PDFDocument } from "pdf-lib";interface Partner {
+import { PDFDocument } from "pdf-lib";
+
+function FastTextarea({ value, onChange, disabled, placeholder, className }: any) {
+    const [localValue, setLocalValue] = useState(value);
+
+    useEffect(() => {
+        setLocalValue(value);
+    }, [value]);
+
+    return (
+        <Textarea
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={() => onChange(localValue)}
+            disabled={disabled}
+            placeholder={placeholder}
+            className={className}
+        />
+    );
+}
+
+interface Partner {
     id: string;
     name: string;
 }
@@ -420,9 +441,9 @@ export default function KnowledgeDocumentDialog({
                                 <pre className="whitespace-pre-wrap text-sm font-mono">{content}</pre>
                             </div>
                         ) : (
-                            <Textarea
+                            <FastTextarea
                                 value={content}
-                                onChange={(e) => setContent(e.target.value)}
+                                onChange={(val: string) => setContent(val)}
                                 placeholder="Cole ou escreva o conteúdo em Markdown aqui..."
                                 className="min-h-[300px] font-mono text-sm"
                                 disabled={isConverting}
