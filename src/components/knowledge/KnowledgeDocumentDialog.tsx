@@ -70,6 +70,7 @@ export default function KnowledgeDocumentDialog({
     const [keywords, setKeywords] = useState<string[]>([]);
     const [keywordInput, setKeywordInput] = useState("");
     const contentRef = useRef<HTMLTextAreaElement>(null);
+    const textDataRef = useRef<string>("");
     const [previewContent, setPreviewContent] = useState("");
     const [showPreview, setShowPreview] = useState(false);
     const [isRenderingPreview, setIsRenderingPreview] = useState(false);
@@ -81,8 +82,7 @@ export default function KnowledgeDocumentDialog({
     const handleTogglePreview = () => {
         if (!showPreview) {
             setIsRenderingPreview(true);
-            const currentContent = contentRef.current?.value || "";
-            setPreviewContent(currentContent);
+            setPreviewContent(textDataRef.current);
             setTimeout(() => {
                 setShowPreview(true);
                 setIsRenderingPreview(false);
@@ -185,6 +185,7 @@ export default function KnowledgeDocumentDialog({
                     }
                 }
 
+                textDataRef.current = finalMarkdown;
                 if (contentRef.current) {
                     contentRef.current.value = finalMarkdown;
                 }
@@ -225,6 +226,7 @@ export default function KnowledgeDocumentDialog({
         const reader = new FileReader();
         reader.onload = (ev) => {
             const text = ev.target?.result as string;
+            textDataRef.current = text || "";
             if (contentRef.current) {
                 contentRef.current.value = text || "";
             }
@@ -246,6 +248,7 @@ export default function KnowledgeDocumentDialog({
             setCategoryId(document.category_id || "");
             setPartnerId(document.partner_id);
             setKeywords(document.keywords || []);
+            textDataRef.current = markdownContent;
             if (contentRef.current) contentRef.current.value = markdownContent;
             setChangeSummary("");
         } else {
@@ -254,6 +257,7 @@ export default function KnowledgeDocumentDialog({
             setCategoryId("");
             setPartnerId(null);
             setKeywords([]);
+            textDataRef.current = "";
             if (contentRef.current) contentRef.current.value = "";
             setChangeSummary("");
         }
@@ -279,7 +283,7 @@ export default function KnowledgeDocumentDialog({
     };
 
     const handleSubmit = () => {
-        const currentContent = contentRef.current?.value || "";
+        const currentContent = textDataRef.current;
         if (!title.trim() || !currentContent.trim()) return;
         onSave({
             title: title.trim(),
@@ -448,6 +452,8 @@ export default function KnowledgeDocumentDialog({
                         ) : (
                             <Textarea
                                 ref={contentRef}
+                                defaultValue={textDataRef.current}
+                                onChange={(e) => { textDataRef.current = e.target.value; }}
                                 placeholder="Cole ou escreva o conteúdo em Markdown aqui..."
                                 className="min-h-[300px] font-mono text-sm"
                                 disabled={isConverting}
@@ -457,7 +463,7 @@ export default function KnowledgeDocumentDialog({
 
                     {/* Row 5: Test Knowledge Chat */}
                     <KnowledgeTestChat
-                        getMarkdownContent={() => contentRef.current?.value || ""}
+                        getMarkdownContent={() => textDataRef.current}
                         documentTitle={title || "Documento"}
                     />
 
