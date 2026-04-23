@@ -25,8 +25,7 @@ import type { KnowledgeDocument, KnowledgeCategory } from "@/services/knowledgeS
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-
-interface Partner {
+import { PDFDocument } from "pdf-lib";interface Partner {
     id: string;
     name: string;
 }
@@ -70,6 +69,7 @@ export default function KnowledgeDocumentDialog({
     const [changeSummary, setChangeSummary] = useState("");
     const [showPreview, setShowPreview] = useState(false);
     const [isConverting, setIsConverting] = useState(false);
+    const [convertProgress, setConvertProgress] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,83 +79,127 @@ export default function KnowledgeDocumentDialog({
         if (file.name.endsWith(".pdf")) {
             try {
                 setIsConverting(true);
-                toast.info("Lendo PDF. Isso pode levar alguns segundos...");
+                setConvertProgress("Lendo arquivo PDF...");
                 
-                // Read file as base64
-                const reader = new FileReader();
-                const base64Promise = new Promise<string>((resolve, reject) => {
-                    reader.onload = () => {
-                        const b64 = (reader.result as string).split(",")[1];
-                        resolve(b64);
-                    };
-                    reader.onerror = reject;
-                });
-                reader.readAsDataURL(file);
-                const pdfBase64 = await base64Promise;
+                // Ler arquivo como array buffer para o pdf-lib
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+                const pageCount = pdfDoc.getPageCount();
+                
+                const CHUNK_SIZE = 3; // Reduzido drasticamente para 3 páginas. Editais com 38 páginas de texto puro estouram tokens muito rápido.
+                const chunks: string[] = [];
 
-                const { data, error } = await supabase.functions.invoke("pdf-to-markdown", {
-                    body: { pdfBase64 }
-                });
-
-                if (error) {
-                    console.error("Function error details:", error);
-                    // Handle specific timeout/gateway errors
-                    if (error.message?.includes("504") || error.message?.includes("502")) {
-                        throw new Error("O documento é muito grande para conversão automática (Timeout). Tente reduzir o PDF ou copiar o texto manualmente.");
-                    }
-                    throw new Error(error.message || "Erro ao processar PDF");
-                }
-                if (data?.error) {
-                    if (data.error.includes("abort") || data.error.includes("timeout")) {
-                         throw new Error("O processamento demorou demais. Tente um arquivo menor ou divida o documento.");
-                    }
-                    throw new Error(data.error);
-                }
-
-                if (data?.markdown) {
-                    setContent(data.markdown);
-                    
-                    if (data.title && !title.trim()) {
-                        setTitle(data.title.substring(0, 150)); // Safely limit length
-                    } else if (!title.trim()) {
-                        const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
-                        setTitle(baseName);
-                    }
-
-                    if (data.description && !description.trim()) {
-                        setDescription(data.description);
-                    }
-
-                    if (data.category_name) {
-                        const categoryNameLower = data.category_name.toLowerCase();
-                        const matchingCategory = categories.find(c => c.name.toLowerCase() === categoryNameLower);
-                        if (matchingCategory) {
-                            setCategoryId(matchingCategory.id);
-                        }
-                    }
-
-                    if (data.partner_name && data.partner_name.trim() !== "") {
-                        const pNameStr = data.partner_name.toLowerCase();
-                        const matchingPartner = partners.find(p => p.name.toLowerCase().includes(pNameStr) || pNameStr.includes(p.name.toLowerCase()));
-                        if (matchingPartner) {
-                            setPartnerId(matchingPartner.id);
-                        }
-                    }
-
-                    if (data.keywords && Array.isArray(data.keywords)) {
-                        setKeywords(prev => {
-                            const newSet = new Set([...prev, ...data.keywords]);
-                            return Array.from(newSet);
-                        });
-                    }
-
-                    toast.success("PDF analisado e dados preenchidos com sucesso!");
+                if (pageCount <= CHUNK_SIZE) {
+                    setConvertProgress("Convertendo PDF (1 parte)...");
+                    const base64 = await pdfDoc.saveAsBase64();
+                    chunks.push(base64);
                 } else {
-                    throw new Error("Resposta da conversão está vazia.");
+                    const totalChunks = Math.ceil(pageCount / CHUNK_SIZE);
+                    setConvertProgress(`Dividindo PDF em ${totalChunks} partes...`);
+                    
+                    for (let i = 0; i < pageCount; i += CHUNK_SIZE) {
+                        const newPdf = await PDFDocument.create();
+                        const end = Math.min(i + CHUNK_SIZE, pageCount);
+                        const indices = Array.from({length: end - i}, (_, k) => i + k);
+                        const copiedPages = await newPdf.copyPages(pdfDoc, indices);
+                        copiedPages.forEach(p => newPdf.addPage(p));
+                        const base64 = await newPdf.saveAsBase64();
+                        chunks.push(base64);
+                    }
                 }
+
+                let finalTitle = "";
+                let finalDescription = "";
+                let finalCategoryId = "";
+                let finalPartnerId: string | null = null;
+                let finalKeywords: string[] = [];
+                let finalMarkdown = "";
+
+                // Chamadas sequenciais para não sobrecarregar a rede ou tomar Rate Limit de cara
+                for (let i = 0; i < chunks.length; i++) {
+                    setConvertProgress(`Analisando parte ${i + 1} de ${chunks.length}... (pode levar alguns segundos)`);
+                    
+                    const { data, error } = await supabase.functions.invoke("pdf-to-markdown", {
+                        body: { 
+                            pdfBase64: chunks[i],
+                            chunkIndex: i,
+                            totalChunks: chunks.length
+                        }
+                    });
+
+                    if (error) {
+                        console.error("Function error details:", error);
+                        if (error.message?.includes("504") || error.message?.includes("502")) {
+                            throw new Error(`Timeout na parte ${i + 1}. Tente novamente mais tarde.`);
+                        }
+                        throw new Error(error.message || `Erro ao processar parte ${i + 1}`);
+                    }
+                    if (data?.error) {
+                        if (data.error.includes("abort") || data.error.includes("timeout")) {
+                             throw new Error(`Processamento demorou demais na parte ${i + 1}.`);
+                        }
+                        throw new Error(data.error);
+                    }
+
+                    if (!data?.markdown && i === 0 && !data?.title) {
+                        // Tolerância: se a resposta não vier markdown nem titulo e for a primeira, pode ter retornado vazio da API (STOP) e engolido pela Edge function, apenas logamos.
+                        console.warn(`Resposta vazia da IA na parte ${i + 1}.`);
+                    }
+
+                    if (i === 0) {
+                        finalTitle = data.title || "";
+                        finalDescription = data.description || "";
+                        finalKeywords = data.keywords || [];
+                        
+                        if (data.category_name) {
+                            const categoryNameLower = data.category_name.toLowerCase();
+                            const matchingCategory = categories.find(c => c.name.toLowerCase() === categoryNameLower);
+                            if (matchingCategory) finalCategoryId = matchingCategory.id;
+                        }
+
+                        if (data.partner_name && data.partner_name.trim() !== "") {
+                            const pNameStr = data.partner_name.toLowerCase();
+                            const matchingPartner = partners.find(p => p.name.toLowerCase().includes(pNameStr) || pNameStr.includes(p.name.toLowerCase()));
+                            if (matchingPartner) finalPartnerId = matchingPartner.id;
+                        }
+                    }
+
+                    if (chunks.length > 1 && data?.markdown) {
+                        finalMarkdown += `\n\n<!-- INÍCIO DA PARTE ${i + 1} -->\n\n`;
+                    }
+                    if (data?.markdown) {
+                        finalMarkdown += data.markdown;
+                    }
+                }
+
+                setContent(finalMarkdown);
+                
+                if (finalTitle && !title.trim()) {
+                    setTitle(finalTitle.substring(0, 150));
+                } else if (!title.trim()) {
+                    const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
+                    setTitle(baseName);
+                }
+
+                if (finalDescription && !description.trim()) {
+                    setDescription(finalDescription);
+                }
+                if (finalCategoryId && !categoryId) {
+                    setCategoryId(finalCategoryId);
+                }
+                if (finalPartnerId && !partnerId) {
+                    setPartnerId(finalPartnerId);
+                }
+                if (finalKeywords && finalKeywords.length > 0) {
+                    setKeywords(prev => Array.from(new Set([...prev, ...finalKeywords])));
+                }
+
+                setConvertProgress("");
+                toast.success("PDF analisado e dados preenchidos com sucesso!");
             } catch (err: any) {
                 console.error("Erro na conversão de PDF:", err);
                 toast.error(`Falha ao converter PDF: ${err.message}`);
+                setConvertProgress("");
             } finally {
                 setIsConverting(false);
                 if (e.target) e.target.value = "";
@@ -348,17 +392,18 @@ export default function KnowledgeDocumentDialog({
                                 />
                                 <Button
                                     type="button"
-                                    variant="ghost"
+                                    variant={isConverting ? "default" : "ghost"}
                                     size="sm"
+                                    className={isConverting ? "bg-sky-400 hover:bg-sky-500 text-white min-w-[300px]" : ""}
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={isConverting}
                                 >
                                     {isConverting ? (
-                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                     ) : (
                                         <Upload className="h-4 w-4 mr-1" />
                                     )}
-                                    {isConverting ? "Convertendo..." : "Importar arquivo"}
+                                    {isConverting ? convertProgress : "Importar arquivo"}
                                 </Button>
                                 <Button
                                     type="button"
