@@ -28,20 +28,23 @@ import { Loader2 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 
 function FastTextarea({ value, onChange, disabled, placeholder, className }: any) {
-    const [localValue, setLocalValue] = useState(value);
+    const textRef = useRef<HTMLTextAreaElement>(null);
 
+    // Only update the DOM if the external value changes and is different from the current text
     useEffect(() => {
-        setLocalValue(value);
+        if (textRef.current && textRef.current.value !== value) {
+            textRef.current.value = value;
+        }
     }, [value]);
 
     return (
-        <Textarea
-            value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={() => onChange(localValue)}
+        <textarea
+            ref={textRef}
+            defaultValue={value}
+            onBlur={(e) => onChange(e.target.value)}
             disabled={disabled}
             placeholder={placeholder}
-            className={className}
+            className={`flex w-full rounded-md border border-input bg-background px-3 py-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         />
     );
 }
@@ -89,9 +92,22 @@ export default function KnowledgeDocumentDialog({
     const [content, setContent] = useState("");
     const [changeSummary, setChangeSummary] = useState("");
     const [showPreview, setShowPreview] = useState(false);
+    const [isRenderingPreview, setIsRenderingPreview] = useState(false);
     const [isConverting, setIsConverting] = useState(false);
     const [convertProgress, setConvertProgress] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleTogglePreview = () => {
+        if (!showPreview) {
+            setIsRenderingPreview(true);
+            setTimeout(() => {
+                setShowPreview(true);
+                setIsRenderingPreview(false);
+            }, 50);
+        } else {
+            setShowPreview(false);
+        }
+    };
 
     const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -430,13 +446,22 @@ export default function KnowledgeDocumentDialog({
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => setShowPreview(!showPreview)}
+                                    onClick={handleTogglePreview}
+                                    disabled={isRenderingPreview}
                                 >
+                                    {isRenderingPreview ? (
+                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : null}
                                     {showPreview ? "Editar" : "Preview"}
                                 </Button>
                             </div>
                         </div>
-                        {showPreview ? (
+                        {isRenderingPreview ? (
+                            <div className="flex flex-col items-center justify-center min-h-[300px] border rounded-md bg-muted/20">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                                <span className="text-sm text-muted-foreground">Processando e renderizando preview...</span>
+                            </div>
+                        ) : showPreview ? (
                             <div className="border rounded-md p-4 min-h-[300px] max-h-[400px] overflow-y-auto prose prose-sm dark:prose-invert max-w-none">
                                 <pre className="whitespace-pre-wrap text-sm font-mono">{content}</pre>
                             </div>
