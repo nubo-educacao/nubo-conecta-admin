@@ -57,4 +57,20 @@ export const useUpdateIssueStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['github-issues'] });
     },
   });
+};export const useDeleteIssue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: { issueNumber: number; repo: string }) => {
+      const { data, error } = await supabase.functions.invoke('github-proxy', {
+        method: 'PATCH',
+        body: { ...params, action: 'apagar' },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['github-issues'] });
+    },
+  });
 };

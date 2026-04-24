@@ -9,9 +9,15 @@ const corsHeaders = {
 
 const GITHUB_OWNER = Deno.env.get("GITHUB_OWNER") || "nubo-educacao"; 
 
-// A variável de forms 'application' já é o nome exato do repo na organização!
-function mapApplicationToRepo(application: string): string {
-  return application || "nubo-conecta-admin";
+// A variável de forms 'application' já é o nome base, mas mapeamos conforme a versão
+function mapApplicationToRepo(application: string, version?: string): string {
+  const isHub = version === "Nubo Hub";
+  
+  if (application === "nubo-conecta-app") return isHub ? "nubo-hub-app" : "nubo-conecta-app";
+  if (application === "cloudinha-conecta-agent") return isHub ? "cloudinha-agent" : "cloudinha-conecta-agent";
+  
+  // Admins consolidam no repo da versão correspondente
+  return isHub ? "nubo-hub-admin" : "nubo-conecta-admin";
 }
 
 serve(async (req) => {
@@ -27,7 +33,7 @@ serve(async (req) => {
 
     if (req.method === 'GET') {
       // Buscar todas as issues dos repositórios sem depender do GitHub Projects (já que o plano Free limita os workflows)
-      const searchQuery = `is:issue is:open repo:${GITHUB_OWNER}/nubo-hub-admin repo:${GITHUB_OWNER}/nubo-conecta-admin repo:${GITHUB_OWNER}/nubo-conecta-app repo:${GITHUB_OWNER}/cloudinha-conecta-agent`;
+      const searchQuery = `is:issue is:open repo:${GITHUB_OWNER}/nubo-hub-admin repo:${GITHUB_OWNER}/nubo-conecta-admin repo:${GITHUB_OWNER}/nubo-conecta-app repo:${GITHUB_OWNER}/nubo-hub-app repo:${GITHUB_OWNER}/cloudinha-conecta-agent repo:${GITHUB_OWNER}/cloudinha-agent`;
       const encodedQuery = encodeURIComponent(searchQuery);
 
       const githubRes = await fetch(`https://api.github.com/search/issues?q=${encodedQuery}`, {
@@ -117,6 +123,23 @@ serve(async (req) => {
         return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
       }
 
+      if (action === 'apagar') {
+        const githubRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${repo}/issues/${issueNumber}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${GITHUB_PAT}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ state: 'closed' })
+        });
+
+        const data = await githubRes.json();
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       throw new Error("Ação PATCH desconhecida");
     }
 
@@ -124,7 +147,7 @@ serve(async (req) => {
       const body = await req.json();
       const { title, body: issueBody, application, type, version } = body;
       
-      const repo = mapApplicationToRepo(application);
+      const repo = mapApplicationToRepo(application, version);
 
       // Formatar o body com markdown listando specs extra
       const formattedBody = `
@@ -155,6 +178,7 @@ ${issueBody}
       })
     }
 
+
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -167,3 +191,4 @@ ${issueBody}
     })
   }
 })
+
