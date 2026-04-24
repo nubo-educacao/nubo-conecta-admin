@@ -25,6 +25,9 @@ import type { KnowledgeDocument, KnowledgeCategory } from "@/services/knowledgeS
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { PDFDocument } from "pdf-lib";
+
+
 
 interface Partner {
     id: string;
@@ -66,11 +69,28 @@ export default function KnowledgeDocumentDialog({
     const [partnerId, setPartnerId] = useState<string | null>(null);
     const [keywords, setKeywords] = useState<string[]>([]);
     const [keywordInput, setKeywordInput] = useState("");
-    const [content, setContent] = useState("");
-    const [changeSummary, setChangeSummary] = useState("");
+    const contentRef = useRef<HTMLTextAreaElement>(null);
+    const textDataRef = useRef<string>("");
+    const [previewContent, setPreviewContent] = useState("");
     const [showPreview, setShowPreview] = useState(false);
+    const [isRenderingPreview, setIsRenderingPreview] = useState(false);
     const [isConverting, setIsConverting] = useState(false);
+    const [convertProgress, setConvertProgress] = useState("");
+    const [changeSummary, setChangeSummary] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleTogglePreview = () => {
+        if (!showPreview) {
+            setIsRenderingPreview(true);
+            setPreviewContent(textDataRef.current);
+            setTimeout(() => {
+                setShowPreview(true);
+                setIsRenderingPreview(false);
+            }, 50);
+        } else {
+            setShowPreview(false);
+        }
+    };
 
     const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -79,83 +99,123 @@ export default function KnowledgeDocumentDialog({
         if (file.name.endsWith(".pdf")) {
             try {
                 setIsConverting(true);
-                toast.info("Lendo PDF. Isso pode levar alguns segundos...");
+                setConvertProgress("Lendo arquivo PDF...");
                 
-                // Read file as base64
-                const reader = new FileReader();
-                const base64Promise = new Promise<string>((resolve, reject) => {
-                    reader.onload = () => {
-                        const b64 = (reader.result as string).split(",")[1];
-                        resolve(b64);
-                    };
-                    reader.onerror = reject;
-                });
-                reader.readAsDataURL(file);
-                const pdfBase64 = await base64Promise;
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+                const pageCount = pdfDoc.getPageCount();
+                
+                const CHUNK_SIZE = 3;
+                const chunks: string[] = [];
 
-                const { data, error } = await supabase.functions.invoke("pdf-to-markdown", {
-                    body: { pdfBase64 }
-                });
-
-                if (error) {
-                    console.error("Function error details:", error);
-                    // Handle specific timeout/gateway errors
-                    if (error.message?.includes("504") || error.message?.includes("502")) {
-                        throw new Error("O documento é muito grande para conversão automática (Timeout). Tente reduzir o PDF ou copiar o texto manualmente.");
-                    }
-                    throw new Error(error.message || "Erro ao processar PDF");
-                }
-                if (data?.error) {
-                    if (data.error.includes("abort") || data.error.includes("timeout")) {
-                         throw new Error("O processamento demorou demais. Tente um arquivo menor ou divida o documento.");
-                    }
-                    throw new Error(data.error);
-                }
-
-                if (data?.markdown) {
-                    setContent(data.markdown);
-                    
-                    if (data.title && !title.trim()) {
-                        setTitle(data.title.substring(0, 150)); // Safely limit length
-                    } else if (!title.trim()) {
-                        const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
-                        setTitle(baseName);
-                    }
-
-                    if (data.description && !description.trim()) {
-                        setDescription(data.description);
-                    }
-
-                    if (data.category_name) {
-                        const categoryNameLower = data.category_name.toLowerCase();
-                        const matchingCategory = categories.find(c => c.name.toLowerCase() === categoryNameLower);
-                        if (matchingCategory) {
-                            setCategoryId(matchingCategory.id);
-                        }
-                    }
-
-                    if (data.partner_name && data.partner_name.trim() !== "") {
-                        const pNameStr = data.partner_name.toLowerCase();
-                        const matchingPartner = partners.find(p => p.name.toLowerCase().includes(pNameStr) || pNameStr.includes(p.name.toLowerCase()));
-                        if (matchingPartner) {
-                            setPartnerId(matchingPartner.id);
-                        }
-                    }
-
-                    if (data.keywords && Array.isArray(data.keywords)) {
-                        setKeywords(prev => {
-                            const newSet = new Set([...prev, ...data.keywords]);
-                            return Array.from(newSet);
-                        });
-                    }
-
-                    toast.success("PDF analisado e dados preenchidos com sucesso!");
+                if (pageCount <= CHUNK_SIZE) {
+                    setConvertProgress("Convertendo PDF (1 parte)...");
+                    const base64 = await pdfDoc.saveAsBase64();
+                    chunks.push(base64);
                 } else {
-                    throw new Error("Resposta da conversão está vazia.");
+                    const totalChunks = Math.ceil(pageCount / CHUNK_SIZE);
+                    setConvertProgress(`Dividindo PDF em ${totalChunks} partes...`);
+                    
+                    for (let i = 0; i < pageCount; i += CHUNK_SIZE) {
+                        const newPdf = await PDFDocument.create();
+                        const end = Math.min(i + CHUNK_SIZE, pageCount);
+                        const indices = Array.from({length: end - i}, (_, k) => i + k);
+                        const copiedPages = await newPdf.copyPages(pdfDoc, indices);
+                        copiedPages.forEach(p => newPdf.addPage(p));
+                        const base64 = await newPdf.saveAsBase64();
+                        chunks.push(base64);
+                    }
                 }
+
+                let finalTitle = "";
+                let finalDescription = "";
+                let finalCategoryId = "";
+                let finalPartnerId: string | null = null;
+                let finalKeywords: string[] = [];
+                let finalMarkdown = "";
+
+                for (let i = 0; i < chunks.length; i++) {
+                    setConvertProgress(`Analisando parte ${i + 1} de ${chunks.length}... (pode levar alguns segundos)`);
+                    
+                    const { data, error } = await supabase.functions.invoke("pdf-to-markdown", {
+                        body: { 
+                            pdfBase64: chunks[i],
+                            chunkIndex: i,
+                            totalChunks: chunks.length
+                        }
+                    });
+
+                    if (error) {
+                        console.error("Function error details:", error);
+                        if (error.message?.includes("504") || error.message?.includes("502")) {
+                            throw new Error(`Timeout na parte ${i + 1}. Tente novamente mais tarde.`);
+                        }
+                        throw new Error(error.message || `Erro ao processar parte ${i + 1}`);
+                    }
+                    if (data?.error) {
+                        if (data.error.includes("abort") || data.error.includes("timeout")) {
+                             throw new Error(`Processamento demorou demais na parte ${i + 1}.`);
+                        }
+                        throw new Error(data.error);
+                    }
+
+                    if (i === 0) {
+                        finalTitle = data.title || "";
+                        finalDescription = data.description || "";
+                        finalKeywords = data.keywords || [];
+                        
+                        if (data.category_name) {
+                            const categoryNameLower = data.category_name.toLowerCase();
+                            const matchingCategory = categories.find(c => c.name.toLowerCase() === categoryNameLower);
+                            if (matchingCategory) finalCategoryId = matchingCategory.id;
+                        }
+
+                        if (data.partner_name && data.partner_name.trim() !== "") {
+                            const pNameStr = data.partner_name.toLowerCase();
+                            const matchingPartner = partners.find(p => p.name.toLowerCase().includes(pNameStr) || pNameStr.includes(p.name.toLowerCase()));
+                            if (matchingPartner) finalPartnerId = matchingPartner.id;
+                        }
+                    }
+
+                    if (chunks.length > 1 && data?.markdown) {
+                        finalMarkdown += `\n\n<!-- INÍCIO DA PARTE ${i + 1} -->\n\n`;
+                    }
+                    if (data?.markdown) {
+                        finalMarkdown += data.markdown;
+                    }
+                }
+
+                textDataRef.current = finalMarkdown;
+                if (contentRef.current) {
+                    contentRef.current.value = finalMarkdown;
+                }
+                
+                if (finalTitle && !title.trim()) {
+                    setTitle(finalTitle.substring(0, 150));
+                } else if (!title.trim()) {
+                    const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
+                    setTitle(baseName);
+                }
+
+                if (finalDescription && !description.trim()) {
+                    setDescription(finalDescription);
+                }
+                if (finalCategoryId && !categoryId) {
+                    setCategoryId(finalCategoryId);
+                }
+                if (finalPartnerId && !partnerId) {
+                    setPartnerId(finalPartnerId);
+                }
+                if (finalKeywords && finalKeywords.length > 0) {
+                    setKeywords(prev => Array.from(new Set([...prev, ...finalKeywords])));
+                }
+
+                setConvertProgress("");
+                toast.success("PDF analisado e dados preenchidos com sucesso!");
             } catch (err: any) {
                 console.error("Erro na conversão de PDF:", err);
                 toast.error(`Falha ao converter PDF: ${err.message}`);
+                setConvertProgress("");
             } finally {
                 setIsConverting(false);
                 if (e.target) e.target.value = "";
@@ -166,8 +226,10 @@ export default function KnowledgeDocumentDialog({
         const reader = new FileReader();
         reader.onload = (ev) => {
             const text = ev.target?.result as string;
-            setContent(text || "");
-            // Pre-fill title from filename if empty
+            textDataRef.current = text || "";
+            if (contentRef.current) {
+                contentRef.current.value = text || "";
+            }
             if (!title.trim()) {
                 const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
                 setTitle(baseName);
@@ -186,7 +248,8 @@ export default function KnowledgeDocumentDialog({
             setCategoryId(document.category_id || "");
             setPartnerId(document.partner_id);
             setKeywords(document.keywords || []);
-            setContent(markdownContent);
+            textDataRef.current = markdownContent;
+            if (contentRef.current) contentRef.current.value = markdownContent;
             setChangeSummary("");
         } else {
             setTitle("");
@@ -194,7 +257,8 @@ export default function KnowledgeDocumentDialog({
             setCategoryId("");
             setPartnerId(null);
             setKeywords([]);
-            setContent("");
+            textDataRef.current = "";
+            if (contentRef.current) contentRef.current.value = "";
             setChangeSummary("");
         }
     }, [document, markdownContent, open]);
@@ -219,14 +283,15 @@ export default function KnowledgeDocumentDialog({
     };
 
     const handleSubmit = () => {
-        if (!title.trim() || !content.trim()) return;
+        const currentContent = textDataRef.current;
+        if (!title.trim() || !currentContent.trim()) return;
         onSave({
             title: title.trim(),
             description: description.trim(),
             category_id: categoryId,
             partner_id: partnerId,
             keywords,
-            content,
+            content: currentContent,
             change_summary: changeSummary.trim(),
         });
     };
@@ -348,36 +413,47 @@ export default function KnowledgeDocumentDialog({
                                 />
                                 <Button
                                     type="button"
-                                    variant="ghost"
+                                    variant={isConverting ? "default" : "ghost"}
                                     size="sm"
+                                    className={isConverting ? "bg-sky-400 hover:bg-sky-500 text-white min-w-[300px]" : ""}
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={isConverting}
                                 >
                                     {isConverting ? (
-                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                     ) : (
                                         <Upload className="h-4 w-4 mr-1" />
                                     )}
-                                    {isConverting ? "Convertendo..." : "Importar arquivo"}
+                                    {isConverting ? convertProgress : "Importar arquivo"}
                                 </Button>
                                 <Button
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => setShowPreview(!showPreview)}
+                                    onClick={handleTogglePreview}
+                                    disabled={isRenderingPreview}
                                 >
+                                    {isRenderingPreview ? (
+                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : null}
                                     {showPreview ? "Editar" : "Preview"}
                                 </Button>
                             </div>
                         </div>
-                        {showPreview ? (
+                        {isRenderingPreview ? (
+                            <div className="flex flex-col items-center justify-center min-h-[300px] border rounded-md bg-muted/20">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                                <span className="text-sm text-muted-foreground">Processando e renderizando preview...</span>
+                            </div>
+                        ) : showPreview ? (
                             <div className="border rounded-md p-4 min-h-[300px] max-h-[400px] overflow-y-auto prose prose-sm dark:prose-invert max-w-none">
-                                <pre className="whitespace-pre-wrap text-sm font-mono">{content}</pre>
+                                <pre className="whitespace-pre-wrap text-sm font-mono">{previewContent}</pre>
                             </div>
                         ) : (
                             <Textarea
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
+                                ref={contentRef}
+                                defaultValue={textDataRef.current}
+                                onChange={(e) => { textDataRef.current = e.target.value; }}
                                 placeholder="Cole ou escreva o conteúdo em Markdown aqui..."
                                 className="min-h-[300px] font-mono text-sm"
                                 disabled={isConverting}
@@ -385,9 +461,9 @@ export default function KnowledgeDocumentDialog({
                         )}
                     </div>
 
-                    {/* Row 6: Test Knowledge Chat */}
+                    {/* Row 5: Test Knowledge Chat */}
                     <KnowledgeTestChat
-                        markdownContent={content}
+                        getMarkdownContent={() => textDataRef.current}
                         documentTitle={title || "Documento"}
                     />
 
@@ -411,7 +487,7 @@ export default function KnowledgeDocumentDialog({
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={!title.trim() || !content.trim() || isSaving || isConverting}
+                        disabled={!title.trim() || isSaving || isConverting}
                     >
                         {isSaving ? "Salvando..." : isEditing ? "Salvar Alterações" : "Criar Documento"}
                     </Button>

@@ -12,11 +12,11 @@ interface Message {
 }
 
 interface KnowledgeTestChatProps {
-    markdownContent: string;
+    getMarkdownContent: () => string;
     documentTitle: string;
 }
 
-export default function KnowledgeTestChat({ markdownContent, documentTitle }: KnowledgeTestChatProps) {
+export default function KnowledgeTestChat({ getMarkdownContent, documentTitle }: KnowledgeTestChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +31,7 @@ export default function KnowledgeTestChat({ markdownContent, documentTitle }: Kn
     const handleSend = async () => {
         const question = input.trim();
         if (!question || isLoading) return;
+        const markdownContent = getMarkdownContent();
         if (!markdownContent.trim()) return;
 
         setInput("");
@@ -87,11 +88,6 @@ export default function KnowledgeTestChat({ markdownContent, documentTitle }: Kn
                         <p className="text-sm">
                             Faça uma pergunta como se fosse um estudante para testar se a Cloudinha responde corretamente com base neste documento.
                         </p>
-                        {!markdownContent.trim() && (
-                            <p className="text-xs text-destructive mt-2">
-                                ⚠️ O conteúdo Markdown está vazio. Preencha o conteúdo primeiro.
-                            </p>
-                        )}
                     </div>
                 ) : (
                     <div className="space-y-3">
@@ -142,13 +138,13 @@ export default function KnowledgeTestChat({ markdownContent, documentTitle }: Kn
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ex: Quais os critérios para participar?"
-                    disabled={isLoading || !markdownContent.trim()}
+                    disabled={isLoading}
                     className="text-sm"
                 />
                 <Button
                     size="icon"
                     onClick={handleSend}
-                    disabled={isLoading || !input.trim() || !markdownContent.trim()}
+                    disabled={isLoading || !input.trim()}
                 >
                     <Send className="h-4 w-4" />
                 </Button>
