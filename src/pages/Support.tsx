@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
-import { PlusCircle, Search, Bug, Lightbulb, Ticket, AlertCircle, ChevronDown, CheckCircle2, Clock } from "lucide-react";
-import { useGetIssues, useUpdateIssueStatus } from "@/hooks/useGithubIssues";
+import { PlusCircle, Search, Bug, Lightbulb, Ticket, AlertCircle, ChevronDown, CheckCircle2, Clock, RefreshCcw, Trash2 } from "lucide-react";
+import { useGetIssues, useUpdateIssueStatus, useDeleteIssue } from "@/hooks/useGithubIssues";
 import { IssueModal } from "@/components/support/IssueModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,9 @@ const getRepoName = (url: string) => {
 export default function Support() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: issues, isLoading, isError, error } = useGetIssues();
+  const { data: issues, isLoading, isError, error, refetch, isRefetching } = useGetIssues();
   const { mutate: updateStatus, isPending: isUpdating } = useUpdateIssueStatus();
+  const { mutate: deleteIssue, isPending: isDeleting } = useDeleteIssue();
 
   const handleStatusChange = (issue: any, action: 'abrir' | 'aprovar' | 'concluir') => {
     updateStatus({
@@ -35,8 +36,21 @@ export default function Support() {
     });
   };
 
+  const handleDelete = (issue: any) => {
+    if (window.confirm("Tem certeza que deseja apagar (fechar) esta issue?")) {
+      deleteIssue({
+        issueNumber: issue.number,
+        repo: getRepoName(issue.repository_url)
+      });
+    }
+  };
+
   const filteredIssues = Array.isArray(issues) 
-    ? issues.filter((issue: any) => issue.title?.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? issues.filter((issue: any) => {
+        const matchesSearch = issue.title?.toLowerCase().includes(searchTerm.toLowerCase());
+        const isClosed = issue.state === 'closed';
+        return matchesSearch && !isClosed;
+      })
     : [];
 
   const errorMessage = isError ? (error as Error).message : (issues as any)?.error || (issues as any)?.message;
@@ -46,6 +60,10 @@ export default function Support() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Central de Bugs & Sugestões</h2>
         <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => refetch()} disabled={isLoading || isRefetching}>
+            <RefreshCcw className={`mr-2 h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
           <Button onClick={() => setIsModalOpen(true)}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Nova Issue
@@ -115,7 +133,7 @@ export default function Support() {
                   <div className="flex items-center gap-4">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 border-dashed" disabled={isUpdating}>
+                        <Button variant="outline" size="sm" className="h-8 border-dashed" disabled={isUpdating || isDeleting}>
                           <Badge className={`${statusColor} hover:${statusColor} mr-2`}>{statusName}</Badge>
                           Mudar <ChevronDown className="ml-1 h-3 w-3" />
                         </Button>
@@ -132,6 +150,16 @@ export default function Support() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
+                      onClick={() => handleDelete(issue)}
+                      disabled={isDeleting || isUpdating}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
 
                     <a
                       href={issue.html_url}
