@@ -13,6 +13,7 @@ import { LocationPreferenceChart } from "@/components/analytics/LocationPreferen
 import { TopUsersChart } from "@/components/analytics/TopUsersChart";
 import { LocationChart } from "@/components/analytics/LocationChart";
 import { useDashboardStats } from "@/hooks/useAnalyticsData";
+import { ActionCenter } from "@/components/action-center/ActionCenter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangeValue } from "@/components/analytics/DateRangeFilter";
 
@@ -90,6 +91,9 @@ const Index = () => {
             </>
           )}
         </section>
+
+        {/* Action Center */}
+        <ActionCenter />
 
         {/* Charts Row 1 */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
