@@ -44,6 +44,8 @@ interface FormState {
   status: OpportunityStatus;
   redirect_url: string;
   redirect_enabled: boolean;
+  starts_at: string;
+  ends_at: string;
 }
 
 const emptyForm: FormState = {
@@ -54,7 +56,29 @@ const emptyForm: FormState = {
   status: 'draft',
   redirect_url: '',
   redirect_enabled: false,
+  starts_at: '',
+  ends_at: '',
 };
+
+function getVigenciaBadge(starts_at: string | null, ends_at: string | null) {
+  if (!starts_at && !ends_at) return { label: 'Sem prazo', className: 'bg-gray-100 text-gray-600' };
+  const now = new Date();
+  if (ends_at) {
+    const end = new Date(ends_at);
+    if (end < now) return { label: 'Encerrado', className: 'bg-red-100 text-red-700' };
+    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 7) return { label: `Encerra em ${daysLeft}d`, className: 'bg-yellow-100 text-yellow-800' };
+  }
+  const start = starts_at ? new Date(starts_at) : null;
+  if (!start || start <= now) return { label: 'Aberto', className: 'bg-green-100 text-green-700' };
+  return { label: 'Futuro', className: 'bg-blue-100 text-blue-700' };
+}
+
+function formatDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export default function PartnerOpportunitiesPage() {
   const [page, setPage]           = useState(0);
@@ -134,6 +158,8 @@ export default function PartnerOpportunitiesPage() {
       status:           opp.status,
       redirect_url:     (opp.external_redirect_config as any)?.url ?? '',
       redirect_enabled: (opp.external_redirect_config as any)?.enabled ?? false,
+      starts_at:        opp.starts_at ? formatDatetimeLocal(opp.starts_at) : '',
+      ends_at:          opp.ends_at ? formatDatetimeLocal(opp.ends_at) : '',
     });
     setEditingId(opp.id);
     setDialogMode('edit');
@@ -155,6 +181,8 @@ export default function PartnerOpportunitiesPage() {
         enabled: formState.redirect_enabled,
         url: formState.redirect_url || undefined,
       },
+      starts_at: formState.starts_at ? new Date(formState.starts_at).toISOString() : null,
+      ends_at: formState.ends_at ? new Date(formState.ends_at).toISOString() : null,
     };
 
     if (dialogMode === 'create') {
@@ -216,6 +244,7 @@ export default function PartnerOpportunitiesPage() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Instituição</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Tipo</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Vigência</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Criado em</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-600">Ações</th>
               </tr>
@@ -223,7 +252,7 @@ export default function PartnerOpportunitiesPage() {
             <tbody className="divide-y divide-gray-100">
               {(data?.data ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                     Nenhuma oportunidade encontrada.
                   </td>
                 </tr>
@@ -243,6 +272,16 @@ export default function PartnerOpportunitiesPage() {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[opp.status]}`}>
                         {STATUS_LABELS[opp.status]}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const badge = getVigenciaBadge(opp.starts_at, opp.ends_at);
+                        return (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-gray-500">
                       {new Date(opp.created_at).toLocaleDateString('pt-BR')}
@@ -379,6 +418,28 @@ export default function PartnerOpportunitiesPage() {
                   <option value="bootcamp">Bootcamp</option>
                   <option value="mentoria">Mentoria</option>
                 </select>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Início das Inscrições</label>
+                  <input
+                    type="datetime-local"
+                    value={formState.starts_at}
+                    onChange={(e) => setFormState(prev => ({ ...prev, starts_at: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Fim das Inscrições</label>
+                  <input
+                    type="datetime-local"
+                    value={formState.ends_at}
+                    onChange={(e) => setFormState(prev => ({ ...prev, ends_at: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
               {/* External Redirect */}

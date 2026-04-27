@@ -28,6 +28,7 @@ interface DateModalProps {
         start_date: string;
         end_date?: string;
         type: string;
+        controls_opportunity_dates?: boolean;
     }) => Promise<void>;
 }
 
@@ -37,6 +38,7 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [type, setType] = useState<string>("general");
+    const [controlsOpportunityDates, setControlsOpportunityDates] = useState(false);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -47,12 +49,14 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
             setStartDate(formatForInput(date.start_date));
             setEndDate(date.end_date ? formatForInput(date.end_date) : "");
             setType(date.type);
+            setControlsOpportunityDates(date.controls_opportunity_dates ?? false);
         } else {
             setTitle("");
             setDescription("");
             setStartDate("");
             setEndDate("");
             setType("general");
+            setControlsOpportunityDates(false);
         }
     }, [date, open]);
 
@@ -78,6 +82,7 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
                 start_date: new Date(startDate).toISOString(),
                 end_date: endDate ? new Date(endDate).toISOString() : undefined,
                 type,
+                controls_opportunity_dates: (type === "sisu" || type === "prouni") ? controlsOpportunityDates : false,
             });
             onOpenChange(false);
         } catch {
@@ -157,6 +162,27 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {(type === "sisu" || type === "prouni") && (
+                        <div className="flex items-start gap-3 rounded-lg border p-4 bg-blue-50/50">
+                            <input
+                                type="checkbox"
+                                id="controls_opportunity_dates"
+                                checked={controlsOpportunityDates}
+                                onChange={(e) => setControlsOpportunityDates(e.target.checked)}
+                                className="mt-0.5 rounded"
+                            />
+                            <div>
+                                <Label htmlFor="controls_opportunity_dates" className="cursor-pointer font-medium">
+                                    Controla datas de oportunidades
+                                </Label>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Quando marcado, as datas de inicio/fim desta entrada serao usadas como
+                                    periodo de inscricao das oportunidades MEC do tipo selecionado.
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     <DialogFooter className="pt-4">
                         <Button
