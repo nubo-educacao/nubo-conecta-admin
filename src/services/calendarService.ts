@@ -7,6 +7,7 @@ export interface ImportantDate {
     start_date: string;
     end_date: string | null;
     type: string;
+    controls_opportunity_dates: boolean;
     created_at: string | null;
 }
 
@@ -46,6 +47,7 @@ export async function createImportantDate(date: {
     start_date: string;
     end_date?: string;
     type: string;
+    controls_opportunity_dates?: boolean;
 }): Promise<ImportantDate> {
     const { data, error } = await (supabase.rpc as any)("manage_important_date", {
         p_title: date.title,
@@ -53,6 +55,7 @@ export async function createImportantDate(date: {
         p_start_date: date.start_date,
         p_end_date: date.end_date || null,
         p_type: date.type,
+        p_controls_opportunity_dates: date.controls_opportunity_dates ?? false,
     });
 
     if (error) {
@@ -71,6 +74,7 @@ export async function updateImportantDate(
         start_date?: string;
         end_date?: string;
         type?: string;
+        controls_opportunity_dates?: boolean;
     }
 ): Promise<ImportantDate> {
     const { data, error } = await (supabase.rpc as any)("manage_important_date", {
@@ -80,6 +84,7 @@ export async function updateImportantDate(
         p_start_date: date.start_date,
         p_end_date: date.end_date,
         p_type: date.type,
+        p_controls_opportunity_dates: date.controls_opportunity_dates,
     });
 
     if (error) {

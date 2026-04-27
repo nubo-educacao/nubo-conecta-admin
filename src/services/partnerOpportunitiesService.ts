@@ -19,6 +19,8 @@ export interface PartnerOpportunity {
     enabled?: boolean;
     url?: string;
   };
+  starts_at: string | null;
+  ends_at: string | null;
   status: OpportunityStatus;
   created_at: string;
 }
@@ -103,6 +105,8 @@ export interface CreatePartnerOpportunityInput {
   opportunity_type:        PartnerOpportunityType;
   eligibility_criteria?:   Record<string, unknown>;
   external_redirect_config?: { enabled?: boolean; url?: string };
+  starts_at?: string | null;
+  ends_at?: string | null;
 }
 
 export async function createPartnerOpportunity(
