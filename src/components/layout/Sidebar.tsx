@@ -27,12 +27,12 @@ import {
   Activity,
   Sliders,
   Bug,
+  Map,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { IssueModal } from "@/components/support/IssueModal";
 
 interface NavItemProps {
   to: string;
@@ -76,7 +76,6 @@ type NavEntry = NavGroup | NavSingle;
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     "Visão Geral": true,
     "Inteligência": false,
@@ -161,6 +160,7 @@ export default function Sidebar() {
     // ── Configurações ──────────────────────────────────────────────────────────
     { to: "/users", icon: UserCog, label: "Usuários", permission: "Controle de usuários" },
     { to: "/support", icon: Bug, label: "Suporte e Bugs", permission: "Dashboard" },
+    { to: "/roadmap", icon: Map, label: "Roadmap", permission: "Dashboard" },
   ];
 
   const toggleGroup = (label: string) => {
@@ -266,7 +266,6 @@ export default function Sidebar() {
           {!collapsed && <span className="text-sm">Sair</span>}
         </Button>
       </div>
-      <IssueModal isOpen={isIssueModalOpen} onClose={() => setIsIssueModalOpen(false)} />
     </div>
   );
 }

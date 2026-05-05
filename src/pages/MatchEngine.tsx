@@ -2,6 +2,7 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MatchWeightsEditor from "@/components/match/MatchWeightsEditor";
 import MatchSimulator from "@/components/match/MatchSimulator";
+import ShadowTestPanel from "@/components/match/ShadowTestPanel";
 
 export default function MatchEngine() {
   return (
@@ -19,6 +20,7 @@ export default function MatchEngine() {
         <TabsList className="bg-muted/50 border">
           <TabsTrigger value="calibration">Calibração (Pesos)</TabsTrigger>
           <TabsTrigger value="simulator">Simulador Tático</TabsTrigger>
+          <TabsTrigger value="shadow">Shadow Testing</TabsTrigger>
         </TabsList>
         
         <TabsContent value="calibration" className="space-y-4">
@@ -28,7 +30,12 @@ export default function MatchEngine() {
         <TabsContent value="simulator" className="space-y-4">
           <MatchSimulator />
         </TabsContent>
+
+        <TabsContent value="shadow" className="space-y-4">
+          <ShadowTestPanel />
+        </TabsContent>
       </Tabs>
     </div>
   );
 }
+
