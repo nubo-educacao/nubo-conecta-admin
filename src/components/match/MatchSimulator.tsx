@@ -18,7 +18,10 @@ export default function MatchSimulator() {
     family_income_per_capita: 1200,
     course_interest: ["Medicina", "Engenharia"],
     quota_types: ["L1", "L2"],
-    state_preference: "SP"
+    state_preference: "SP",
+    preferred_shifts: [],
+    university_preference: null,
+    program_preference: null
   });
 
   const handleSimulate = async () => {
