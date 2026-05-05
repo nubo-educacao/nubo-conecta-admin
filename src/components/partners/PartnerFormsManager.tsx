@@ -953,7 +953,7 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
             const existingNames = new Set((destFields || []).map(f => f.field_name.toLowerCase()));
             
             const newFields = sourceFields.map((f, idx) => {
-                let baseName = f.field_name;
+                const baseName = f.field_name;
                 let finalName = baseName;
                 
                 if (existingNames.has(finalName.toLowerCase())) {

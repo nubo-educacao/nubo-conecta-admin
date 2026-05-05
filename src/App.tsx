@@ -45,6 +45,7 @@ import SeanEllis from "./pages/SeanEllis";
 // Pages — Configurações
 import Users from "./pages/Users";
 import Support from "./pages/Support";
+import Roadmap from "./pages/Roadmap";
 
 // Pages — Partner Portal Sandbox
 import PartnerPortalForms from "./pages/PartnerPortalForms";
@@ -102,6 +103,7 @@ const App = () => (
               {/* Configurações */}
               <Route path="/users" element={<Users />} />
               <Route path="/support" element={<Support />} />
+              <Route path="/roadmap" element={<Roadmap />} />
             </Route>
 
             {/* Partner Portal Sandbox */}

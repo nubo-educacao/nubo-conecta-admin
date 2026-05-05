@@ -130,9 +130,10 @@ export default function MatchSimulator() {
                         </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground font-mono">
-                        base: {res.match_details.base_score} | 
-                        enem_comp: {res.match_details.enem_component.toFixed(1)} |
-                        boosted: {res.match_details.partner_boosted}
+                        base: {res.match_details.base_score} |
+                        acad: {res.match_details.academic_score} |
+                        {res.match_details.boost_applied ? " boost:✓" : ""}
+                        {!res.match_details.meets_income ? " renda:✗" : ""}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" className="hidden opacity-50 cursor-not-allowed">
