@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchSupportCards, updateCardStatus, deleteCard, type SnapsCard } from "@/services/snapsApiService";
+import { fetchSupportCards, fetchSingleCard, updateCardStatus, deleteCard, type SnapsCard } from "@/services/snapsApiService";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, Bug, Lightbulb, Loader2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertCircle, Bug, Lightbulb, Loader2, Trash2, ChevronLeft, ChevronRight, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -97,7 +97,7 @@ function CardDetailModal({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
-        <DialogHeader>
+        <DialogHeader className="pr-6">
           <div className="flex items-center gap-2 mb-1">
             {isBug
               ? <Bug className="h-5 w-5 text-red-500" />
@@ -106,6 +106,25 @@ function CardDetailModal({
             <span className="text-xs text-muted-foreground uppercase tracking-wide">
               {isBug ? "Bug Report" : "Feature Request"}
             </span>
+            {card.code && (
+              <Badge variant="secondary" className="text-[10px] ml-1 px-1 py-0 h-4">
+                {card.code}
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 ml-2 text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set("card", card.id);
+                navigator.clipboard.writeText(url.toString());
+                toast({ title: "Link copiado", description: "O link para este card foi copiado." });
+              }}
+              title="Copiar link do card"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
           </div>
           <DialogTitle className="text-base leading-snug">{card.title}</DialogTitle>
           <div className="flex gap-2 mt-2 flex-wrap">
@@ -174,6 +193,25 @@ function CardDetailModal({
 export function SupportBoard() {
   const [selected, setSelected] = useState<SnapsCard | null>(null);
 
+  // Deep-link: read ?card=ID from URL and auto-open modal
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cardId = params.get("card");
+    if (cardId && !selected) {
+      fetchSingleCard(cardId)
+        .then((card) => setSelected(card))
+        .catch((err) => console.warn("[SupportBoard] deep-link card not found:", err));
+    }
+  }, []);
+
+  const handleClose = () => {
+    setSelected(null);
+    // Clean query param from URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.delete("card");
+    window.history.replaceState({}, "", url.toString());
+  };
+
   return (
     <div className="space-y-12 pb-10">
       <section>
@@ -204,7 +242,7 @@ export function SupportBoard() {
         <CardDetailModal
           card={selected}
           open={!!selected}
-          onClose={() => setSelected(null)}
+          onClose={handleClose}
         />
       )}
     </div>
@@ -276,7 +314,14 @@ function SupportSection({ status, excludeStatus, onSelect, queryKey }: SupportSe
                   {isBug ? <Bug className="h-4 w-4" /> : <Lightbulb className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{card.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{card.title}</p>
+                    {card.code && (
+                      <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 shrink-0">
+                        {card.code}
+                      </Badge>
+                    )}
+                  </div>
                   {card.created_at && (
                     <p className="text-xs text-muted-foreground">
                       Criado em {format(new Date(card.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
