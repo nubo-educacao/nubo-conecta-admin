@@ -56,6 +56,7 @@ export interface CreateCardResponse {
 
 export interface SnapsCard {
   id: string;
+  code?: string;
   title: string;
   status: string;
   card_type: string;
@@ -120,6 +121,16 @@ export async function fetchSupportCards(
     throw new Error(`snapsApiService.fetchSupportCards: HTTP ${response.status}`);
   }
   return response.json() as Promise<PaginatedCards>;
+}
+
+export async function fetchSingleCard(cardId: string): Promise<SnapsCard> {
+  const url = `${SNAPS_BASE_URL}/public/projects/${SNAPS_PROJECT_ID}/support/cards/${cardId}`;
+  console.log('[snapsApiService] fetchSingleCard →', url);
+  const response = await fetch(url, { headers: headers() });
+  if (!response.ok) {
+    throw new Error(`snapsApiService.fetchSingleCard: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<SnapsCard>;
 }
 
 export async function updateCardStatus(cardId: string, status: string): Promise<SnapsCard> {
