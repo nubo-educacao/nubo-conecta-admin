@@ -83,10 +83,19 @@ export async function createCard(
   payload: CreateCardRequest,
 ): Promise<CreateCardResponse> {
   const url = `${SNAPS_BASE_URL}/public/projects/${SNAPS_PROJECT_ID}/cards`;
+  
+  // Map 'metadata' to 'card_metadata' as expected by Snaps API
+  const apiPayload = {
+    title: payload.title,
+    description: payload.description,
+    card_type: payload.card_type,
+    card_metadata: payload.metadata
+  };
+
   const response = await fetch(url, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(apiPayload),
   });
   if (!response.ok) {
     throw new Error(`snapsApiService.createCard: HTTP ${response.status}`);
