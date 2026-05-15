@@ -6,7 +6,13 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export type ImportType = 'institutions' | 'campus' | 'courses';
+export type ImportType =
+  | 'institutions'
+  | 'campus'
+  | 'courses'
+  | 'sisu_vacancies'
+  | 'sisu_approvals'
+  | 'prouni_vacancies';
 
 interface GenerateUploadUrlResult {
   signedUrl: string;
@@ -38,6 +44,39 @@ export async function generateUploadUrl(filename: string): Promise<GenerateUploa
   }
 
   return { signedUrl: data.signedUrl, path: data.path };
+}
+
+const ETL_FUNCTION_MAP: Partial<Record<ImportType, string>> = {
+  prouni_vacancies: 'import-prouni-vacancies',
+  sisu_approvals:   'import-sisu-approvals',
+  sisu_vacancies:   'import-sisu-vacancies',
+};
+
+/**
+ * Triggers an ETL Edge Function for data-layer normalization (no CSV upload required).
+ * Used for prouni_vacancies, sisu_approvals, sisu_vacancies.
+ * @param importType - ETL type
+ * @param params     - Optional params (e.g. { year: 2026 } for sisu_approvals)
+ */
+export async function triggerEtl(
+  importType: 'prouni_vacancies' | 'sisu_approvals' | 'sisu_vacancies',
+  params?: Record<string, unknown>,
+): Promise<TriggerImportResult> {
+  const fnName = ETL_FUNCTION_MAP[importType];
+  if (!fnName) throw new Error(`No ETL function mapped for: ${importType}`);
+
+  const { data, error } = await supabase.functions.invoke(fnName, {
+    body: params ?? {},
+  });
+
+  if (error) {
+    throw new Error(`triggerEtl failed [${importType}]: ${error.message}`);
+  }
+
+  return {
+    processed: data?.processed ?? 0,
+    errors:    data?.errors    ?? [],
+  };
 }
 
 /**

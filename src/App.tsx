@@ -27,6 +27,7 @@ import Institutions from "./pages/educational-data/Institutions";
 import Campus from "./pages/educational-data/Campus";
 import Courses from "./pages/educational-data/Courses";
 import Opportunities from "./pages/educational-data/Opportunities";
+import DataPipeline from "./pages/educational-data/DataPipeline";
 
 // Pages — Parceiros & B2B
 import Partners from "./pages/Partners";
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="/educational/campus" element={<Campus />} />
               <Route path="/educational/courses" element={<Courses />} />
               <Route path="/educational/opportunities" element={<Opportunities />} />
+              <Route path="/educational/data-pipeline" element={<DataPipeline />} />
               <Route path="/calendar" element={<Calendar />} />
 
               {/* Parceiros & B2B */}
