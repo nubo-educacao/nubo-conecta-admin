@@ -44,7 +44,7 @@ describe("AgentTelemetry", () => {
   it("renderiza título e KPI cards", () => {
     renderPage();
 
-    expect(screen.getByText("Telemetria Multi-Agente")).toBeInTheDocument();
+    expect(screen.getByText("Telemetria ReAct")).toBeInTheDocument();
     // "Latência Média" aparece no KPI card e no header da tabela de tools
     expect(screen.getAllByText("Latência Média").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Turnos (24h)")).toBeInTheDocument();

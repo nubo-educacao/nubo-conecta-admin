@@ -18,29 +18,7 @@ interface TurnDrillDownProps {
 export default function TurnDrillDown({ turn, open, onOpenChange }: TurnDrillDownProps) {
   if (!turn) return null;
 
-  const sections = [
-    {
-      label: "Planning Output",
-      content: turn.planning_output,
-      latency: turn.planning_latency_ms,
-      color: "text-violet-600",
-      bgColor: "bg-violet-50 border-violet-200",
-    },
-    {
-      label: "Reasoning Report",
-      content: turn.reasoning_output ?? turn.reasoning_report,
-      latency: turn.reasoning_latency_ms,
-      color: "text-amber-600",
-      bgColor: "bg-amber-50 border-amber-200",
-    },
-    {
-      label: "Response Output",
-      content: turn.response_output,
-      latency: turn.response_latency_ms,
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-50 border-emerald-200",
-    },
-  ];
+  const steps = turn.steps ?? [];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -48,7 +26,7 @@ export default function TurnDrillDown({ turn, open, onOpenChange }: TurnDrillDow
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Cpu className="h-5 w-5" />
-            Turno Cognitivo
+            Turno Cognitivo (ReAct)
           </SheetTitle>
           <SheetDescription>
             {new Date(turn.created_at).toLocaleString("pt-BR")} · Sessão{" "}
@@ -80,6 +58,18 @@ export default function TurnDrillDown({ turn, open, onOpenChange }: TurnDrillDow
             </div>
           </div>
 
+          {/* Model & Tools Latency Breakdown */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border bg-card p-2 text-center text-xs">
+              <p className="font-semibold">{turn.model_latency_ms ?? "—"} ms</p>
+              <p className="text-[10px] text-muted-foreground">Latência Model (LLM)</p>
+            </div>
+            <div className="rounded-lg border bg-card p-2 text-center text-xs">
+              <p className="font-semibold">{turn.tools_latency_ms ?? "—"} ms</p>
+              <p className="text-[10px] text-muted-foreground">Latência Tools</p>
+            </div>
+          </div>
+
           {/* Intent Badge */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Categoria:</span>
@@ -101,24 +91,43 @@ export default function TurnDrillDown({ turn, open, onOpenChange }: TurnDrillDow
             </div>
           )}
 
-          {/* Phase Outputs */}
-          {sections.map((section) => (
-            <div key={section.label}>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className={`text-sm font-semibold ${section.color}`}>{section.label}</p>
-                {section.latency != null && (
-                  <span className="text-xs text-muted-foreground">{section.latency}ms</span>
-                )}
-              </div>
-              <div
-                className={`rounded-lg border p-3 text-sm font-mono whitespace-pre-wrap max-h-60 overflow-y-auto ${section.bgColor}`}
-              >
-                {section.content || (
-                  <span className="text-muted-foreground italic">Sem dados</span>
-                )}
-              </div>
-            </div>
-          ))}
+          {/* ReAct Steps */}
+          <div className="space-y-4 pt-2 border-t">
+            <p className="text-sm font-semibold">Execução do Loop ReAct:</p>
+            {steps.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Nenhum step intermediário registrado.</p>
+            ) : (
+              steps.map((step, i) => (
+                <div key={i} className="space-y-2 border-l-2 border-primary/20 pl-3">
+                  <h4 className="text-xs font-semibold text-slate-700">Step {i + 1}</h4>
+                  {step.thought && (
+                    <div className="bg-violet-50/50 rounded p-2.5 border border-violet-100">
+                      <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider">Thought</span>
+                      <pre className="text-xs font-mono whitespace-pre-wrap mt-1 text-slate-700">{step.thought}</pre>
+                    </div>
+                  )}
+                  {step.action && (
+                    <div className="bg-amber-50/50 rounded p-2.5 border border-amber-100">
+                      <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Action: {step.action.tool}</span>
+                      <pre className="text-xs font-mono whitespace-pre-wrap mt-1 text-slate-700">{JSON.stringify(step.action.args, null, 2)}</pre>
+                    </div>
+                  )}
+                  {step.observation && (
+                    <div className="bg-emerald-50/50 rounded p-2.5 border border-emerald-100">
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Observation</span>
+                      <pre className="text-xs font-mono whitespace-pre-wrap mt-1 text-slate-700 max-h-48 overflow-y-auto">{step.observation}</pre>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Final Agent Response */}
+          <div className="bg-blue-50/50 rounded p-3 border border-blue-100 mt-4">
+            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Agent Output (Resposta Final)</span>
+            <pre className="text-xs font-mono whitespace-pre-wrap mt-1 text-slate-700">{turn.agent_output ?? "Sem dados"}</pre>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
