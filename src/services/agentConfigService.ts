@@ -16,6 +16,8 @@ export interface AgentPrompt {
   temperature: number | null;
   is_active: boolean | null;
   updated_at: string | null;
+  model: string | null;        // NOVO
+  max_steps: number | null;    // NOVO
 }
 
 export const getCloudinhaStarters = async (): Promise<CloudinhaStarter[]> => {
@@ -69,6 +71,7 @@ export const getAgentPrompts = async (): Promise<AgentPrompt[]> => {
   const { data, error } = await supabase
     .from("agent_prompts")
     .select("*")
+    .eq("is_active", true)      // NOVO: exclui legados
     .order("agent_key", { ascending: true });
 
   if (error) {

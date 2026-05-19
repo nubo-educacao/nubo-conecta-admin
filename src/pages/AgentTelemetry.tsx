@@ -50,11 +50,34 @@ import {
 
 // ─── Cores da paleta para gráficos ──────────────────────────────────────────
 const COLORS = {
-  planning: "#8b5cf6",
-  reasoning: "#f59e0b",
-  response: "#10b981",
+  model: "#8b5cf6",
+  tools: "#f59e0b",
   input: "#38bdf8",
   output: "#0369a1",
+};
+
+export const REACT_ERROR_TYPES = [
+  "react_loop_error",
+  "max_steps_exceeded",
+  "tool_timeout",
+  "tool_error",
+  "tool_empty_result",
+] as const;
+
+const ERROR_TYPE_LABELS: Record<string, string> = {
+  react_loop_error: "Erro no Loop ReAct",
+  max_steps_exceeded: "Limite de Steps Excedido",
+  tool_timeout: "Timeout de Ferramenta",
+  tool_error: "Erro de Ferramenta",
+  tool_empty_result: "Resultado Vazio",
+};
+
+const ERROR_TYPE_COLORS: Record<string, string> = {
+  react_loop_error: "bg-red-100 text-red-800 border-red-200",
+  max_steps_exceeded: "bg-orange-100 text-orange-800 border-orange-200",
+  tool_timeout: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  tool_error: "bg-red-100 text-red-800 border-red-200",
+  tool_empty_result: "bg-slate-100 text-slate-800 border-slate-200",
 };
 
 // ─── Configuração de tipos de erro ──────────────────────────────────────────
@@ -94,6 +117,7 @@ export default function AgentTelemetry() {
   const [drillDownOpen, setDrillDownOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [selectedErrorType, setSelectedErrorType] = useState<string>("all");
 
   const handleTurnClick = (turn: AgentTurnRow) => {
     setSelectedTurn(turn);
@@ -115,6 +139,7 @@ export default function AgentTelemetry() {
     if (filterType !== "all" && err.type !== filterType) return false;
     if (filterStatus === "resolved" && !err.resolved) return false;
     if (filterStatus === "unresolved" && err.resolved) return false;
+    if (selectedErrorType !== "all" && err.error_type !== selectedErrorType) return false;
     return true;
   });
 
@@ -123,9 +148,9 @@ export default function AgentTelemetry() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Telemetria Multi-Agente</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Telemetria ReAct</h2>
           <p className="text-muted-foreground">
-            Observabilidade da pipeline Planning → Reasoning → Response
+            Observabilidade do loop ReAct (Model + Tools)
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefetching}>
@@ -182,9 +207,9 @@ export default function AgentTelemetry() {
         <TabsContent value="metrics" className="space-y-6">
           {/* Gráficos lado-a-lado */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Latência por Fase */}
+            {/* Latência por Componente */}
             <div className="rounded-lg border bg-card p-4">
-              <h3 className="text-sm font-semibold mb-4">Latência por Fase (ms)</h3>
+              <h3 className="text-sm font-semibold mb-4">Latência por Componente (ms)</h3>
               {latencyData.isLoading ? (
                 <Skeleton className="h-64" />
               ) : (
@@ -197,28 +222,19 @@ export default function AgentTelemetry() {
                     <Legend />
                     <Area
                       type="monotone"
-                      dataKey="planning"
-                      name="planning"
-                      stroke={COLORS.planning}
-                      fill={COLORS.planning}
+                      dataKey="model"
+                      name="Model"
+                      stroke={COLORS.model}
+                      fill={COLORS.model}
                       fillOpacity={0.3}
                       stackId="1"
                     />
                     <Area
                       type="monotone"
-                      dataKey="reasoning"
-                      name="reasoning"
-                      stroke={COLORS.reasoning}
-                      fill={COLORS.reasoning}
-                      fillOpacity={0.3}
-                      stackId="1"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="response"
-                      name="response"
-                      stroke={COLORS.response}
-                      fill={COLORS.response}
+                      dataKey="tools"
+                      name="Tools"
+                      stroke={COLORS.tools}
+                      fill={COLORS.tools}
                       fillOpacity={0.3}
                       stackId="1"
                     />
@@ -411,13 +427,28 @@ export default function AgentTelemetry() {
               </SelectContent>
             </Select>
 
-            {(filterType !== "all" || filterStatus !== "all") && (
+            <Select value={selectedErrorType} onValueChange={setSelectedErrorType}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Tipo de Erro" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os erros (ReAct)</SelectItem>
+                {REACT_ERROR_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {ERROR_TYPE_LABELS[t] || t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(filterType !== "all" || filterStatus !== "all" || selectedErrorType !== "all") && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
                   setFilterType("all");
                   setFilterStatus("all");
+                  setSelectedErrorType("all");
                 }}
               >
                 Limpar filtros
@@ -535,8 +566,11 @@ export default function AgentTelemetry() {
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
                               Tipo de Erro
                             </p>
-                            <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                              {errorItem.error_type}
+                            <p className={cn(
+                              "text-sm font-mono px-2 py-1 rounded border",
+                              ERROR_TYPE_COLORS[errorItem.error_type] || "bg-muted text-foreground"
+                            )}>
+                              {ERROR_TYPE_LABELS[errorItem.error_type] || errorItem.error_type}
                             </p>
                           </div>
                           <div>

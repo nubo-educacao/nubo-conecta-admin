@@ -174,7 +174,7 @@ O plano não especificou isolamento de estado por step e por profileId como crit
 - Wave 2: Programs Object (SiSU/ProUni como entidade gerenciável)
 - Wave 3: Action Center + botão Candidatar dinâmico
 $RETRO$,
-    'completed',
+    'active',
     jsonb_build_object(
       'type', 'walkthrough',
       'subtype', 'retrospective',
