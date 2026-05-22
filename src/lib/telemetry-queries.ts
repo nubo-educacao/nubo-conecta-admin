@@ -6,21 +6,24 @@ export interface AgentTurnRow {
   id: string;
   user_id: string;
   session_id: string;
-  planning_latency_ms: number | null;
-  reasoning_latency_ms: number | null;
-  response_latency_ms: number | null;
   total_latency_ms: number | null;
+  model_latency_ms: number | null;       // NOVO
+  tools_latency_ms: number | null;       // NOVO
   input_tokens: number | null;
   output_tokens: number | null;
   tools_used: Array<{ name: string; args: Record<string, unknown> }> | null;
   intent_category: string | null;
-  reasoning_report: string | null;
   action: string | null;
-  planning_output: string | null;
-  reasoning_output: string | null;
-  response_output: string | null;
+  steps: ReActStep[] | null;             // NOVO
+  agent_output: string | null;           // NOVO
   estimated_cost_usd: number | null;
   created_at: string;
+}
+
+export interface ReActStep {
+  thought: string;
+  action?: { tool: string; args: Record<string, unknown> };
+  observation?: string;
 }
 
 export interface TelemetryKPIs {
@@ -32,9 +35,8 @@ export interface TelemetryKPIs {
 
 export interface LatencyByHour {
   hour: string; // "HH:00"
-  planning: number;
-  reasoning: number;
-  response: number;
+  model: number;
+  tools: number;
 }
 
 export interface TokensByDay {
@@ -93,30 +95,28 @@ export async function fetchLatencyByHour(): Promise<LatencyByHour[]> {
 
   const { data, error } = await supabase
     .from("agent_turns")
-    .select("created_at, planning_latency_ms, reasoning_latency_ms, response_latency_ms")
+    .select("created_at, model_latency_ms, tools_latency_ms")
     .gte("created_at", since)
     .order("created_at", { ascending: true });
 
   if (error) throw error;
 
   // Agrupar por hora
-  const buckets: Record<string, { planning: number[]; reasoning: number[]; response: number[] }> =
+  const buckets: Record<string, { model: number[]; tools: number[] }> =
     {};
   for (const row of data ?? []) {
     const hour = new Date(row.created_at)
       .toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit" })
       .replace(/:\d{2}$/, ":00");
-    if (!buckets[hour]) buckets[hour] = { planning: [], reasoning: [], response: [] };
-    if (row.planning_latency_ms != null) buckets[hour].planning.push(row.planning_latency_ms);
-    if (row.reasoning_latency_ms != null) buckets[hour].reasoning.push(row.reasoning_latency_ms);
-    if (row.response_latency_ms != null) buckets[hour].response.push(row.response_latency_ms);
+    if (!buckets[hour]) buckets[hour] = { model: [], tools: [] };
+    if (row.model_latency_ms != null) buckets[hour].model.push(row.model_latency_ms);
+    if (row.tools_latency_ms != null) buckets[hour].tools.push(row.tools_latency_ms);
   }
 
   return Object.entries(buckets).map(([hour, vals]) => ({
     hour,
-    planning: avg(vals.planning),
-    reasoning: avg(vals.reasoning),
-    response: avg(vals.response),
+    model: avg(vals.model),
+    tools: avg(vals.tools),
   }));
 }
 
@@ -163,7 +163,7 @@ export async function fetchToolStats(): Promise<ToolStats[]> {
 
   const { data, error } = await supabase
     .from("agent_turns")
-    .select("tools_used, reasoning_latency_ms")
+    .select("tools_used, tools_latency_ms")
     .gte("created_at", since)
     .not("tools_used", "is", null);
 
@@ -176,9 +176,9 @@ export async function fetchToolStats(): Promise<ToolStats[]> {
     for (const t of tools) {
       if (!toolMap[t.name]) toolMap[t.name] = { calls: 0, latencies: [] };
       toolMap[t.name].calls += 1;
-      if (row.reasoning_latency_ms != null) {
+      if (row.tools_latency_ms != null) {
         // Aproximação: distribui latência total do reasoning igualmente entre tools
-        toolMap[t.name].latencies.push(row.reasoning_latency_ms / tools.length);
+        toolMap[t.name].latencies.push(row.tools_latency_ms / tools.length);
       }
     }
   }

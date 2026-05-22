@@ -114,6 +114,50 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 4. Program deadlines (incoming starting in 3 days, opened ending in past)
+  const { data: programs } = await supabase
+    .from('programs')
+    .select('id, title, type, status, starts_at, ends_at');
+
+  for (const prog of programs ?? []) {
+    if (prog.status === 'incoming' && prog.starts_at) {
+      const startDate = new Date(prog.starts_at);
+      const daysUntilStart = Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysUntilStart > 0 && daysUntilStart <= 3) {
+        alerts.push({
+          alert_type: 'program_start_incoming',
+          severity: 'info',
+          title: `Deseja abrir o programa ${prog.title}?`,
+          description: `As inscrições para o programa ${prog.title} abrem em ${startDate.toLocaleDateString('pt-BR')}.`,
+          entity_type: 'program',
+          entity_id: prog.id,
+          action_label: 'Confirmar',
+          action_type: 'update_program_status',
+          action_metadata: { status: 'opened' },
+        });
+      }
+    }
+
+    if (prog.status === 'opened' && prog.ends_at) {
+      const endDate = new Date(prog.ends_at);
+      
+      if (endDate < now) {
+        alerts.push({
+          alert_type: 'program_end_opened',
+          severity: 'warning',
+          title: `Programa ${prog.title} expirou`,
+          description: `As inscrições para o programa ${prog.title} encerraram em ${endDate.toLocaleDateString('pt-BR')}. Deseja alterar o status para encerrado?`,
+          entity_type: 'program',
+          entity_id: prog.id,
+          action_label: 'Confirmar',
+          action_type: 'update_program_status',
+          action_metadata: { status: 'closed' },
+        });
+      }
+    }
+  }
+
   // Deduplicacao: verificar alertas pending existentes
   let inserted = 0;
   for (const alert of alerts) {
@@ -137,6 +181,7 @@ Deno.serve(async (req) => {
       checked: {
         expiring_opportunities: expiringOpps?.length ?? 0,
         mec_dates: mecDates?.length ?? 0,
+        programs: programs?.length ?? 0,
       },
       alerts_generated: alerts.length,
       alerts_inserted: inserted,

@@ -17,6 +17,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { ImportantDate, DATE_TYPE_LABELS, DateType } from "@/services/calendarService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DateModalProps {
     open: boolean;
@@ -29,6 +30,8 @@ interface DateModalProps {
         end_date?: string;
         type: string;
         controls_opportunity_dates?: boolean;
+        partner_id?: string | null;
+        opportunity_id?: string | null;
     }) => Promise<void>;
 }
 
@@ -39,7 +42,31 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
     const [endDate, setEndDate] = useState("");
     const [type, setType] = useState<string>("general");
     const [controlsOpportunityDates, setControlsOpportunityDates] = useState(false);
+    const [partnerId, setPartnerId] = useState<string>("");
+    const [opportunityId, setOpportunityId] = useState<string>("");
     const [loading, setLoading] = useState(false);
+
+    const [partners, setPartners] = useState<any[]>([]);
+    const [opportunities, setOpportunities] = useState<any[]>([]);
+
+    // Fetch partners
+    useEffect(() => {
+        if (type === "partners") {
+            supabase.from("institutions").select("id, name").eq("is_partner", true).order("name")
+                .then(({ data }) => setPartners(data || []));
+        }
+    }, [type]);
+
+    // Fetch opportunities when partner changes
+    useEffect(() => {
+        if (partnerId) {
+            supabase.from("partner_opportunities").select("id, name").eq("institution_id", partnerId).order("name")
+                .then(({ data }) => setOpportunities(data || []));
+        } else {
+            setOpportunities([]);
+            setOpportunityId("");
+        }
+    }, [partnerId]);
 
     useEffect(() => {
         if (date) {
@@ -50,6 +77,8 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
             setEndDate(date.end_date ? formatForInput(date.end_date) : "");
             setType(date.type);
             setControlsOpportunityDates(date.controls_opportunity_dates ?? false);
+            setPartnerId(date.partner_id || "");
+            setOpportunityId(date.opportunity_id || "");
         } else {
             setTitle("");
             setDescription("");
@@ -57,6 +86,8 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
             setEndDate("");
             setType("general");
             setControlsOpportunityDates(false);
+            setPartnerId("");
+            setOpportunityId("");
         }
     }, [date, open]);
 
@@ -83,6 +114,8 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
                 end_date: endDate ? new Date(endDate).toISOString() : undefined,
                 type,
                 controls_opportunity_dates: (type === "sisu" || type === "prouni") ? controlsOpportunityDates : false,
+                partner_id: type === "partners" && partnerId ? partnerId : null,
+                opportunity_id: type === "partners" && opportunityId ? opportunityId : null,
             });
             onOpenChange(false);
         } catch {
@@ -162,6 +195,38 @@ export default function DateModal({ open, onOpenChange, date, onSubmit }: DateMo
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {type === "partners" && (
+                        <>
+                            <div className="space-y-2">
+                                <Label htmlFor="partner_id">Parceiro *</Label>
+                                <Select value={partnerId} onValueChange={setPartnerId} required>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione o parceiro" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {partners.map(p => (
+                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="opportunity_id">Oportunidade (Opcional)</Label>
+                                <Select value={opportunityId} onValueChange={setOpportunityId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione a oportunidade (ou deixe em branco para todas)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value=" ">-- Para todas as oportunidades do parceiro --</SelectItem>
+                                        {opportunities.map(o => (
+                                            <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </>
+                    )}
 
                     {(type === "sisu" || type === "prouni") && (
                         <div className="flex items-start gap-3 rounded-lg border p-4 bg-blue-50/50">

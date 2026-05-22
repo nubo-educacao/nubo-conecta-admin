@@ -36,6 +36,7 @@ import PartnerForms from "./pages/PartnerForms";
 import PartnerUsers from "./pages/PartnerUsers";
 import PartnerApplications from "./pages/PartnerApplications";
 import PartnerOpportunities from "./pages/PartnerOpportunities";
+import Programs from "./pages/Programs";
 import FunnelUsers from "./pages/FunnelUsers";
 
 // Pages — Atendimento e App
@@ -90,6 +91,7 @@ const App = () => (
               <Route path="/b2b-dashboard" element={<NotFound />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/partner-opportunities" element={<PartnerOpportunities />} />
+              <Route path="/programs" element={<Programs />} />
               <Route path="/forms" element={<PartnerForms />} />
               <Route path="/applications" element={<PartnerApplications />} />
               <Route path="/solicitations" element={<PartnerSolicitations />} />

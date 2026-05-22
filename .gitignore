@@ -22,3 +22,9 @@ dist-ssr
 Thumbs.db
 
 .vercel
+
+# Scratch & Sandbox
+scratch/
+test-enrich.js
+test-detail.js
+scratch-*.cjs

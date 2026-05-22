@@ -8,6 +8,8 @@ export interface ImportantDate {
     end_date: string | null;
     type: string;
     controls_opportunity_dates: boolean;
+    partner_id?: string | null;
+    opportunity_id?: string | null;
     created_at: string | null;
 }
 
@@ -48,6 +50,8 @@ export async function createImportantDate(date: {
     end_date?: string;
     type: string;
     controls_opportunity_dates?: boolean;
+    partner_id?: string | null;
+    opportunity_id?: string | null;
 }): Promise<ImportantDate> {
     const { data, error } = await (supabase.rpc as any)("manage_important_date", {
         p_title: date.title,
@@ -56,6 +60,8 @@ export async function createImportantDate(date: {
         p_end_date: date.end_date || null,
         p_type: date.type,
         p_controls_opportunity_dates: date.controls_opportunity_dates ?? false,
+        p_partner_id: date.partner_id || null,
+        p_opportunity_id: date.opportunity_id || null,
     });
 
     if (error) {
@@ -75,6 +81,8 @@ export async function updateImportantDate(
         end_date?: string;
         type?: string;
         controls_opportunity_dates?: boolean;
+        partner_id?: string | null;
+        opportunity_id?: string | null;
     }
 ): Promise<ImportantDate> {
     const { data, error } = await (supabase.rpc as any)("manage_important_date", {
@@ -85,6 +93,8 @@ export async function updateImportantDate(
         p_end_date: date.end_date,
         p_type: date.type,
         p_controls_opportunity_dates: date.controls_opportunity_dates,
+        ...(date.partner_id !== undefined && { p_partner_id: date.partner_id }),
+        ...(date.opportunity_id !== undefined && { p_opportunity_id: date.opportunity_id }),
     });
 
     if (error) {
