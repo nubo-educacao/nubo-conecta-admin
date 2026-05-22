@@ -91,6 +91,13 @@ export default function SystemInstructionsEditor() {
                 <Label htmlFor={`instructions-${key}`} className="font-medium text-sm text-slate-700">
                   Instruções do Sistema (Prompt Principal)
                 </Label>
+                <p className="text-[11px] text-muted-foreground bg-muted/50 border rounded px-3 py-2 font-mono">
+                  <span className="font-semibold text-slate-600">Variáveis disponíveis:</span>{' '}
+                  <code>{'{{SCHEMA_CONTEXT}}'}</code> — DDL das tabelas do catálogo &nbsp;·&nbsp;
+                  <code>{'{{AVAILABLE_TOOLS}}'}</code> — lista de ferramentas MCP &nbsp;·&nbsp;
+                  <code>{'{{CURRENT_DATETIME}}'}</code> — data e hora atual em Brasília (pt-BR) &nbsp;·&nbsp;
+                  <code>{'{{FEW_SHOT_EXAMPLES}}'}</code> — exemplos de conversa curados
+                </p>
                 <Textarea
                   id={`instructions-${key}`}
                   className="min-h-[250px] font-mono text-sm resize-y"
