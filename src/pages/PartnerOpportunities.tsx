@@ -40,9 +40,8 @@ const STATUS_TRANSITIONS: { from: OpportunityStatus[]; to: OpportunityStatus; la
 ];
 
 const TYPE_LABELS: Record<PartnerOpportunityType, string> = {
-  bolsa:     'Bolsa',
-  bootcamp:  'Bootcamp',
-  mentoria:  'Mentoria',
+  'programa de bolsa':      'Programa de Bolsa',
+  'programa educacional':   'Programa Educacional',
 };
 
 interface FormState {
@@ -61,7 +60,7 @@ const emptyForm: FormState = {
   institution_id: '',
   name: '',
   description: '',
-  opportunity_type: 'bolsa',
+  opportunity_type: 'programa de bolsa',
   status: 'inactive',
   redirect_url: '',
   redirect_enabled: false,
@@ -417,9 +416,8 @@ export default function PartnerOpportunitiesPage() {
                   onChange={(e) => setFormState(prev => ({ ...prev, opportunity_type: e.target.value as PartnerOpportunityType }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="bolsa">Bolsa</option>
-                  <option value="bootcamp">Bootcamp</option>
-                  <option value="mentoria">Mentoria</option>
+                  <option value="programa de bolsa">Programa de Bolsa</option>
+                  <option value="programa educacional">Programa Educacional</option>
                 </select>
               </div>
 

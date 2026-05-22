@@ -5,7 +5,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export type OpportunityStatus = 'inactive' | 'incoming' | 'opened' | 'closed';
-export type PartnerOpportunityType = 'bolsa' | 'bootcamp' | 'mentoria';
+export type PartnerOpportunityType = 'programa de bolsa' | 'programa educacional';
 
 export interface PartnerOpportunity {
   id: string;
