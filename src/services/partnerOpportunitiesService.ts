@@ -4,7 +4,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export type OpportunityStatus = 'draft' | 'pending_review' | 'approved';
+export type OpportunityStatus = 'inactive' | 'incoming' | 'opened' | 'closed';
 export type PartnerOpportunityType = 'bolsa' | 'bootcamp' | 'mentoria';
 
 export interface PartnerOpportunity {
@@ -118,7 +118,7 @@ export async function createPartnerOpportunity(
       ...input,
       eligibility_criteria: input.eligibility_criteria ?? {},
       external_redirect_config: input.external_redirect_config ?? {},
-      status: 'draft' as OpportunityStatus,
+      status: 'inactive' as OpportunityStatus,
     })
     .select()
     .single();

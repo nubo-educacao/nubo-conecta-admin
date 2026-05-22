@@ -19,16 +19,25 @@ import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 
 const STATUS_LABELS: Record<OpportunityStatus, string> = {
-  draft:          'Rascunho',
-  pending_review: 'Aguardando Revisão',
-  approved:       'Aprovada',
+  inactive: 'Inativo',
+  incoming: 'Em breve',
+  opened:   'Aberto',
+  closed:   'Encerrado',
 };
 
 const STATUS_COLORS: Record<OpportunityStatus, string> = {
-  draft:          'bg-gray-100 text-gray-700',
-  pending_review: 'bg-yellow-100 text-yellow-800',
-  approved:       'bg-green-100 text-green-800',
+  inactive: 'bg-gray-100 text-gray-700',
+  incoming: 'bg-yellow-100 text-yellow-800',
+  opened:   'bg-green-100 text-green-800',
+  closed:   'bg-gray-200 text-gray-600',
 };
+
+const STATUS_TRANSITIONS: { from: OpportunityStatus[]; to: OpportunityStatus; label: string; color: string }[] = [
+  { from: ['inactive'],               to: 'incoming', label: 'Em breve',  color: 'text-yellow-700 bg-yellow-100 hover:bg-yellow-200' },
+  { from: ['inactive', 'incoming'],   to: 'opened',   label: 'Abrir',     color: 'text-green-700 bg-green-100 hover:bg-green-200' },
+  { from: ['opened'],                 to: 'closed',   label: 'Encerrar',  color: 'text-gray-700 bg-gray-200 hover:bg-gray-300' },
+  { from: ['closed', 'incoming'],     to: 'inactive', label: 'Desativar', color: 'text-red-700 bg-red-100 hover:bg-red-200' },
+];
 
 const TYPE_LABELS: Record<PartnerOpportunityType, string> = {
   bolsa:     'Bolsa',
@@ -53,7 +62,7 @@ const emptyForm: FormState = {
   name: '',
   description: '',
   opportunity_type: 'bolsa',
-  status: 'draft',
+  status: 'inactive',
   redirect_url: '',
   redirect_enabled: false,
   starts_at: '',
@@ -215,7 +224,7 @@ export default function PartnerOpportunitiesPage() {
 
       {/* Status filter */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {(['all', 'draft', 'pending_review', 'approved'] as const).map((s) => (
+        {(['all', 'inactive', 'incoming', 'opened', 'closed'] as const).map((s) => (
           <button
             key={s}
             onClick={() => { setStatus(s); setPage(0); }}
@@ -288,24 +297,18 @@ export default function PartnerOpportunitiesPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {opp.status !== 'approved' && (
-                          <button
-                            onClick={() => statusMutation.mutate({ id: opp.id, status: 'approved' })}
-                            disabled={statusMutation.isPending}
-                            className="px-3 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full hover:bg-green-200 transition-colors disabled:opacity-50"
-                          >
-                            Aprovar
-                          </button>
-                        )}
-                        {opp.status === 'approved' && (
-                          <button
-                            onClick={() => statusMutation.mutate({ id: opp.id, status: 'draft' })}
-                            disabled={statusMutation.isPending}
-                            className="px-3 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full hover:bg-red-200 transition-colors disabled:opacity-50"
-                          >
-                            Rejeitar
-                          </button>
-                        )}
+                        {STATUS_TRANSITIONS
+                          .filter((t) => t.from.includes(opp.status))
+                          .map((t) => (
+                            <button
+                              key={t.to}
+                              onClick={() => statusMutation.mutate({ id: opp.id, status: t.to })}
+                              disabled={statusMutation.isPending}
+                              className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors disabled:opacity-50 ${t.color}`}
+                            >
+                              {t.label}
+                            </button>
+                          ))}
                         <button
                           onClick={() => openEdit(opp)}
                           className="px-3 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors"

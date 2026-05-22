@@ -124,6 +124,7 @@ export default function Sidebar() {
         { to: "/educational/campus", icon: LayoutDashboard, label: "Campus", permission: "Dashboard" },
         { to: "/educational/courses", icon: BookOpen, label: "Cursos", permission: "Dashboard" },
         { to: "/educational/opportunities", icon: ClipboardList, label: "Oportunidades MEC", permission: "Dashboard" },
+        { to: "/programs", icon: GraduationCap, label: "Programas MEC", permission: "Dashboard" },
         { to: "/calendar", icon: CalendarDays, label: "Calendário", permission: "Calendário" },
       ],
     },
