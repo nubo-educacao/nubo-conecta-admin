@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { useFewShotExamples } from "@/hooks/useAgentConfig";
-import { useCloudinhaStarters } from "@/hooks/useAgentConfig";
-import { FewShotExample, CreateFewShotDTO } from "@/services/fewShotService";
+import { useLearningExamples } from "@/hooks/useAgentConfig";
+import { LearningExample, CreateLearningExampleDTO } from "@/services/fewShotService";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,65 +26,51 @@ import { BookOpen, Plus, Pencil, Trash2, Loader2, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = ["geral", "prouni", "sisu", "match", "candidatura", "perfil", "parceiro"];
-const AVAILABLE_TOOLS = [
-  "query_educational_catalog",
-  "get_student_context",
-  "download_knowledge_document",
-];
 
-const EMPTY_FORM: CreateFewShotDTO = {
-  starter_id: null,
-  category: "geral",
-  user_message: "",
-  expected_tools: [],
-  expected_response: "",
+const EMPTY_FORM: CreateLearningExampleDTO = {
+  intent_category: "geral",
+  input_query: "",
+  ideal_output: "",
   is_active: true,
-  sort_order: 0,
+  source: "admin",
 };
 
-function formatPreview(example: CreateFewShotDTO, index = 1): string {
-  const tools = example.expected_tools.length > 0
-    ? example.expected_tools.join(", ")
-    : "(nenhuma)";
+function formatPreview(example: CreateLearningExampleDTO, index = 1): string {
   return `### Exemplo ${index}
-**Usuário:** "${example.user_message}"
-**Ferramentas:** ${tools}
-**Resposta esperada:** "${example.expected_response}"`;
+**Usuário:** "${example.input_query}"
+**Resposta esperada:** "${example.ideal_output}"`;
 }
 
 export default function FewShotManager() {
   const { examples, isLoading, isError, createExample, updateExample, deleteExample } =
-    useFewShotExamples();
-  const { starters } = useCloudinhaStarters();
+    useLearningExamples();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<CreateFewShotDTO>(EMPTY_FORM);
+  const [form, setForm] = useState<CreateLearningExampleDTO>(EMPTY_FORM);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ ...EMPTY_FORM, sort_order: examples.length });
+    setForm({ ...EMPTY_FORM });
     setDialogOpen(true);
   };
 
-  const openEdit = (ex: FewShotExample) => {
+  const openEdit = (ex: LearningExample) => {
     setEditingId(ex.id);
     setForm({
-      starter_id: ex.starter_id,
-      category: ex.category,
-      user_message: ex.user_message,
-      expected_tools: ex.expected_tools,
-      expected_response: ex.expected_response,
+      intent_category: ex.intent_category,
+      input_query: ex.input_query,
+      ideal_output: ex.ideal_output,
       is_active: ex.is_active,
-      sort_order: ex.sort_order,
+      source: ex.source,
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!form.user_message.trim() || !form.expected_response.trim()) return;
+    if (!form.input_query.trim() || !form.ideal_output.trim()) return;
     setIsSaving(true);
     try {
       if (editingId) {
@@ -100,23 +85,8 @@ export default function FewShotManager() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Excluir este few-shot example?")) return;
+    if (!confirm("Excluir este learning example?")) return;
     await deleteExample(id);
-  };
-
-  const toggleTool = (tool: string) => {
-    setForm((prev) => ({
-      ...prev,
-      expected_tools: prev.expected_tools.includes(tool)
-        ? prev.expected_tools.filter((t) => t !== tool)
-        : [...prev.expected_tools, tool],
-    }));
-  };
-
-  const starterLabel = (id: string | null) => {
-    if (!id) return "Nenhum";
-    const s = starters.find((s) => s.id === id);
-    return s ? s.page_route : id;
   };
 
   if (isLoading) {
@@ -130,7 +100,7 @@ export default function FewShotManager() {
   if (isError) {
     return (
       <div className="text-red-500 p-4 border border-red-200 bg-red-50 rounded-lg">
-        Erro ao carregar few-shot examples. Tente atualizar a página.
+        Erro ao carregar learning examples. Tente atualizar a página.
       </div>
     );
   }
@@ -140,7 +110,7 @@ export default function FewShotManager() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BookOpen className="h-6 w-6 text-primary" />
-          <h2 className="text-lg font-semibold">Few-Shot Examples</h2>
+          <h2 className="text-lg font-semibold">Learning Examples</h2>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />
@@ -151,7 +121,7 @@ export default function FewShotManager() {
       <p className="text-sm text-muted-foreground">
         Examples de conversação injetados no system prompt para calibrar o comportamento da
         Cloudinha. Limitado a ~10 examples (cap de ~2000 tokens). Ordenados por{" "}
-        <code className="text-xs bg-muted px-1 rounded">sort_order</code>.
+        <code className="text-xs bg-muted px-1 rounded">Data de Criação</code>.
       </p>
 
       {/* List */}
@@ -165,18 +135,11 @@ export default function FewShotManager() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-xs bg-primary/5">
-                    {ex.category}
+                    {ex.intent_category}
                   </Badge>
-                  {ex.starter_id && (
-                    <Badge variant="secondary" className="text-xs">
-                      ↗ {starterLabel(ex.starter_id)}
-                    </Badge>
-                  )}
-                  {ex.expected_tools.map((t) => (
-                    <Badge key={t} variant="outline" className="text-xs font-mono text-muted-foreground">
-                      {t}
-                    </Badge>
-                  ))}
+                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                    {ex.source}
+                  </Badge>
                   {!ex.is_active && (
                     <Badge variant="secondary" className="text-xs">Inativo</Badge>
                   )}
@@ -199,17 +162,17 @@ export default function FewShotManager() {
             </CardHeader>
             <CardContent className="pt-0 pb-3 border-t bg-muted/10">
               <p className="text-sm font-medium text-foreground/80 truncate">
-                👤 {ex.user_message}
+                👤 {ex.input_query}
               </p>
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                🤖 {ex.expected_response}
+                🤖 {ex.ideal_output}
               </p>
             </CardContent>
           </Card>
         ))}
         {examples.length === 0 && (
           <div className="text-center p-8 border border-dashed rounded-lg text-muted-foreground">
-            Nenhum few-shot example cadastrado. Adicione ao menos 1 por categoria de starter.
+            Nenhum learning example cadastrado. Adicione ao menos 1 por categoria.
           </div>
         )}
       </div>
@@ -219,118 +182,60 @@ export default function FewShotManager() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Editar Few-Shot Example" : "Novo Few-Shot Example"}
+              {editingId ? "Editar Learning Example" : "Novo Learning Example"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Category + Starter */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Starter Vinculado (opcional)</Label>
-                <Select
-                  value={form.starter_id ?? "none"}
-                  onValueChange={(v) =>
-                    setForm((p) => ({ ...p, starter_id: v === "none" ? null : v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
-                    {starters.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.page_route}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Category */}
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select
+                value={form.intent_category}
+                onValueChange={(v) => setForm((p) => ({ ...p, intent_category: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* User message */}
             <div className="space-y-2">
-              <Label>Mensagem do Usuário</Label>
+              <Label>Mensagem do Usuário (Query)</Label>
               <Textarea
                 rows={2}
                 placeholder="Ex: Quais bolsas do ProUni estão abertas?"
-                value={form.user_message}
-                onChange={(e) => setForm((p) => ({ ...p, user_message: e.target.value }))}
+                value={form.input_query}
+                onChange={(e) => setForm((p) => ({ ...p, input_query: e.target.value }))}
               />
-            </div>
-
-            {/* Tools */}
-            <div className="space-y-2">
-              <Label>Ferramentas Esperadas</Label>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TOOLS.map((tool) => (
-                  <button
-                    key={tool}
-                    type="button"
-                    onClick={() => toggleTool(tool)}
-                    className={cn(
-                      "text-xs font-mono px-3 py-1.5 rounded-full border transition-colors",
-                      form.expected_tools.includes(tool)
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted-foreground border-border hover:border-primary/50"
-                    )}
-                  >
-                    {tool}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Expected response */}
             <div className="space-y-2">
-              <Label>Resposta Esperada</Label>
+              <Label>Resposta Esperada (Ideal Output)</Label>
               <Textarea
                 rows={4}
                 placeholder="Descreva como a Cloudinha deve responder..."
-                value={form.expected_response}
-                onChange={(e) => setForm((p) => ({ ...p, expected_response: e.target.value }))}
+                value={form.ideal_output}
+                onChange={(e) => setForm((p) => ({ ...p, ideal_output: e.target.value }))}
               />
             </div>
 
-            {/* Sort order + Active */}
-            <div className="grid grid-cols-2 gap-4 items-center">
-              <div className="space-y-2">
-                <Label>Sort Order</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.sort_order}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="flex items-center gap-2 pt-6">
-                <Switch
-                  checked={form.is_active}
-                  onCheckedChange={(v) => setForm((p) => ({ ...p, is_active: v }))}
-                />
-                <Label>Ativo</Label>
-              </div>
+            {/* Active */}
+            <div className="flex items-center gap-2 pt-2">
+              <Switch
+                checked={form.is_active}
+                onCheckedChange={(v) => setForm((p) => ({ ...p, is_active: v }))}
+              />
+              <Label>Ativo</Label>
             </div>
 
             {/* Preview */}
@@ -358,7 +263,7 @@ export default function FewShotManager() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isSaving || !form.user_message.trim() || !form.expected_response.trim()}
+              disabled={isSaving || !form.input_query.trim() || !form.ideal_output.trim()}
             >
               {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Salvar

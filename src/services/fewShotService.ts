@@ -1,99 +1,82 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export interface FewShotExample {
+export interface LearningExample {
   id: string;
-  starter_id: string | null;
-  category: string;
-  user_message: string;
-  expected_tools: string[];
-  expected_response: string;
+  intent_category: string;
+  input_query: string;
+  ideal_output: string;
   is_active: boolean;
-  sort_order: number;
+  source: string;
+  reasoning: string | null;
   created_at: string;
-  updated_at: string;
 }
 
-export interface CreateFewShotDTO {
-  starter_id?: string | null;
-  category: string;
-  user_message: string;
-  expected_tools: string[];
-  expected_response: string;
+export interface CreateLearningExampleDTO {
+  intent_category: string;
+  input_query: string;
+  ideal_output: string;
   is_active: boolean;
-  sort_order: number;
+  source?: string;
+  reasoning?: string;
 }
 
-export const getFewShotExamples = async (): Promise<FewShotExample[]> => {
+export const getLearningExamples = async (): Promise<LearningExample[]> => {
   const { data, error } = await supabase
-    .from("few_shot_examples")
+    .from("learning_examples")
     .select("*")
-    .order("sort_order", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching few_shot_examples:", error);
+    console.error("Error fetching learning_examples:", error);
     throw error;
   }
 
-  return (data ?? []).map((row: any) => ({
-    ...row,
-    expected_tools: Array.isArray(row.expected_tools) ? row.expected_tools : [],
-  })) as FewShotExample[];
+  return (data ?? []) as LearningExample[];
 };
 
-export const createFewShotExample = async (dto: CreateFewShotDTO): Promise<FewShotExample> => {
+export const createLearningExample = async (dto: CreateLearningExampleDTO): Promise<LearningExample> => {
+  const payload = {
+    ...dto,
+    source: dto.source || "admin",
+  };
+
   const { data, error } = await supabase
-    .from("few_shot_examples")
-    .insert([{ ...dto, expected_tools: dto.expected_tools }])
+    .from("learning_examples")
+    .insert([payload])
     .select()
     .limit(1);
 
   if (error) {
-    console.error("Error creating few_shot_example:", error);
+    console.error("Error creating learning_example:", error);
     throw error;
   }
 
-  return data![0] as FewShotExample;
+  return data![0] as LearningExample;
 };
 
-export const updateFewShotExample = async (
+export const updateLearningExample = async (
   id: string,
-  dto: Partial<CreateFewShotDTO>
+  dto: Partial<CreateLearningExampleDTO>
 ): Promise<void> => {
   const { error } = await supabase
-    .from("few_shot_examples")
-    .update({ ...dto, updated_at: new Date().toISOString() } as any)
+    .from("learning_examples")
+    .update({ ...dto } as any)
     .eq("id", id);
 
   if (error) {
-    console.error("Error updating few_shot_example:", error);
+    console.error("Error updating learning_example:", error);
     throw error;
   }
 };
 
-export const deleteFewShotExample = async (id: string): Promise<void> => {
+export const deleteLearningExample = async (id: string): Promise<void> => {
   const { error } = await supabase
-    .from("few_shot_examples")
+    .from("learning_examples")
     .delete()
     .eq("id", id);
 
   if (error) {
-    console.error("Error deleting few_shot_example:", error);
+    console.error("Error deleting learning_example:", error);
     throw error;
-  }
-};
-
-export const reorderFewShotExamples = async (orderedIds: string[]): Promise<void> => {
-  const updates = orderedIds.map((id, index) =>
-    supabase
-      .from("few_shot_examples")
-      .update({ sort_order: index, updated_at: new Date().toISOString() } as any)
-      .eq("id", id)
-  );
-
-  const results = await Promise.allSettled(updates);
-  const failed = results.filter((r) => r.status === "rejected");
-  if (failed.length > 0) {
-    console.error("Some reorder updates failed:", failed);
-    throw new Error("Falha ao reordenar alguns examples.");
   }
 };
