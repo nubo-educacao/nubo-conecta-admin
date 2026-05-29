@@ -17,6 +17,7 @@ export interface Partner {
     logo_url: string | null;          // partner_institutions.logo_url
     cover_url: string | null;         // partner_institutions.cover_url
     brand_color: string | null;       // partner_institutions.brand_color
+    website_url: string | null;       // partner_institutions.website_url
     applications_open: boolean;       // partner_institutions.applications_open
     created_at: string;               // institutions.created_at
     updated_at: string;               // institutions.updated_at
@@ -29,6 +30,7 @@ export interface PartnerInput {
     logo_url?: string;
     cover_url?: string;
     brand_color?: string;
+    website_url?: string;
 }
 
 export interface PartnerStats {
@@ -58,7 +60,8 @@ export async function getPartners(
                 location,
                 logo_url,
                 cover_url,
-                brand_color
+                brand_color,
+                website_url
             )
         `)
         .eq("is_partner", true)
@@ -77,6 +80,7 @@ export async function getPartners(
         logo_url:    row.partner_institutions?.logo_url ?? null,
         cover_url:   row.partner_institutions?.cover_url ?? null,
         brand_color: row.partner_institutions?.brand_color ?? null,
+        website_url: row.partner_institutions?.website_url ?? null,
         applications_open: false,
         created_at:  row.created_at,
         updated_at:  row.updated_at,
@@ -100,7 +104,8 @@ export async function getPartnerById(id: string): Promise<Partner> {
                 location,
                 logo_url,
                 cover_url,
-                brand_color
+                brand_color,
+                website_url
             )
         `)
         .eq("id", id)
@@ -120,6 +125,7 @@ export async function getPartnerById(id: string): Promise<Partner> {
         logo_url:    (data as any).partner_institutions?.logo_url ?? null,
         cover_url:   (data as any).partner_institutions?.cover_url ?? null,
         brand_color: (data as any).partner_institutions?.brand_color ?? null,
+        website_url: (data as any).partner_institutions?.website_url ?? null,
         applications_open: false,
         created_at:  data.created_at,
         updated_at:  data.updated_at,
@@ -153,6 +159,7 @@ export async function createPartner(input: PartnerInput): Promise<Partner> {
             logo_url:       input.logo_url ?? null,
             cover_url:      input.cover_url ?? null,
             brand_color:    input.brand_color ?? null,
+            website_url:    input.website_url || null,
         });
 
     if (piError) {
@@ -170,6 +177,7 @@ export async function createPartner(input: PartnerInput): Promise<Partner> {
         logo_url:    input.logo_url ?? null,
         cover_url:   input.cover_url ?? null,
         brand_color: input.brand_color ?? null,
+        website_url: input.website_url || null,
         applications_open: false,
         created_at:  inst.created_at,
         updated_at:  inst.updated_at,
@@ -201,6 +209,7 @@ export async function updatePartner(id: string, input: Partial<PartnerInput>): P
     if (input.logo_url !== undefined)    piUpdate.logo_url    = input.logo_url;
     if (input.cover_url !== undefined)   piUpdate.cover_url   = input.cover_url;
     if (input.brand_color !== undefined) piUpdate.brand_color = input.brand_color;
+    if (input.website_url !== undefined) piUpdate.website_url = input.website_url || null;
 
     if (Object.keys(piUpdate).length > 0) {
         const { error } = await supabase
