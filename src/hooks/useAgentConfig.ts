@@ -9,12 +9,11 @@ import {
   AgentPrompt
 } from "../services/agentConfigService";
 import {
-  getFewShotExamples,
-  createFewShotExample,
-  updateFewShotExample,
-  deleteFewShotExample,
-  reorderFewShotExamples,
-  CreateFewShotDTO,
+  getLearningExamples,
+  createLearningExample,
+  updateLearningExample,
+  deleteLearningExample,
+  CreateLearningExampleDTO,
 } from "../services/fewShotService";
 import { toast } from "sonner";
 
@@ -84,19 +83,19 @@ export const useAgentPrompts = () => {
   };
 };
 
-export const useFewShotExamples = () => {
+export const useLearningExamples = () => {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["few_shot_examples"],
-    queryFn: getFewShotExamples,
+    queryKey: ["learning_examples"],
+    queryFn: getLearningExamples,
   });
 
   const createMutation = useMutation({
-    mutationFn: (dto: CreateFewShotDTO) => createFewShotExample(dto),
+    mutationFn: (dto: CreateLearningExampleDTO) => createLearningExample(dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
-      toast.success("Few-shot example criado com sucesso.");
+      queryClient.invalidateQueries({ queryKey: ["learning_examples"] });
+      toast.success("Learning example criado com sucesso.");
     },
     onError: (err: Error) => {
       toast.error("Erro ao criar example: " + err.message);
@@ -104,11 +103,11 @@ export const useFewShotExamples = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: Partial<CreateFewShotDTO> }) =>
-      updateFewShotExample(id, dto),
+    mutationFn: ({ id, dto }: { id: string; dto: Partial<CreateLearningExampleDTO> }) =>
+      updateLearningExample(id, dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
-      toast.success("Few-shot example atualizado.");
+      queryClient.invalidateQueries({ queryKey: ["learning_examples"] });
+      toast.success("Learning example atualizado.");
     },
     onError: (err: Error) => {
       toast.error("Erro ao atualizar example: " + err.message);
@@ -116,23 +115,13 @@ export const useFewShotExamples = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteFewShotExample,
+    mutationFn: deleteLearningExample,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
-      toast.success("Few-shot example excluído.");
+      queryClient.invalidateQueries({ queryKey: ["learning_examples"] });
+      toast.success("Learning example excluído.");
     },
     onError: (err: Error) => {
       toast.error("Erro ao excluir example: " + err.message);
-    },
-  });
-
-  const reorderMutation = useMutation({
-    mutationFn: reorderFewShotExamples,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
-    },
-    onError: (err: Error) => {
-      toast.error("Erro ao reordenar: " + err.message);
     },
   });
 
@@ -143,6 +132,5 @@ export const useFewShotExamples = () => {
     createExample: createMutation.mutateAsync,
     updateExample: updateMutation.mutateAsync,
     deleteExample: deleteMutation.mutateAsync,
-    reorderExamples: reorderMutation.mutateAsync,
   };
 };

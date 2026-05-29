@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Partner, uploadPartnerCover, uploadPartnerLogo } from "@/services/partnersService";
 import { toast } from "sonner";
-
 const partnerSchema = z.object({
     name: z.string().min(1, "Nome é obrigatório"),
     description: z.string().optional(),
@@ -28,6 +27,7 @@ const partnerSchema = z.object({
     brand_color: z.string().optional(),
     cover_url: z.string().optional(),
     logo_url: z.string().optional(),
+    website_url: z.string().url("Insira uma URL válida").or(z.literal("")).optional(),
 });
 
 type PartnerFormValues = z.infer<typeof partnerSchema>;
@@ -54,6 +54,7 @@ export function PartnerForm({ initialData, onSubmit, onCancel, onDelete }: Partn
             brand_color: initialData?.brand_color || "",
             cover_url: initialData?.cover_url || "",
             logo_url: initialData?.logo_url || "",
+            website_url: initialData?.website_url || "",
         },
     });
 
@@ -180,7 +181,7 @@ export function PartnerForm({ initialData, onSubmit, onCancel, onDelete }: Partn
                                 </div>
                             )}
                             <p className="text-xs text-muted-foreground">
-                                Logo do parceiro (56×56px recomendado)
+                                Logo do parceiro (56×56px recommended)
                             </p>
                         </div>
                     </div>
@@ -210,6 +211,21 @@ export function PartnerForm({ initialData, onSubmit, onCancel, onDelete }: Partn
                                     <FormLabel>Localização</FormLabel>
                                     <FormControl>
                                         <Input placeholder="Ex: Nacional, São Paulo" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Website URL */}
+                        <FormField
+                            control={form.control}
+                            name="website_url"
+                            render={({ field }) => (
+                                <FormItem className="md:col-span-2">
+                                    <FormLabel>Website da Instituição</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="https://exemplo.org.br" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

@@ -96,7 +96,7 @@ export default function SystemInstructionsEditor() {
                   <code>{'{{SCHEMA_CONTEXT}}'}</code> — DDL das tabelas do catálogo &nbsp;·&nbsp;
                   <code>{'{{AVAILABLE_TOOLS}}'}</code> — lista de ferramentas MCP &nbsp;·&nbsp;
                   <code>{'{{CURRENT_DATETIME}}'}</code> — data e hora atual em Brasília (pt-BR) &nbsp;·&nbsp;
-                  <code>{'{{FEW_SHOT_EXAMPLES}}'}</code> — exemplos de conversa curados
+                  <code>{'{{FEW_SHOT_EXAMPLES}}'}</code> — exemplos curados (Learning Examples)
                 </p>
                 <Textarea
                   id={`instructions-${key}`}
