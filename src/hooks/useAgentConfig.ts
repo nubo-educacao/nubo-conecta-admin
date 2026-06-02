@@ -1,13 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  getCloudinhaStarters, 
-  upsertCloudinhaStarter, 
+import {
+  getCloudinhaStarters,
+  upsertCloudinhaStarter,
   deleteCloudinhaStarter,
   getAgentPrompts,
   updateAgentPrompt,
   CloudinhaStarter,
   AgentPrompt
 } from "../services/agentConfigService";
+import {
+  getFewShotExamples,
+  createFewShotExample,
+  updateFewShotExample,
+  deleteFewShotExample,
+  reorderFewShotExamples,
+  CreateFewShotDTO,
+} from "../services/fewShotService";
 import { toast } from "sonner";
 
 export const useCloudinhaStarters = () => {
@@ -73,5 +81,68 @@ export const useAgentPrompts = () => {
     isLoading: query.isLoading,
     isError: query.isError,
     updatePrompt: updateMutation.mutateAsync,
+  };
+};
+
+export const useFewShotExamples = () => {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["few_shot_examples"],
+    queryFn: getFewShotExamples,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (dto: CreateFewShotDTO) => createFewShotExample(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
+      toast.success("Few-shot example criado com sucesso.");
+    },
+    onError: (err: Error) => {
+      toast.error("Erro ao criar example: " + err.message);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: Partial<CreateFewShotDTO> }) =>
+      updateFewShotExample(id, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
+      toast.success("Few-shot example atualizado.");
+    },
+    onError: (err: Error) => {
+      toast.error("Erro ao atualizar example: " + err.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteFewShotExample,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
+      toast.success("Few-shot example excluído.");
+    },
+    onError: (err: Error) => {
+      toast.error("Erro ao excluir example: " + err.message);
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: reorderFewShotExamples,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
+    },
+    onError: (err: Error) => {
+      toast.error("Erro ao reordenar: " + err.message);
+    },
+  });
+
+  return {
+    examples: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    createExample: createMutation.mutateAsync,
+    updateExample: updateMutation.mutateAsync,
+    deleteExample: deleteMutation.mutateAsync,
+    reorderExamples: reorderMutation.mutateAsync,
   };
 };

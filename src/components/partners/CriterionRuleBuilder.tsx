@@ -31,6 +31,7 @@ interface CriterionRuleBuilderProps {
     onChange: (jsonLogicString: string) => void;
     dataType?: string;
     optionsList?: string[];
+    label?: string;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ function parseCondition(rule: Record<string, unknown>): Condition {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function CriterionRuleBuilder({ fieldName, value, onChange, dataType, optionsList = [] }: CriterionRuleBuilderProps) {
+export function CriterionRuleBuilder({ fieldName, value, onChange, dataType, optionsList = [], label }: CriterionRuleBuilderProps) {
     const isListType = dataType === "select" || dataType === "multiselect" || dataType === "searchable_select";
     const availableOperators = isListType
         ? OPERATORS
@@ -233,7 +234,7 @@ export function CriterionRuleBuilder({ fieldName, value, onChange, dataType, opt
     return (
         <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
             <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Regra de Elegibilidade</Label>
+                <Label className="text-sm font-semibold">{label || 'Regra de Elegibilidade'}</Label>
                 {conditions.length > 1 && (
                     <Button
                         type="button"

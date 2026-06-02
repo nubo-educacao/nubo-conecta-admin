@@ -27,12 +27,12 @@ import {
   Activity,
   Sliders,
   Bug,
+  Map,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { IssueModal } from "@/components/support/IssueModal";
 
 interface NavItemProps {
   to: string;
@@ -76,7 +76,6 @@ type NavEntry = NavGroup | NavSingle;
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     "Visão Geral": true,
     "Inteligência": false,
@@ -125,6 +124,7 @@ export default function Sidebar() {
         { to: "/educational/campus", icon: LayoutDashboard, label: "Campus", permission: "Dashboard" },
         { to: "/educational/courses", icon: BookOpen, label: "Cursos", permission: "Dashboard" },
         { to: "/educational/opportunities", icon: ClipboardList, label: "Oportunidades MEC", permission: "Dashboard" },
+        { to: "/programs", icon: GraduationCap, label: "Programas MEC", permission: "Dashboard" },
         { to: "/calendar", icon: CalendarDays, label: "Calendário", permission: "Calendário" },
       ],
     },
@@ -161,6 +161,7 @@ export default function Sidebar() {
     // ── Configurações ──────────────────────────────────────────────────────────
     { to: "/users", icon: UserCog, label: "Usuários", permission: "Controle de usuários" },
     { to: "/support", icon: Bug, label: "Suporte e Bugs", permission: "Dashboard" },
+    { to: "/roadmap", icon: Map, label: "Roadmap", permission: "Dashboard" },
   ];
 
   const toggleGroup = (label: string) => {
@@ -217,14 +218,15 @@ export default function Sidebar() {
 
     if (!permissions.includes(item.permission)) return null;
 
+    const singleItem = item as NavSingle;
     return (
       <NavItem
-        key={item.to}
-        to={item.to}
-        icon={item.icon}
-        label={item.label}
+        key={singleItem.to}
+        to={singleItem.to}
+        icon={singleItem.icon}
+        label={singleItem.label}
         collapsed={collapsed}
-        active={location.pathname === item.to}
+        active={location.pathname === singleItem.to}
       />
     );
   };
@@ -265,7 +267,6 @@ export default function Sidebar() {
           {!collapsed && <span className="text-sm">Sair</span>}
         </Button>
       </div>
-      <IssueModal isOpen={isIssueModalOpen} onClose={() => setIsIssueModalOpen(false)} />
     </div>
   );
 }
