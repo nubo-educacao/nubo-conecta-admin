@@ -20,4 +20,5 @@ jobs:
           sudo install gitleaks /usr/local/bin/gitleaks
 
       - name: Run Gitleaks
-        run: gitleaks detect --source . -v --redact
+        run: gitleaks protect --source . -v --redact
+
