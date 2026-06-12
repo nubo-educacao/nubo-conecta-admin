@@ -17,9 +17,9 @@ serve(async (req) => {
       throw new Error("O campo 'pdfBase64' é obrigatório.");
     }
 
-    const API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const API_KEY = Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API_KEY");
     if (!API_KEY) {
-      throw new Error("GEMINI_API_KEY não configurada.");
+      throw new Error("GOOGLE_API_KEY não configurada.");
     }
 
     console.log(`Recebido PDF Base64 (Tamanho: ${Math.round(pdfBase64.length / 1024)} KB)`);
@@ -93,7 +93,7 @@ Conteúdo MD completo e detalhado desta parte (tabelas e listas inclusas, não r
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Erro Gemini:", response.status, errorText);
-      throw new Error(`Erro na API Gemini (${response.status})`);
+      throw new Error(`Erro na API Gemini (${response.status}) - ${errorText}`);
     }
 
     const data = await response.json();
