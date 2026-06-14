@@ -9,11 +9,11 @@ export async function getInstitutions(page: number, pageSize: number, search: st
         query = query.ilike("name", `%${search}%`);
     }
 
-    const { data, error, count } = await query
+    console.time('getInstitutions'); const { data, error, count } = await query
         .order("name", { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    if (error) {
+    console.timeEnd('getInstitutions'); if (error) {
         console.error("Error fetching institutions:", error);
         throw error;
     }
@@ -30,11 +30,11 @@ export async function getCampus(page: number, pageSize: number, search: string =
         query = query.or(`name.ilike.%${search}%,city.ilike.%${search}%`);
     }
 
-    const { data, error, count } = await query
+    console.time('getInstitutions'); const { data, error, count } = await query
         .order("name", { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    if (error) {
+    console.timeEnd('getInstitutions'); if (error) {
         console.error("Error fetching campus:", error);
         throw error;
     }
@@ -57,11 +57,11 @@ export async function getCourses(page: number, pageSize: number, search: string 
         query = query.ilike("course_name", `%${search}%`);
     }
 
-    const { data, error, count } = await query
+    console.time('getInstitutions'); const { data, error, count } = await query
         .order("course_name", { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    if (error) {
+    console.timeEnd('getInstitutions'); if (error) {
         console.error("Error fetching courses:", error);
         throw error;
     }
@@ -84,11 +84,11 @@ export async function getOpportunities(page: number, pageSize: number, search: s
         query = query.ilike("courses.course_name", `%${search}%`);
     }
 
-    const { data, error, count } = await query
+    console.time('getInstitutions'); const { data, error, count } = await query
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    if (error) {
+    console.timeEnd('getInstitutions'); if (error) {
         console.error("Error fetching opportunities:", error);
         throw error;
     }

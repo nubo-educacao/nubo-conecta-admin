@@ -12,18 +12,21 @@ import {
   type CreateProgramInput,
 } from '@/services/programsService';
 import { toast } from 'sonner';
-import { Plus, Calendar, Link as LinkIcon, AlertCircle } from 'lucide-react';
+import { Plus, Calendar, Link as LinkIcon, AlertCircle, MoreHorizontal, Copy, Edit2, Trash2, Play, Square, RotateCcw } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const STATUS_LABELS: Record<ProgramStatus, string> = {
   incoming: 'Em breve',
   opened: 'Aberto',
   closed: 'Encerrado',
+  inactive: 'Inativo',
 };
 
 const STATUS_COLORS: Record<ProgramStatus, string> = {
   incoming: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   opened: 'bg-green-100 text-green-800 border-green-200',
   closed: 'bg-gray-100 text-gray-800 border-gray-200',
+  inactive: 'bg-red-100 text-red-800 border-red-200',
 };
 
 const TYPE_LABELS: Record<ProgramType, string> = {
@@ -159,6 +162,35 @@ export default function ProgramsPage() {
     setPreviewDescription(false);
   };
 
+  const handleDuplicate = (prog: Program) => {
+    let nextSemester = prog.cycle_semester;
+    let nextYear = prog.cycle_year;
+    
+    if (nextSemester === '1') {
+      nextSemester = '2';
+    } else {
+      nextSemester = '1';
+      nextYear += 1;
+    }
+    
+    const nextTitle = `${TYPE_LABELS[prog.type]} ${nextYear}.${nextSemester}`;
+    
+    setFormState({
+      type: prog.type,
+      cycle_year: nextYear,
+      cycle_semester: nextSemester,
+      title: nextTitle,
+      description: prog.description ?? '',
+      status: 'incoming', // O próximo ciclo começa como "Em breve"
+      redirect_url: prog.redirect_url ?? '',
+      starts_at: '',
+      ends_at: '',
+    });
+    setEditingId(null);
+    setDialogMode('create');
+    setPreviewDescription(false);
+  };
+
   const closeDialog = () => {
     setDialogMode('closed');
     setEditingId(null);
@@ -228,7 +260,7 @@ export default function ProgramsPage() {
 
           {/* Status Filter */}
           <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
-            {(['all', 'incoming', 'opened', 'closed'] as const).map((s) => (
+            {(['all', 'incoming', 'opened', 'closed', 'inactive'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
@@ -341,55 +373,95 @@ export default function ProgramsPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
-                          {/* Toggle Transitions */}
-                          {prog.status === 'incoming' && (
-                            <button
-                              onClick={() => statusMutation.mutate({ id: prog.id, status: 'opened' })}
-                              disabled={statusMutation.isPending}
-                              className="px-2.5 py-1 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200/50 disabled:opacity-50"
+                        <DropdownMenu>
+                          <DropdownMenuTrigger className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors outline-none focus:ring-2 focus:ring-blue-500/20 data-[state=open]:bg-slate-100 data-[state=open]:text-slate-600">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 bg-white border border-slate-100 shadow-xl rounded-xl p-1 animate-in fade-in-80 zoom-in-95">
+                            <DropdownMenuItem 
+                              onClick={() => openEdit(prog)}
+                              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 rounded-lg cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
                             >
-                              Abrir Inscrições
-                            </button>
-                          )}
-                          {prog.status === 'opened' && (
-                            <button
-                              onClick={() => statusMutation.mutate({ id: prog.id, status: 'closed' })}
-                              disabled={statusMutation.isPending}
-                              className="px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200/50 disabled:opacity-50"
+                              <Edit2 className="h-4 w-4 opacity-70" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDuplicate(prog)}
+                              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 rounded-lg cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
                             >
-                              Encerrar
-                            </button>
-                          )}
-                          {prog.status === 'closed' && (
-                            <button
-                              onClick={() => statusMutation.mutate({ id: prog.id, status: 'incoming' })}
-                              disabled={statusMutation.isPending}
-                              className="px-2.5 py-1 text-xs font-bold text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors border border-yellow-200/50 disabled:opacity-50"
+                              <Copy className="h-4 w-4 opacity-70" />
+                              Duplicar
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator className="my-1 bg-slate-100 h-px" />
+                            
+                            {prog.status === 'incoming' && (
+                              <DropdownMenuItem 
+                                onClick={() => statusMutation.mutate({ id: prog.id, status: 'opened' })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 rounded-lg cursor-pointer hover:bg-green-50 transition-colors disabled:opacity-50"
+                              >
+                                <Play className="h-4 w-4 opacity-70" />
+                                Abrir Inscrições
+                              </DropdownMenuItem>
+                            )}
+                            {prog.status === 'opened' && (
+                              <DropdownMenuItem 
+                                onClick={() => statusMutation.mutate({ id: prog.id, status: 'closed' })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors disabled:opacity-50"
+                              >
+                                <Square className="h-4 w-4 opacity-70" />
+                                Encerrar
+                              </DropdownMenuItem>
+                            )}
+                            {prog.status === 'closed' && (
+                              <DropdownMenuItem 
+                                onClick={() => statusMutation.mutate({ id: prog.id, status: 'incoming' })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-yellow-700 rounded-lg cursor-pointer hover:bg-yellow-50 transition-colors disabled:opacity-50"
+                              >
+                                <RotateCcw className="h-4 w-4 opacity-70" />
+                                Tornar Breve
+                              </DropdownMenuItem>
+                            )}
+                            {prog.status === 'inactive' && (
+                              <DropdownMenuItem 
+                                onClick={() => statusMutation.mutate({ id: prog.id, status: 'incoming' })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-yellow-700 rounded-lg cursor-pointer hover:bg-yellow-50 transition-colors disabled:opacity-50"
+                              >
+                                <RotateCcw className="h-4 w-4 opacity-70" />
+                                Reativar (Em Breve)
+                              </DropdownMenuItem>
+                            )}
+                            {prog.status !== 'inactive' && (
+                              <DropdownMenuItem 
+                                onClick={() => statusMutation.mutate({ id: prog.id, status: 'inactive' })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-700 rounded-lg cursor-pointer hover:bg-red-50 transition-colors disabled:opacity-50"
+                              >
+                                <Square className="h-4 w-4 opacity-70 text-red-500" />
+                                Desativar
+                              </DropdownMenuItem>
+                            )}
+                            
+                            <DropdownMenuSeparator className="my-1 bg-slate-100 h-px" />
+                            
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                if (window.confirm(`Deseja realmente remover o programa "${prog.title}"? Esta ação não pode ser desfeita.`)) {
+                                  deleteMutation.mutate(prog.id);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
+                              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 rounded-lg cursor-pointer hover:bg-red-50 hover:text-red-700 transition-colors disabled:opacity-50"
                             >
-                              Tornar Breve
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => openEdit(prog)}
-                            className="px-2.5 py-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200/50"
-                          >
-                            Editar
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Deseja realmente remover o programa "${prog.title}"? Esta ação não pode ser desfeita.`)) {
-                                deleteMutation.mutate(prog.id);
-                              }
-                            }}
-                            disabled={deleteMutation.isPending}
-                            className="px-2.5 py-1 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200/50 disabled:opacity-50"
-                          >
-                            Excluir
-                          </button>
-                        </div>
+                              <Trash2 className="h-4 w-4 opacity-70" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))
@@ -444,6 +516,7 @@ export default function ProgramsPage() {
                     <option value="incoming">Em breve</option>
                     <option value="opened">Aberto</option>
                     <option value="closed">Encerrado</option>
+                    <option value="inactive">Inativo</option>
                   </select>
                 </div>
               </div>
