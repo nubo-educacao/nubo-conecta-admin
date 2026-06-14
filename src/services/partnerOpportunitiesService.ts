@@ -14,6 +14,7 @@ export interface PartnerOpportunity {
   name: string;
   description: string | null;
   opportunity_type: PartnerOpportunityType;
+  category: string | null;
   eligibility_criteria: Record<string, unknown>;
   external_redirect_config: {
     enabled?: boolean;
@@ -103,6 +104,7 @@ export interface CreatePartnerOpportunityInput {
   name:                    string;
   description?:            string;
   opportunity_type:        PartnerOpportunityType;
+  category?:               string;
   eligibility_criteria?:   Record<string, unknown>;
   external_redirect_config?: { enabled?: boolean; url?: string };
   starts_at?: string | null;

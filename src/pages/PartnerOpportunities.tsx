@@ -49,6 +49,7 @@ interface FormState {
   name: string;
   description: string;
   opportunity_type: PartnerOpportunityType;
+  category: string;
   status: OpportunityStatus;
   redirect_url: string;
   redirect_enabled: boolean;
@@ -61,6 +62,7 @@ const emptyForm: FormState = {
   name: '',
   description: '',
   opportunity_type: 'programa de bolsa',
+  category: '',
   status: 'inactive',
   redirect_url: '',
   redirect_enabled: false,
@@ -163,6 +165,7 @@ export default function PartnerOpportunitiesPage() {
       name:             opp.name,
       description:      opp.description ?? '',
       opportunity_type: opp.opportunity_type,
+      category:         opp.category ?? '',
       status:           opp.status,
       redirect_url:     (opp.external_redirect_config as any)?.url ?? '',
       redirect_enabled: (opp.external_redirect_config as any)?.enabled ?? false,
@@ -185,6 +188,7 @@ export default function PartnerOpportunitiesPage() {
       name: formState.name,
       description: formState.description || undefined,
       opportunity_type: formState.opportunity_type,
+      category: formState.category || undefined,
       external_redirect_config: {
         enabled: formState.redirect_enabled,
         url: formState.redirect_url || undefined,
@@ -419,6 +423,17 @@ export default function PartnerOpportunitiesPage() {
                   <option value="programa de bolsa">Programa de Bolsa</option>
                   <option value="programa educacional">Programa Educacional</option>
                 </select>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="text-sm font-semibold text-gray-600 block mb-1">Categoria (Category)</label>
+                <input
+                  value={formState.category}
+                  onChange={(e) => setFormState(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="Ex: Bolsa de Estudos, Mentoria, etc."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
 
               {/* Dates */}
