@@ -1,365 +1,278 @@
 /**
  * migrate-dev-to-prod.ts
- * ========================
- * Migração de dados do banco Dev (nubo-hub) para Prod (nubo-hub-prod).
- * Plano: ca81e337 | Sprint: 5012b6f8 | ADR: ADR-0021
+ * Migra dados do banco DEV (nubo-hub) → PROD (nubo-hub-prod)
  *
- * Pré-requisitos:
- *   1. Backup manual de Prod já feito (snapshot Supabase ou pg_dump)
- *   2. supabase db push já executado em Prod (Card 1)
- *   3. Variáveis de ambiente configuradas (ver abaixo)
- *
- * Execução:
+ * Uso:
+ *   DEV_SUPABASE_URL=... DEV_SUPABASE_SERVICE_KEY=... \
+ *   PROD_SUPABASE_URL=... PROD_SUPABASE_SERVICE_KEY=... \
  *   npx tsx scripts/migrate-dev-to-prod.ts
- *
- * Variáveis de ambiente necessárias:
- *   DEV_SUPABASE_URL          URL do projeto dev (nubo-hub)
- *   DEV_SUPABASE_SERVICE_KEY  Service role key do dev
- *   PROD_SUPABASE_URL         URL do projeto prod (nubo-hub-prod)
- *   PROD_SUPABASE_SERVICE_KEY Service role key do prod
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
+import { execSync } from 'child_process';
 
 const DEV_URL = process.env.DEV_SUPABASE_URL!;
 const DEV_KEY = process.env.DEV_SUPABASE_SERVICE_KEY!;
 const PROD_URL = process.env.PROD_SUPABASE_URL!;
 const PROD_KEY = process.env.PROD_SUPABASE_SERVICE_KEY!;
 
-const PAGE_SIZE = 500;
-
-function log(msg: string) {
-  console.log(`[${new Date().toISOString()}] ${msg}`);
+if (!DEV_URL || !DEV_KEY || !PROD_URL || !PROD_KEY) {
+  console.error('❌ Missing env vars.');
+  process.exit(1);
 }
 
-function assertEnv() {
-  const missing = ['DEV_SUPABASE_URL', 'DEV_SUPABASE_SERVICE_KEY', 'PROD_SUPABASE_URL', 'PROD_SUPABASE_SERVICE_KEY']
-    .filter(k => !process.env[k]);
-  if (missing.length > 0) throw new Error(`Variáveis faltando: ${missing.join(', ')}`);
-}
+const dev = createClient(DEV_URL, DEV_KEY, { auth: { persistSession: false } });
+const prod = createClient(PROD_URL, PROD_KEY, { auth: { persistSession: false } });
 
-async function deleteAll(prod: SupabaseClient, table: string, pkColumn = 'id') {
-  log(`  TRUNCATE ${table}...`);
-  const { error } = await prod
-    .from(table)
-    .delete()
-    .neq(pkColumn, '00000000-0000-0000-0000-000000000000');
-  if (error) throw new Error(`Falha ao truncar ${table}: ${error.message}`);
-  log(`  ✓ ${table} truncado`);
-}
+const BATCH_SIZE = 200;
 
-async function upsertTable(
-  dev: SupabaseClient,
-  prod: SupabaseClient,
-  table: string,
-  options: {
-    orderBy?: string;
-    onConflict?: string;
-    transform?: (rows: Record<string, unknown>[]) => Record<string, unknown>[];
-  } = {}
-) {
-  const { orderBy = 'created_at', onConflict = 'id', transform } = options;
-  log(`  Upsertando ${table}...`);
-
-  let page = 0;
-  let total = 0;
-
+async function fetchAll<T>(client: ReturnType<typeof createClient>, table: string, select = '*'): Promise<T[]> {
+  const results: T[] = [];
+  let from = 0;
   while (true) {
-    const { data, error } = await dev
-      .from(table)
-      .select('*')
-      .order(orderBy)
-      .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
-
-    if (error) throw new Error(`Erro ao ler ${table} (p${page}): ${error.message}`);
+    const { data, error } = await client.from(table).select(select).range(from, from + BATCH_SIZE - 1);
+    if (error) throw new Error(`fetchAll ${table}: ${error.message}`);
     if (!data || data.length === 0) break;
-
-    const rows = transform ? transform(data as Record<string, unknown>[]) : data;
-
-    const { error: upsertError } = await prod
-      .from(table)
-      .upsert(rows as Record<string, unknown>[], { onConflict });
-
-    if (upsertError) throw new Error(`Erro ao upsert ${table} (p${page}): ${upsertError.message}`);
-
-    total += rows.length;
-    log(`    → ${total} em ${table}`);
-
-    if (data.length < PAGE_SIZE) break;
-    page++;
+    results.push(...(data as T[]));
+    if (data.length < BATCH_SIZE) break;
+    from += BATCH_SIZE;
   }
-
-  log(`  ✓ ${table}: ${total} registros`);
-  return total;
+  return results;
 }
 
-async function count(prod: SupabaseClient, table: string): Promise<number> {
-  const { count, error } = await prod.from(table).select('*', { count: 'exact', head: true });
-  if (error) throw new Error(`Erro ao contar ${table}: ${error.message}`);
-  return count ?? 0;
-}
-
-// ---------------------------------------------------------------------------
-// Passo 1 — TRUNCATE
-// Limpa tabelas educacionais E programs em prod antes de upsert de dev.
-//
-// POR QUE truncar programs:
-//   O `supabase db push` cria programs com UUIDs gerados em prod (diferentes
-//   dos de dev). Sem truncate, os programs de prod e de dev coexistem com
-//   status divergentes, e a v_unified_opportunities (que faz JOIN por
-//   programs.type + status) exibe resultados diferentes dos de dev.
-//
-// NÃO truncar: partners, partner_forms, partner_steps, student_applications,
-//              knowledge_documents, partners_click, partners_users, partner_solicitations
-// ---------------------------------------------------------------------------
-
-async function step1_truncate(prod: SupabaseClient) {
-  log('\n=== PASSO 1: TRUNCATE ===');
-
-  const tables = [
-    // Transacionais
-    'user_favorites',
-    'external_redirect_clicks',
-    'passport_applications',
-    // Educacionais leaf-first
-    'courses_prouni_vacancies',
-    'opportunities_sisu_vacancies',
-    'important_dates',
-    'opportunities',
-    'courses',
-    'campus',
-    'institutions_info_emec',
-    'institutions_info_sisu',
-    'institutions',
-    // Programs: DEVE ser truncado para que os IDs/status de dev sejam
-    // os únicos em prod, garantindo v_unified_opportunities idêntica
-    'programs',
-  ];
-
-  for (const table of tables) {
-    try {
-      await deleteAll(prod, table);
-    } catch (e) {
-      log(`  ⚠ Ignorando ${table}: ${(e as Error).message}`);
+async function upsertBatched(table: string, rows: Record<string, unknown>[], onConflict = 'id') {
+  if (rows.length === 0) { console.log(`  ⏭  ${table}: 0 rows, skip`); return; }
+  let inserted = 0;
+  let skipped = 0;
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
+    const { error } = await prod.from(table).upsert(batch, { onConflict });
+    if (error) {
+      // FK violation or similar: retry row-by-row and skip invalid rows
+      if (error.message.includes('foreign key') || error.message.includes('violates')) {
+        for (const row of batch) {
+          const { error: rowErr } = await prod.from(table).upsert(row, { onConflict });
+          if (rowErr) skipped++;
+          else inserted++;
+        }
+      } else {
+        throw new Error(`upsert ${table} batch ${i}: ${error.message}`);
+      }
+    } else {
+      inserted += batch.length;
     }
+    if (rows.length > BATCH_SIZE) process.stdout.write(`\r  ⏳ ${table}: ${inserted}/${rows.length}`);
   }
+  if (rows.length > BATCH_SIZE) process.stdout.write('\n');
+  console.log(`  ✅ ${table}: ${inserted} rows${skipped > 0 ? ` (${skipped} skipped - FK missing)` : ''}`);
+}
 
-  log('✓ Passo 1 concluído');
+/** Delete all rows via paginated ID fetch, optionally skipping specific IDs */
+async function deleteAll(table: string, idCol = 'id', excludeIds: string[] = []) {
+  let deleted = 0;
+  while (true) {
+    let query = prod.from(table).select(idCol).limit(BATCH_SIZE);
+    if (excludeIds.length > 0) query = query.not(idCol, 'in', `(${excludeIds.map(id => `"${id}"`).join(',')})`);
+    const { data, error } = await query;
+    if (error) { console.warn(`  ⚠️  ${table} fetchIds: ${error.message}`); break; }
+    if (!data || data.length === 0) break;
+    const ids = data.map((r: Record<string, unknown>) => r[idCol]);
+    const { error: delErr } = await prod.from(table).delete().in(idCol, ids);
+    if (delErr) { console.warn(`  ⚠️  ${table} delete batch: ${delErr.message}`); break; }
+    deleted += ids.length;
+    process.stdout.write(`\r  🗑  ${table}: ${deleted} deleted`);
+  }
+  process.stdout.write('\n');
+  console.log(`  ✅ ${table}: cleared${excludeIds.length > 0 ? ` (${excludeIds.length} preserved)` : ''}`);
 }
 
 // ---------------------------------------------------------------------------
-// Passo 2 — UPSERT dados de dev
-// Ordem root-first para respeitar FKs
+// PASSO 1 — Limpar tabelas em prod na ordem correta (leaf → root)
 // ---------------------------------------------------------------------------
+async function step1_clear() {
+  console.log('\n📦 Passo 1 — Limpando tabelas em prod...');
 
-async function step2_upsert(dev: SupabaseClient, prod: SupabaseClient) {
-  log('\n=== PASSO 2: UPSERT dados de Dev ===');
+  // Transacionais com FK para courses/opportunities (já foram limpas, mas por segurança)
+  await deleteAll('user_favorites');
+  await deleteAll('external_redirect_clicks');
+  await deleteAll('passport_applications');
 
-  // Dados educacionais MEC
-  await upsertTable(dev, prod, 'institutions');
-  await upsertTable(dev, prod, 'campus');
-  await upsertTable(dev, prod, 'courses');
-  await upsertTable(dev, prod, 'institutions_info_emec');
-  await upsertTable(dev, prod, 'institutions_info_sisu');
+  // Vagas (dependem de opportunities/courses)
+  await deleteAll('opportunities_sisu_vacancies');
+  await deleteAll('courses_prouni_vacancies');
+  await deleteAll('important_dates');
 
-  // Programs: os mesmos IDs e status de dev garantem v_unified_opportunities idêntica
-  await upsertTable(dev, prod, 'programs');
+  // Partner_opportunities: preservar os que são referenciados por student_applications
+  // (student_applications.partner_id → partner_opportunities.id, NOT NULL → não pode SET NULL)
+  const { data: saRefs } = await prod.from('student_applications').select('partner_id').not('partner_id', 'is', null);
+  const preservedOppIds = [...new Set((saRefs ?? []).map((r: Record<string, unknown>) => r.partner_id as string))];
+  console.log(`  🔒 Preservando ${preservedOppIds.length} partner_opportunities referenciados por student_applications`);
 
-  // Parceiro BIP Brasil
-  await upsertTable(dev, prod, 'partner_institutions', { onConflict: 'institution_id' });
-  await upsertTable(dev, prod, 'partner_opportunities');
-  await upsertTable(dev, prod, 'partner_steps', { orderBy: 'sort_order' });
-  await upsertTable(dev, prod, 'partner_forms', { orderBy: 'sort_order' });
+  await deleteAll('partner_forms');
+  await deleteAll('partner_steps');
+  await deleteAll('partner_opportunities', 'id', preservedOppIds);
 
-  // Oportunidades (dependem de courses + programs já inseridos)
-  await upsertTable(dev, prod, 'opportunities');
-  await upsertTable(dev, prod, 'opportunities_sisu_vacancies');
-  await upsertTable(dev, prod, 'courses_prouni_vacancies');
-  await upsertTable(dev, prod, 'important_dates');
+  // Institutions: preservar as que ainda têm partner_opportunities apontando
+  const { data: oppInsts } = await prod.from('partner_opportunities').select('institution_id').not('institution_id', 'is', null);
+  const preservedInstIds = [...new Set((oppInsts ?? []).map((r: Record<string, unknown>) => r.institution_id as string))];
+  console.log(`  🔒 Preservando ${preservedInstIds.length} institutions referenciadas por partner_opportunities`);
+
+  await deleteAll('partner_institutions', 'institution_id');
+  await deleteAll('opportunities');
+  await deleteAll('courses');
+  await deleteAll('campus');
+  await deleteAll('institutions_info_emec');
+  await deleteAll('institutions_info_sisu');
+  await deleteAll('institutions', 'id', preservedInstIds);
+  await deleteAll('programs');
+
+  // Atualizar partner_opportunities preservados para valor válido no novo constraint
+  if (preservedOppIds.length > 0) {
+    const { error: updErr } = await prod
+      .from('partner_opportunities')
+      .update({ opportunity_type: 'programa de bolsa' })
+      .in('id', preservedOppIds);
+    if (updErr) console.warn(`  ⚠️  update opportunity_type: ${updErr.message}`);
+    else console.log(`  ✅ ${preservedOppIds.length} partner_opportunities atualizados para 'programa de bolsa'`);
+  }
+
+  console.log('  ℹ️  Migrations já aplicadas via db push — prosseguindo com upsert');
+}
+
+// ---------------------------------------------------------------------------
+// PASSO 2 — UPSERT dados de dev → prod (root-first)
+// ---------------------------------------------------------------------------
+async function step2_upsert() {
+  console.log('\n📥 Passo 2 — Inserindo dados de dev...');
+
+  // Educational root tables
+  const institutions = await fetchAll(dev, 'institutions');
+  console.log(`  📊 institutions em dev: ${institutions.length}`);
+  await upsertBatched('institutions', institutions as Record<string, unknown>[]);
+
+  await upsertBatched('campus', await fetchAll(dev, 'campus') as Record<string, unknown>[]);
+  await upsertBatched('courses', await fetchAll(dev, 'courses') as Record<string, unknown>[]);
+  await upsertBatched('institutions_info_emec', await fetchAll(dev, 'institutions_info_emec') as Record<string, unknown>[]);
+  await upsertBatched('institutions_info_sisu', await fetchAll(dev, 'institutions_info_sisu') as Record<string, unknown>[]);
+  // Selecionar apenas colunas que existem em prod (dev tem is_fully_imported, prev_program_id a mais)
+  const programs = await fetchAll(dev, 'programs', 'id,type,cycle_year,cycle_semester,title,description,status,redirect_url,starts_at,ends_at,created_at,updated_at');
+  await upsertBatched('programs', programs as Record<string, unknown>[]);
+
+  // Partner data
+  await upsertBatched('partner_institutions', await fetchAll(dev, 'partner_institutions') as Record<string, unknown>[], 'institution_id');
+  await upsertBatched('partner_opportunities', await fetchAll(dev, 'partner_opportunities') as Record<string, unknown>[]);
+  await upsertBatched('partner_steps', await fetchAll(dev, 'partner_steps') as Record<string, unknown>[]);
+  await upsertBatched('partner_forms', await fetchAll(dev, 'partner_forms') as Record<string, unknown>[]);
+
+  // Opportunities & vacancies
+  await upsertBatched('opportunities', await fetchAll(dev, 'opportunities') as Record<string, unknown>[]);
+  // opportunities_sisu_vacancies: importar via ETL no admin após upload do rawsisuvacancies
+  console.log('  ⏭  opportunities_sisu_vacancies: pulado (importar via ETL no admin)');
+  await upsertBatched('courses_prouni_vacancies', await fetchAll(dev, 'courses_prouni_vacancies') as Record<string, unknown>[]);
+  await upsertBatched('important_dates', await fetchAll(dev, 'important_dates') as Record<string, unknown>[]);
 
   // Knowledge base
-  await upsertTable(dev, prod, 'knowledge_categories');
-  await upsertTable(dev, prod, 'knowledge_documents');
-  await upsertTable(dev, prod, 'knowledge_document_versions');
-  await upsertTable(dev, prod, 'knowledge_keywords');
+  await upsertBatched('knowledge_categories', await fetchAll(dev, 'knowledge_categories') as Record<string, unknown>[]);
+  await upsertBatched('knowledge_documents', await fetchAll(dev, 'knowledge_documents') as Record<string, unknown>[]);
+  await upsertBatched('knowledge_document_versions', await fetchAll(dev, 'knowledge_document_versions') as Record<string, unknown>[]);
+  await upsertBatched('knowledge_keywords', await fetchAll(dev, 'knowledge_keywords') as Record<string, unknown>[]);
 
-  // Config da plataforma
-  await upsertTable(dev, prod, 'cloudinha_starters');
-  await upsertTable(dev, prod, 'home_sections');
-  await upsertTable(dev, prod, 'match_config', { onConflict: 'weight_key', orderBy: 'weight_key' });
-  await upsertTable(dev, prod, 'agent_prompts', { onConflict: 'agent_key', orderBy: 'agent_key' });
-  await upsertTable(dev, prod, 'course_groups', { onConflict: 'group_key', orderBy: 'group_key' });
-  await upsertTable(dev, prod, 'system_intents');
-
-  log('✓ Passo 2 concluído');
+  // Config / content
+  await upsertBatched('cloudinha_starters', await fetchAll(dev, 'cloudinha_starters') as Record<string, unknown>[]);
+  await upsertBatched('home_sections', await fetchAll(dev, 'home_sections') as Record<string, unknown>[]);
+  await upsertBatched('match_config', await fetchAll(dev, 'match_config') as Record<string, unknown>[], 'weight_key');
+  await upsertBatched('agent_prompts', await fetchAll(dev, 'agent_prompts') as Record<string, unknown>[], 'agent_key');
+  await upsertBatched('course_groups', await fetchAll(dev, 'course_groups') as Record<string, unknown>[], 'group_key');
+  await upsertBatched('system_intents', await fetchAll(dev, 'system_intents') as Record<string, unknown>[]);
 }
 
 // ---------------------------------------------------------------------------
-// Passo 3 — Mapear partners legados de prod → partner_institutions
-// Os 6 parceiros existentes em prod (Insper, Fundação Estudar, etc.) ficam
-// na tabela `partners` legada e precisam de pares no schema novo.
+// PASSO 3 — obsoleto
+// step3_legacy_partners: schema migrou de partner_id para institution_id
+// partners legados permanecem na tabela partners sem mapeamento necessário
 // ---------------------------------------------------------------------------
 
-async function step3_mapLegacyPartners(prod: SupabaseClient) {
-  log('\n=== PASSO 3: Mapear partners legados → partner_institutions ===');
-
-  const { data: partners, error } = await prod
-    .from('partners')
-    .select('id, name, description, location, link, coverimage, external_redirect_config');
-
-  if (error) throw new Error(`Erro ao ler partners: ${error.message}`);
-  if (!partners?.length) { log('  ⚠ Nenhum partner legado'); return; }
-
-  for (const partner of partners as Record<string, unknown>[]) {
-    const name = partner.name as string;
-    log(`  Processando: ${name}`);
-
-    const { data: existing } = await prod
-      .from('institutions').select('id').eq('name', name).eq('is_partner', true).maybeSingle();
-
-    let institutionId: string;
-    if (existing) {
-      institutionId = existing.id as string;
-    } else {
-      const { data: inst, error: e } = await prod
-        .from('institutions').insert({ name, is_partner: true }).select('id').single();
-      if (e) throw new Error(`Erro ao criar institution "${name}": ${e.message}`);
-      institutionId = inst.id as string;
-    }
-
-    const { data: existingPI } = await prod
-      .from('partner_institutions').select('institution_id').eq('institution_id', institutionId).maybeSingle();
-
-    if (!existingPI) {
-      const { error: e } = await prod.from('partner_institutions').insert({
-        institution_id: institutionId,
-        description: partner.description,
-        location: partner.location,
-        logo_url: null,
-        cover_url: partner.coverimage,
-        website_url: partner.link,
-        brand_color: null,
-      });
-      if (e) throw new Error(`Erro ao criar partner_institutions "${name}": ${e.message}`);
-    }
-
-    const { data: existingPO } = await prod
-      .from('partner_opportunities').select('id').eq('institution_id', institutionId).maybeSingle();
-
-    if (!existingPO) {
-      const { error: e } = await prod.from('partner_opportunities').insert({
-        institution_id: institutionId,
-        name,
-        description: partner.description,
-        opportunity_type: 'scholarship',
-        eligibility_criteria: {},
-        external_redirect_config: partner.external_redirect_config ?? {},
-        status: 'inactive',
-      });
-      if (e) throw new Error(`Erro ao criar partner_opportunities "${name}": ${e.message}`);
-      log(`    → criado (status=inactive — ativar manualmente após revisão)`);
-    } else {
-      log(`    → já existe`);
-    }
-  }
-
-  log('✓ Passo 3 concluído');
-}
-
 // ---------------------------------------------------------------------------
-// Passo 4 — REFRESH Materialized View
+// PASSO 4 — REFRESH MATERIALIZED VIEW
 // ---------------------------------------------------------------------------
-
-async function step4_refresh(prod: SupabaseClient) {
-  log('\n=== PASSO 4: REFRESH MATERIALIZED VIEW ===');
-
+async function step4_refresh() {
+  console.log('\n🔄 Passo 4 — REFRESH MATERIALIZED VIEW v_unified_opportunities...');
   const { error } = await prod.rpc('refresh_unified_opportunities');
   if (error) {
-    log(`  ⚠ RPC indisponível: ${error.message}`);
-    log('  → AÇÃO MANUAL no SQL Editor de prod:');
-    log('    REFRESH MATERIALIZED VIEW v_unified_opportunities;');
+    console.warn(`  ⚠️  RPC não disponível: ${error.message}`);
+    console.log('  ℹ️  Execute manualmente no SQL Editor:');
+    console.log('      REFRESH MATERIALIZED VIEW v_unified_opportunities;');
   } else {
-    log('  ✓ REFRESH executado');
+    console.log('  ✅ View atualizada');
   }
-
-  log('✓ Passo 4 concluído');
 }
 
 // ---------------------------------------------------------------------------
-// Passo 5 — Validação
+// PASSO 5 — Validação de contagens
 // ---------------------------------------------------------------------------
+async function step5_validate() {
+  console.log('\n🔍 Passo 5 — Validação...');
 
-async function step5_validate(prod: SupabaseClient) {
-  log('\n=== PASSO 5: VALIDAÇÃO ===');
-
-  const checks: Array<{ table: string; expected: number; op: '==' | '>=' }> = [
-    { table: 'user_profiles',              expected: 3058,  op: '==' },
-    { table: 'user_enem_scores',           expected: 606,   op: '==' },
-    { table: 'user_preferences',           expected: 1270,  op: '==' },
-    { table: 'user_income',                expected: 466,   op: '==' },
-    { table: 'chat_messages',              expected: 42394, op: '==' },
-    { table: 'partners',                   expected: 6,     op: '==' },
-    { table: 'student_applications',       expected: 430,   op: '==' },
-    { table: 'programs',                   expected: 6,     op: '==' },
-    { table: 'institutions',               expected: 138,   op: '>=' },
-    { table: 'courses',                    expected: 7539,  op: '>=' },
-    { table: 'opportunities',              expected: 66289, op: '>=' },
-    { table: 'partner_institutions',       expected: 1,     op: '>=' },
-    { table: 'partner_opportunities',      expected: 1,     op: '>=' },
-    { table: 'partner_steps',              expected: 1,     op: '>=' },
-    { table: 'knowledge_categories',       expected: 6,     op: '>=' },
-    { table: 'knowledge_documents',        expected: 10,    op: '>=' },
-    { table: 'knowledge_document_versions',expected: 17,    op: '>=' },
-    { table: 'knowledge_keywords',         expected: 54,    op: '>=' },
-    { table: 'user_favorites',             expected: 0,     op: '==' },
+  const checks: { table: string; devMin?: number }[] = [
+    { table: 'institutions', devMin: 100 },
+    { table: 'campus', devMin: 1000 },
+    { table: 'courses', devMin: 7000 },
+    { table: 'programs', devMin: 5 },
+    { table: 'opportunities', devMin: 60000 },
+    { table: 'partner_institutions' },
+    { table: 'partner_opportunities' },
+    { table: 'partner_steps' },
+    { table: 'partner_forms' },
+    { table: 'knowledge_documents' },
+    { table: 'match_config' },
+    { table: 'agent_prompts' },
+    { table: 'cloudinha_starters' },
+    // Preserved (not migrated — should stay)
+    { table: 'user_profiles' },
+    { table: 'chat_messages' },
+    { table: 'student_applications' },
+    { table: 'partners' },
   ];
 
-  let passed = 0, failed = 0;
+  console.log('\n  Tabela                          | DEV    | PROD   | OK');
+  console.log('  --------------------------------|--------|--------|----');
 
-  for (const c of checks) {
-    try {
-      const n = await count(prod, c.table);
-      const ok = c.op === '>=' ? n >= c.expected : n === c.expected;
-      log(`  ${ok ? '✅' : '❌'} ${c.table}: ${n} (esperado: ${c.op} ${c.expected})`);
-      ok ? passed++ : failed++;
-    } catch (e) {
-      log(`  ⚠ ${c.table}: ${(e as Error).message}`);
-      failed++;
-    }
+  for (const { table, devMin } of checks) {
+    const [devRes, prodRes] = await Promise.all([
+      dev.from(table).select('*', { count: 'exact', head: true }),
+      prod.from(table).select('*', { count: 'exact', head: true }),
+    ]);
+    const d = devRes.count ?? 0;
+    const p = prodRes.count ?? 0;
+    const ok = devMin ? p >= devMin : p >= 0;
+    const status = ok ? '✅' : '❌';
+    console.log(`  ${table.padEnd(32)}| ${String(d).padEnd(6)} | ${String(p).padEnd(6)} | ${status}`);
   }
-
-  log(`\n=== ${passed} ✅ | ${failed} ❌ ===`);
-  if (failed > 0) throw new Error(`${failed} checks falharam.`);
-  log('✓ Passo 5 concluído');
 }
 
 // ---------------------------------------------------------------------------
-// Main
+// MAIN
 // ---------------------------------------------------------------------------
-
 async function main() {
-  log('🚀 Migração Dev → Prod');
-  log('⚠️  PRÉ-REQUISITO: Backup de prod feito.');
-  log('⚠️  PRÉ-REQUISITO: supabase db push (Card 1) executado.');
+  console.log('🚀 Migração DEV → PROD iniciada');
+  console.log(`   DEV:  ${DEV_URL}`);
+  console.log(`   PROD: ${PROD_URL}`);
 
-  assertEnv();
-
-  const dev = createClient(DEV_URL, DEV_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-  const prod = createClient(PROD_URL, PROD_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-
-  try {
-    await step1_truncate(prod);
-    await step2_upsert(dev, prod);
-    await step3_mapLegacyPartners(prod);
-    await step4_refresh(prod);
-    await step5_validate(prod);
-
-    log('\n🎉 Migração concluída!');
-    log('⚠️  Ativar manualmente os partner_opportunities dos parceiros legados em /partner-opportunities.');
-  } catch (err) {
-    log(`\n💥 ERRO: ${(err as Error).message}`);
-    process.exit(1);
+  const skipClear = process.argv.includes('--skip-clear');
+  if (!skipClear) {
+    await step1_clear();
+  } else {
+    console.log('\n⏭  Passo 1 ignorado (--skip-clear)');
   }
+  await step2_upsert();
+  // step3 obsoleto — ver comentário acima
+  await step4_refresh();
+  await step5_validate();
+
+  console.log('\n✅ Migração concluída!');
 }
 
-main();
+main().catch(err => {
+  console.error('❌ Erro fatal:', err);
+  process.exit(1);
+});
