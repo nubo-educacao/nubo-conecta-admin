@@ -18,7 +18,7 @@
 --    (v_unified_opportunities references qt_inscricao_prev)
 -- ─────────────────────────────────────────────────────────────
 
-DROP MATERIALIZED VIEW IF EXISTS public.mv_course_catalog CASCADE;
+-- DROP MATERIALIZED VIEW IF EXISTS public.mv_course_catalog CASCADE;
 DROP VIEW IF EXISTS public.v_unified_institutions CASCADE;
 DROP FUNCTION IF EXISTS public.get_unified_opportunities_by_distance(double precision, double precision) CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS public.v_unified_opportunities CASCADE;
@@ -404,7 +404,7 @@ $$;
 --    Logic: EXISTS any modality in that cycle where qt_vagas > qt_inscricao
 -- ─────────────────────────────────────────────────────────────
 
-DROP MATERIALIZED VIEW IF EXISTS public.mv_course_catalog CASCADE;
+-- DROP MATERIALIZED VIEW IF EXISTS public.mv_course_catalog CASCADE;
 DROP VIEW IF EXISTS public.v_unified_institutions CASCADE;
 DROP FUNCTION IF EXISTS public.get_unified_opportunities_by_distance(double precision, double precision) CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS public.v_unified_opportunities CASCADE;

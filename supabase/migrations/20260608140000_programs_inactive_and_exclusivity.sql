@@ -1,3 +1,4 @@
+SET statement_timeout = 0;
 -- 1. Alter public.programs status check constraint to include 'inactive'
 ALTER TABLE public.programs DROP CONSTRAINT IF EXISTS programs_status_check;
 ALTER TABLE public.programs ADD CONSTRAINT programs_status_check CHECK (status IN ('incoming', 'opened', 'closed', 'inactive'));
@@ -27,7 +28,7 @@ FOR EACH ROW
 EXECUTE FUNCTION public.ensure_single_active_program();
 
 -- 4. Drop dependent views/functions to avoid dependency errors
-DROP MATERIALIZED VIEW IF EXISTS public.mv_course_catalog CASCADE;
+-- DROP MATERIALIZED VIEW IF EXISTS public.mv_course_catalog CASCADE;
 DROP VIEW IF EXISTS public.v_unified_institutions CASCADE;
 DROP FUNCTION IF EXISTS public.get_unified_opportunities_by_distance CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS public.v_unified_opportunities CASCADE;
@@ -313,6 +314,7 @@ CREATE OR REPLACE VIEW public.v_unified_institutions AS
 
 GRANT SELECT ON public.v_unified_institutions TO anon, authenticated, service_role;
 
+/*
 -- 7. Recreate mv_course_catalog
 CREATE MATERIALIZED VIEW public.mv_course_catalog AS
  WITH opportunity_aggregates AS (
@@ -325,9 +327,9 @@ CREATE MATERIALIZED VIEW public.mv_course_catalog AS
             bool_or(((o.is_nubo_pick = true) OR (COALESCE(osv.vagas_ociosas_prev, 0) > 0))) AS has_nubo_pick,
             bool_or((EXISTS ( SELECT 1
                    FROM jsonb_array_elements(o.concurrency_tags) tags_group(value)
-                  WHERE (EXISTS ( SELECT 1
-                           FROM jsonb_array_elements_text(tags_group.value) tag(value)
-                          WHERE (tag.value <> ALL (ARRAY['AMPLA_CONCORRENCIA'::text, 'MILITAR'::text, 'OUTROS'::text, 'BOLSA_PARCIAL'::text, 'BOLSA_INTEGRAL'::text]))))))) AS has_affirmative_action_tags,
+                   WHERE (EXISTS ( SELECT 1
+                            FROM jsonb_array_elements_text(tags_group.value) tag(value)
+                            WHERE (tag.value <> ALL (ARRAY['AMPLA_CONCORRENCIA'::text, 'MILITAR'::text, 'OUTROS'::text, 'BOLSA_PARCIAL'::text, 'BOLSA_INTEGRAL'::text]))))))) AS has_affirmative_action_tags,
             json_agg(json_build_object('id', o.id, 'shift', o.shift, 'scholarship_type', o.scholarship_type, 'concurrency_type', o.concurrency_type, 'concurrency_tags', o.concurrency_tags, 'scholarship_tags', o.scholarship_tags, 'opportunity_type', o.opportunity_type, 'cutoff_score', o.cutoff_score, 'is_nubo_pick', ((o.is_nubo_pick = true) OR (COALESCE(osv.vagas_ociosas_prev, 0) > 0)))) AS opportunities_json
            FROM public.opportunities o
              JOIN public.programs p ON p.type = o.opportunity_type AND p.status <> 'inactive'::text
@@ -373,6 +375,7 @@ CREATE MATERIALIZED VIEW public.mv_course_catalog AS
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_course_catalog_id ON public.mv_course_catalog (course_id);
 GRANT SELECT ON public.mv_course_catalog TO anon, authenticated, service_role;
+*/;
 
 -- 8. Recreate get_unified_opportunities_by_distance
 CREATE OR REPLACE FUNCTION public.get_unified_opportunities_by_distance(

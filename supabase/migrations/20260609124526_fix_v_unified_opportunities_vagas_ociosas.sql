@@ -2,7 +2,7 @@
 -- vagas_ociosas_current and vagas_ociosas_prev must return NULL instead of FALSE 
 -- if there is no record with qt_inscricao in that cycle.
 
-DROP MATERIALIZED VIEW IF EXISTS public.mv_course_catalog CASCADE;
+-- DROP MATERIALIZED VIEW IF EXISTS public.mv_course_catalog CASCADE;
 DROP VIEW IF EXISTS public.v_unified_institutions CASCADE;
 DROP FUNCTION IF EXISTS public.get_unified_opportunities_by_distance(double precision, double precision) CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS public.v_unified_opportunities CASCADE;
