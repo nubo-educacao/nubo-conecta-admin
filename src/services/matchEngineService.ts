@@ -75,7 +75,7 @@ export const updateMatchWeight = async (id: string, value: number): Promise<void
 export const simulateMatchFrontend = async (input: SimulationInput, weights: MatchWeight[]): Promise<SimulationResult[]> => {
   const { data: opps, error } = await supabase
     .from("v_unified_opportunities")
-    .select("unified_id, title, provider_name, is_partner, type, min_cutoff_score, location")
+    .select("unified_id, title, provider_name, is_partner, type, min_cutoff_score_current, min_cutoff_score_prev, location")
     .limit(50);
 
   if (error) {
@@ -105,15 +105,19 @@ export const simulateMatchFrontend = async (input: SimulationInput, weights: Mat
     let meetsIncome = true;
     if (input.family_income_per_capita != null) {
       if (oppType === 'prouni' && input.family_income_per_capita > SM * 3.0) meetsIncome = false;
-      if (oppType === 'sisu' && input.family_income_per_capita > SM * 1.5) meetsIncome = false; // simplified for cotas
+      // SISU always has Ampla Concorrência (no income limit), so we do not block the course-level match.
     }
 
-    // Academic score (simplified — no per-area weights in frontend sim)
-    const cutoff = (opp as any).min_cutoff_score as number | null;
+    const decayAbove = w['score_decay_above_cutoff'] ?? 0.3;
+    const decayBelow = w['score_decay_below_cutoff'] ?? 0.9;
+
+    const cutoff = ((opp as any).min_cutoff_score_current ?? (opp as any).min_cutoff_score_prev) as number | null;
     let academicScore = 50.0;
     if (input.enem_score && input.enem_score > 0) {
       if (cutoff && cutoff > 0) {
-        academicScore = Math.max(0, Math.min(100, 100 - Math.max(0, cutoff - input.enem_score) * 0.5));
+        const diff = input.enem_score - cutoff;
+        const penalty = diff >= 0 ? diff * decayAbove : (-diff) * decayBelow;
+        academicScore = Math.max(0, Math.min(100, 100 - penalty));
       } else {
         academicScore = Math.min(100, (input.enem_score / 700) * 100);
       }

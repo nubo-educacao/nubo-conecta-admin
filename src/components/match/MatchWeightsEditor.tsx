@@ -50,7 +50,8 @@ export default function MatchWeightsEditor() {
     return <div className="text-red-500 p-4 border border-red-200 bg-red-50 rounded-lg">Erro ao carregar pesos do match.</div>;
   }
 
-  const compositionWeights = Object.values(localWeights).filter(w => w.category === 'score_composition');
+  const compositionWeights = Object.values(localWeights).filter(w => w.category === 'v3_pillar' || w.category === 'score_composition');
+  const decayWeights = Object.values(localWeights).filter(w => w.category === 'score_decay');
   const boostWeights = Object.values(localWeights).filter(w => w.category === 'boost');
 
   return (
@@ -104,6 +105,52 @@ export default function MatchWeightsEditor() {
           ))}
         </CardContent>
       </Card>
+
+      {/* Decaimento de Notas (Curva Assimétrica) */}
+      {decayWeights.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Curva Assimétrica de Decaimento de Nota</CardTitle>
+            <CardDescription>
+              Configuração das penalidades aplicadas por ponto de diferença em relação à nota de corte do curso.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {decayWeights.map((w) => (
+              <div key={w.id} className="grid grid-cols-[1fr_80px_100px] gap-6 items-center">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center justify-between">
+                    {w.weight_key}
+                    <span className="text-xs text-muted-foreground font-normal">{w.description}</span>
+                  </Label>
+                  <Slider
+                    min={0}
+                    max={2}
+                    step={0.05}
+                    value={[w.weight_value]}
+                    onValueChange={(vals) => handleValueChange(w.id, vals[0])}
+                    className="w-full"
+                  />
+                </div>
+                <div className="pt-6">
+                  <Input 
+                    type="number" 
+                    step="0.05" 
+                    value={w.weight_value} 
+                    onChange={(e) => handleValueChange(w.id, parseFloat(e.target.value) || 0)} 
+                    className="h-8 text-right"
+                  />
+                </div>
+                <div className="pt-6">
+                  <Button size="sm" variant="outline" onClick={() => handleUpdate(w.id)} disabled={savingId === w.id} className="w-full">
+                    {savingId === w.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Multiplicadores e Boosts */}
       <Card>

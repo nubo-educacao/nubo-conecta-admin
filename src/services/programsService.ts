@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export type ProgramType = 'sisu' | 'prouni';
-export type ProgramStatus = 'incoming' | 'opened' | 'closed';
+export type ProgramStatus = 'incoming' | 'opened' | 'closed' | 'inactive';
 
 export interface Program {
   id: string;
