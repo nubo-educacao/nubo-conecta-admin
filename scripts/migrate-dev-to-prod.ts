@@ -9,7 +9,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { execSync } from 'child_process';
 
 const DEV_URL = process.env.DEV_SUPABASE_URL!;
 const DEV_KEY = process.env.DEV_SUPABASE_SERVICE_KEY!;

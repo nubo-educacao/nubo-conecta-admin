@@ -35,7 +35,10 @@ DROP TABLE IF EXISTS passport_applications CASCADE;
 SELECT table_name
 FROM information_schema.tables
 WHERE table_schema = 'public'
-  AND table_name LIKE '%2025%' OR table_name LIKE '%2026%'
-  OR table_name IN ('institutionsinfoemec', 'institutionsinfosisu', 'opportunitiessisuvacancies', 'passport_applications')
+  AND (
+    table_name LIKE '%2025%'
+    OR table_name LIKE '%2026%'
+    OR table_name IN ('institutionsinfoemec', 'institutionsinfosisu', 'opportunitiessisuvacancies', 'passport_applications')
+  )
 ORDER BY table_name;
 -- Esperado: 0 linhas
