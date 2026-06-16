@@ -52,7 +52,7 @@ export async function getApplicationsWithDetails(
  */
 export async function getPartnersList(): Promise<PartnerOption[]> {
     const { data, error } = await supabase
-        .from("partners")
+        .from("partner_opportunities")
         .select("id, name")
         .order("name", { ascending: true });
 

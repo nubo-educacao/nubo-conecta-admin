@@ -24,6 +24,7 @@ import {
     Clock,
     FileSpreadsheet,
     Eye,
+    ExternalLink,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApplicationWithDetails, PartnerOption } from "@/services/applicationsService";
@@ -37,10 +38,11 @@ const STATUS_CONFIG: Record<
 > = {
     DRAFT: { label: "Rascunho", variant: "outline", icon: Clock },
     SUBMITTED: { label: "Enviado", variant: "secondary", icon: FileSpreadsheet },
+    redirected: { label: "Redirecionado", variant: "default", icon: ExternalLink },
 };
 
 function StatusBadge({ status }: { status: string }) {
-    const config = STATUS_CONFIG[status] || STATUS_CONFIG.DRAFT;
+    const config = STATUS_CONFIG[status] || { label: status, variant: "outline" as const, icon: Clock };
     const Icon = config.icon;
     return (
         <Badge variant={config.variant} className="flex items-center gap-1 whitespace-nowrap">
@@ -185,6 +187,7 @@ export default function ApplicationsTable({
                     <SelectContent>
                         <SelectItem value="all">Todos os Status</SelectItem>
                         <SelectItem value="DRAFT">Rascunho</SelectItem>
+                        <SelectItem value="redirected">Redirecionado</SelectItem>
                         <SelectItem value="SUBMITTED">Enviado</SelectItem>
                     </SelectContent>
                 </Select>
