@@ -8,7 +8,7 @@ import {
     type PartnerFormField,
 } from "@/services/partnerPortalService";
 import {
-    getApplicationsWithDetails,
+    getApplicationsByInstitution,
     getEligibleCountForPartner,
     getPartnerFormCounts,
     type ApplicationWithDetails,
@@ -232,10 +232,10 @@ export default function PartnerDashboard() {
         enabled: !!partnerId,
     });
 
-    // 4. Fetch applications via new RPC
+    // 4. Fetch applications for this partner institution
     const { data: applications = [], isLoading: loadingApps } = useQuery({
         queryKey: ["applicationsWithDetails", partnerId],
-        queryFn: () => getApplicationsWithDetails(partnerId!),
+        queryFn: () => getApplicationsByInstitution(partnerId!),
         enabled: !!partnerId,
     });
 

@@ -48,6 +48,26 @@ export async function getApplicationsWithDetails(
 }
 
 /**
+ * Fetches student applications for a partner institution.
+ * Used by partner portal to show applications across all opportunities of the institution.
+ */
+export async function getApplicationsByInstitution(
+    institutionId: string
+): Promise<ApplicationWithDetails[]> {
+    const { data, error } = await (supabase.rpc as any)(
+        "get_partner_applications_by_institution",
+        { p_institution_id: institutionId }
+    );
+
+    if (error) {
+        console.error("Error fetching applications by institution:", error);
+        throw error;
+    }
+
+    return (data ?? []) as ApplicationWithDetails[];
+}
+
+/**
  * Fetches the list of partners for the filter dropdown.
  */
 export async function getPartnersList(): Promise<PartnerOption[]> {
