@@ -84,22 +84,19 @@ interface ApplicationsTableProps {
 
 // ─── Eligibility formatter ─────────────────────────────────────────────────────
 
-function EligibilityCell({ eligibilityResults, partnerId }: { eligibilityResults: any, partnerId: string }) {
-    if (!eligibilityResults || !Array.isArray(eligibilityResults) || !partnerId) {
+function EligibilityCell({ eligibilityResults }: { eligibilityResults: any }) {
+    if (!eligibilityResults || !Array.isArray(eligibilityResults) || eligibilityResults.length === 0) {
         return <span className="text-muted-foreground">—</span>;
     }
-    const res = eligibilityResults.find((r: any) => r.partner_id === partnerId);
-    if (!res) {
-        return <span className="text-muted-foreground">—</span>;
-    }
-    
-    const met = Number(res.met_criteria) || 0;
-    const total = Number(res.total_criteria) || 0;
+    // eligibility_results is a flat list of criterion evaluations:
+    //   [{ met: boolean, user_answer: string, question_text: string }, ...]
+    const total = eligibilityResults.length;
+    const met = eligibilityResults.filter((r: any) => r.met === true).length;
     const isEligible = met === total && total > 0;
-    
+
     return (
         <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className="font-medium" title="Totalmente elegível">{met} / {total}</span>
+            <span className="font-medium" title={isEligible ? "Totalmente elegível" : "Parcialmente elegível"}>{met} / {total}</span>
             {isEligible && <CheckCircle2 className="h-4 w-4 text-green-500" />}
         </div>
     );
@@ -233,7 +230,7 @@ export default function ApplicationsTable({
                                         <StatusBadge status={app.status} />
                                     </TableCell>
                                     <TableCell>
-                                        <EligibilityCell eligibilityResults={app.eligibility_results} partnerId={app.partner_id} />
+                                        <EligibilityCell eligibilityResults={app.eligibility_results} />
                                     </TableCell>
                                     <TableCell className="text-center">
                                         {(() => {
