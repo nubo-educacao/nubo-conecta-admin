@@ -299,7 +299,7 @@ export default function PartnerDashboard() {
 
     const stats = useMemo(() => {
         const total = filteredApps.length;
-        
+
         const eligible = filteredApps.filter((app) => {
             if (!app.eligibility_results || !Array.isArray(app.eligibility_results)) return false;
             const res = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
@@ -309,7 +309,7 @@ export default function PartnerDashboard() {
             return met === totalFields && totalFields > 0;
         }).length;
 
-        const submitted = filteredApps.filter((a) => a.status === "SUBMITTED").length;
+        const submitted = filteredApps.filter((a) => a.status === "SUBMITTED" || a.status === "redirected").length;
         const myFunnel = funnelData?.find(f => f.partner_id === partnerId);
         const clicks = myFunnel?.total_unique_clicks || 0;
         return { total, eligible, submitted, clicks };
