@@ -45,13 +45,27 @@ async function backfill() {
   let errors = 0;
 
   try {
-    // Get all submitted/redirected applications
+    // Get all submitted/redirected applications (both uppercase and lowercase variants)
     const { data: applications, error: appError } = await supabase
       .from("student_applications")
       .select("id, user_id, partner_id, answers, status")
-      .in("status", ["SUBMITTED", "redirected"]);
+      .or("status.eq.SUBMITTED,status.eq.redirected,status.eq.submitted");
 
-    if (appError) throw appError;
+    if (appError) {
+      console.error("Query error:", appError);
+      throw appError;
+    }
+
+    if (!applications || applications.length === 0) {
+      console.log("❌ No applications found. Available statuses:");
+      const { data: statusData } = await supabase
+        .from("student_applications")
+        .select("status")
+        .limit(100);
+      const statuses = [...new Set(statusData?.map(a => a.status) || [])];
+      console.log(statuses);
+      return;
+    }
 
     console.log(`📊 Found ${applications.length} submitted applications\n`);
 
