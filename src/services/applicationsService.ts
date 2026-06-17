@@ -101,6 +101,23 @@ export async function getEligibleCountForPartner(partnerId: string): Promise<num
 }
 
 /**
+ * Gets the count of eligible students for a partner institution.
+ * Used by partner portal to count eligible students across all opportunities.
+ */
+export async function getEligibleCountByInstitution(institutionId: string): Promise<number> {
+    const { data, error } = await (supabase.rpc as any)("get_eligible_count_by_institution", {
+        p_institution_id: institutionId,
+    });
+
+    if (error) {
+        console.error("Error fetching eligible count by institution:", error);
+        return 0;
+    }
+
+    return (data as number) || 0;
+}
+
+/**
  * Gets the count of fields per partner to calculate application completion percentage.
  */
 export async function getPartnerFormCounts(): Promise<Record<string, number>> {
