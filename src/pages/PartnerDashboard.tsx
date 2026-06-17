@@ -301,12 +301,11 @@ export default function PartnerDashboard() {
         const total = filteredApps.length;
 
         const eligible = filteredApps.filter((app) => {
-            if (!app.eligibility_results || !Array.isArray(app.eligibility_results)) return false;
-            const res = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
-            if (!res) return false;
-            const met = Number(res.met_criteria) || 0;
-            const totalFields = Number(res.total_criteria) || 0;
-            return met === totalFields && totalFields > 0;
+            if (!app.eligibility_results || !Array.isArray(app.eligibility_results) || app.eligibility_results.length === 0) return false;
+            // eligibility_results is a flat list of { met, user_answer, question_text }
+            const totalCriteria = app.eligibility_results.length;
+            const metCriteria = app.eligibility_results.filter((r: any) => r.met === true).length;
+            return metCriteria === totalCriteria && totalCriteria > 0;
         }).length;
 
         const submitted = filteredApps.filter((a) => a.status === "SUBMITTED" || a.status === "redirected").length;
