@@ -7,9 +7,9 @@ e é lido em runtime pelo agente.
 
 Nenhum outro caminho deve escrever em `agent_prompts.system_instruction`:
 
-- ❌ **Script `update-system-prompt.mjs`** (repo `cloudinha-conecta-agent`): neutralizado.
-  Virou seed idempotente — só semeia em ambiente vazio, com a flag `--seed`, e se recusa a
-  sobrescrever um prompt já existente. Não use para editar prompt.
+- 🚫 **SEM MIGRATIONS**: É ESTRITAMENTE PROIBIDO criar migrations SQL (ex: `supabase/migrations/xxxxx_update_prompt.sql`) para atualizar o texto do prompt. Isso quebra o versionamento dinâmico e gera conflitos com o Backoffice.
+- 🚫 Sem atualizações diretas no banco em Produção usando o Supabase Studio
+- 🚫 Sem scripts `.mjs` no repositório do agente. O antigo `update-system-prompt.mjs` foi permanentemente DELETADO.
 - ❌ **Migrations de prompt** (ex.: `..._cloudinha_react_prompt_v*.sql`): legado. Não criar
   novas migrations que dão `UPDATE` em `system_instruction`.
 
