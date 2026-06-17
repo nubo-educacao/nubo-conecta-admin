@@ -28,9 +28,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getPartnersList } from "@/services/applicationsService";
 import {
-  getAdminFunnelChart,
-  getAdminPassportPhases,
-  getAdminFurthestPassportPhases,
   getPartnerFunnel,
   getPartnerApplicationBuckets,
   getStudentApplicationsOverTime,
@@ -85,21 +82,6 @@ export default function PassportDashboard() {
     queryFn: getPartnersList,
   });
 
-  const { data: funnelData, isLoading: isLoadingFunnel } = useQuery({
-    queryKey: ["adminFunnelChart"],
-    queryFn: getAdminFunnelChart,
-  });
-
-  const { data: phasesData, isLoading: isLoadingPhases } = useQuery({
-    queryKey: ["adminPassportPhases"],
-    queryFn: getAdminPassportPhases,
-  });
-
-  const { data: furthestPhasesData, isLoading: isLoadingFurthest } = useQuery({
-    queryKey: ["adminFurthestPassportPhases"],
-    queryFn: getAdminFurthestPassportPhases,
-  });
-
   const { data: partnerFunnelData, isLoading: isLoadingPartnerFunnel } = useQuery({
     queryKey: ["partnerFunnel"],
     queryFn: getPartnerFunnel,
@@ -129,25 +111,6 @@ export default function PassportDashboard() {
     });
     return Array.from(names);
   }, [overTimeData, partnerFilter, partnersData]);
-
-  const processedFunnelData = React.useMemo(() => {
-    if (!funnelData || funnelData.length === 0) return [];
-    
-    return funnelData.map((item, index) => {
-       let dropPct = null;
-       let prevCount = index > 0 ? funnelData[index - 1].user_count : null;
-       
-       if (prevCount !== null && prevCount > 0) {
-           const drop = prevCount - item.user_count;
-           dropPct = Math.round((drop / prevCount) * 100);
-       }
-       
-       return {
-          ...item,
-          dropStr: (dropPct !== null && dropPct > 0) ? `-${dropPct}%` : ''
-       };
-    });
-  }, [funnelData]);
 
   // Process buckets data to group by completing bucket regardless of partner for a global view
   const globalBuckets = React.useMemo(() => {
@@ -208,7 +171,7 @@ export default function PassportDashboard() {
     }
   };
 
-  if (isLoadingFunnel || isLoadingPhases || isLoadingFurthest || isLoadingPartnerFunnel || isLoadingBuckets || isLoadingOverTime) {
+  if (isLoadingPartnerFunnel || isLoadingBuckets || isLoadingOverTime) {
     return (
       <div className="flex justify-center items-center h-full min-h-[500px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -226,36 +189,6 @@ export default function PassportDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Funil Principal */}
-        <Card className="col-span-1 lg:col-span-2">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <CardTitle>Funil de Conversão (Global)</CardTitle>
-              <CardDescription>Usuários ativos e candidaturas desde o lançamento do Passaporte (09/03).</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={exportFunnelUsers} disabled={isExporting}>
-              <Download className="mr-2 h-4 w-4" /> Exportar CSV
-            </Button>
-          </CardHeader>
-          <CardContent className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={processedFunnelData}
-                layout="vertical"
-                margin={{ top: 20, right: 80, left: 100, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" />
-                <YAxis dataKey="step_name" type="category" width={150} />
-                <Tooltip cursor={{ fill: 'transparent' }} />
-                <Bar dataKey="user_count" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Usuários">
-                   <LabelList dataKey="dropStr" content={<CustomDropBadge />} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {/* Candidaturas ao Longo do Tempo */}
         <Card className="col-span-1 lg:col-span-2">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -313,65 +246,6 @@ export default function PassportDashboard() {
                   />
                 ))}
               </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Fase Atual do Passaporte */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Fase Atual do Passaporte</CardTitle>
-            <CardDescription>Onde os usuários estão parados neste momento.</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={phasesData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="total_users"
-                  nameKey="passport_phase"
-                  label={({ passport_phase, percent }) => `${passport_phase}: ${(percent * 100).toFixed(0)}%`}
-                >
-                  {phasesData?.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Fase Mais Avançada */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Fase Mais Avançada Alcançada</CardTitle>
-            <CardDescription>O mais longe que o usuário já chegou (Métrica de Sucesso).</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={furthestPhasesData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  fill="#82ca9d"
-                  dataKey="total_users"
-                  nameKey="furthest_passport_phase"
-                  label={({ furthest_passport_phase, percent }) => `${furthest_passport_phase}: ${(percent * 100).toFixed(0)}%`}
-                >
-                  {furthestPhasesData?.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
