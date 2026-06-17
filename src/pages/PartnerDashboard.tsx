@@ -9,7 +9,7 @@ import {
 } from "@/services/partnerPortalService";
 import {
     getApplicationsByInstitution,
-    getEligibleCountForPartner,
+    getEligibleCountByInstitution,
     getPartnerFormCounts,
     type ApplicationWithDetails,
 } from "@/services/applicationsService";
@@ -239,10 +239,10 @@ export default function PartnerDashboard() {
         enabled: !!partnerId,
     });
 
-    // 5. Fetch eligible count for this partner
+    // 5. Fetch eligible count for this partner institution
     const { data: eligibleCount = 0 } = useQuery({
         queryKey: ["eligibleCount", partnerId],
-        queryFn: () => getEligibleCountForPartner(partnerId!),
+        queryFn: () => getEligibleCountByInstitution(partnerId!),
         enabled: !!partnerId,
     });
 
