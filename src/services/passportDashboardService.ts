@@ -5,8 +5,7 @@ export interface PartnerFunnelData {
   partner_name: string;
   total_unique_clicks: number;
   total_applications_started: number;
-  total_applications_submitted: number;
-  total_external_redirect_clicks: number;
+  total_applications_completed: number;
 }
 
 export interface PartnerApplicationBucketsData {
@@ -40,7 +39,7 @@ export async function getPartnerFunnel(): Promise<PartnerFunnelData[]> {
   const { data, error } = await (supabase as any)
     .from('vw_partner_funnel')
     .select('*')
-    .order('total_applications_submitted', { ascending: false });
+    .order('total_applications_completed', { ascending: false });
   if (error) throw error;
   return data as PartnerFunnelData[];
 }

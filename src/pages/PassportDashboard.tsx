@@ -276,7 +276,7 @@ export default function PassportDashboard() {
         <Card className="col-span-1 lg:col-span-2">
           <CardHeader>
             <CardTitle>Funil por Parceiro Institucional</CardTitle>
-            <CardDescription>Conversão de cliques no Explorar até Candidatura Submetida.</CardDescription>
+            <CardDescription>Conversão de cliques em cards de parceiros até candidatura completa (submetida ou redirecionada).</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -284,7 +284,6 @@ export default function PassportDashboard() {
                 <TableRow>
                   <TableHead>Parceiro</TableHead>
                   <TableHead className="text-right">Cliques</TableHead>
-                  <TableHead className="text-right">Cliques Externos</TableHead>
                   <TableHead className="text-right">Iniciadas</TableHead>
                   <TableHead className="text-right">Concluídas</TableHead>
                   <TableHead className="text-right">Tx Conversão (Iniciada ➔ Concluída)</TableHead>
@@ -295,12 +294,11 @@ export default function PassportDashboard() {
                   <TableRow key={row.partner_id}>
                     <TableCell className="font-medium">{row.partner_name || 'Desconhecido'}</TableCell>
                     <TableCell className="text-right">{row.total_unique_clicks}</TableCell>
-                    <TableCell className="text-right">{row.total_external_redirect_clicks}</TableCell>
                     <TableCell className="text-right">{row.total_applications_started}</TableCell>
-                    <TableCell className="text-right">{row.total_applications_submitted}</TableCell>
+                    <TableCell className="text-right">{row.total_applications_completed}</TableCell>
                     <TableCell className="text-right">
-                      {row.total_applications_started > 0 
-                        ? `${((row.total_applications_submitted / row.total_applications_started) * 100).toFixed(1)}%` 
+                      {row.total_applications_started > 0
+                        ? `${((row.total_applications_completed / row.total_applications_started) * 100).toFixed(1)}%`
                         : '0%'}
                     </TableCell>
                   </TableRow>
