@@ -41,13 +41,27 @@ export async function getMyPartnerId(): Promise<string | null> {
 }
 
 /**
- * Gets partner details by ID.
+ * Gets partner details by ID (from institutions + partner_institutions).
  */
 export async function getPartnerDetails(partnerId: string) {
     const { data, error } = await supabase
-        .from("partners")
-        .select("*")
+        .from("institutions")
+        .select(`
+            id,
+            name,
+            created_at,
+            updated_at,
+            partner_institutions (
+                description,
+                location,
+                logo_url,
+                cover_url,
+                brand_color,
+                website_url
+            )
+        `)
         .eq("id", partnerId)
+        .eq("is_partner", true)
         .single();
 
     if (error) {
