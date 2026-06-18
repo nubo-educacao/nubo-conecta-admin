@@ -6,6 +6,11 @@
 ALTER TABLE partner_opportunities
   DROP CONSTRAINT IF EXISTS partner_opportunities_opportunity_type_check;
 
+-- Migrar valores antigos para os novos tipos canônicos
+UPDATE partner_opportunities
+SET opportunity_type = 'programa de bolsa'
+WHERE opportunity_type NOT IN ('programa de bolsa', 'programa educacional');
+
 ALTER TABLE partner_opportunities
   ADD CONSTRAINT partner_opportunities_opportunity_type_check
   CHECK (opportunity_type IN ('programa de bolsa', 'programa educacional'));
