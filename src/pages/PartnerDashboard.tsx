@@ -8,8 +8,8 @@ import {
     type PartnerFormField,
 } from "@/services/partnerPortalService";
 import {
-    getApplicationsWithDetails,
-    getEligibleCountForPartner,
+    getApplicationsByInstitution,
+    getEligibleCountByInstitution,
     getPartnerFormCounts,
     type ApplicationWithDetails,
 } from "@/services/applicationsService";
@@ -232,17 +232,17 @@ export default function PartnerDashboard() {
         enabled: !!partnerId,
     });
 
-    // 4. Fetch applications via new RPC
+    // 4. Fetch applications for this partner institution
     const { data: applications = [], isLoading: loadingApps } = useQuery({
         queryKey: ["applicationsWithDetails", partnerId],
-        queryFn: () => getApplicationsWithDetails(partnerId!),
+        queryFn: () => getApplicationsByInstitution(partnerId!),
         enabled: !!partnerId,
     });
 
-    // 5. Fetch eligible count for this partner
+    // 5. Fetch eligible count for this partner institution
     const { data: eligibleCount = 0 } = useQuery({
         queryKey: ["eligibleCount", partnerId],
-        queryFn: () => getEligibleCountForPartner(partnerId!),
+        queryFn: () => getEligibleCountByInstitution(partnerId!),
         enabled: !!partnerId,
     });
 
@@ -299,17 +299,16 @@ export default function PartnerDashboard() {
 
     const stats = useMemo(() => {
         const total = filteredApps.length;
-        
+
         const eligible = filteredApps.filter((app) => {
-            if (!app.eligibility_results || !Array.isArray(app.eligibility_results)) return false;
-            const res = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
-            if (!res) return false;
-            const met = Number(res.met_criteria) || 0;
-            const totalFields = Number(res.total_criteria) || 0;
-            return met === totalFields && totalFields > 0;
+            if (!app.eligibility_results || !Array.isArray(app.eligibility_results) || app.eligibility_results.length === 0) return false;
+            // eligibility_results is a flat list of { met, user_answer, question_text }
+            const totalCriteria = app.eligibility_results.length;
+            const metCriteria = app.eligibility_results.filter((r: any) => r.met === true).length;
+            return metCriteria === totalCriteria && totalCriteria > 0;
         }).length;
 
-        const submitted = filteredApps.filter((a) => a.status === "SUBMITTED").length;
+        const submitted = filteredApps.filter((a) => a.status === "SUBMITTED" || a.status === "redirected").length;
         const myFunnel = funnelData?.find(f => f.partner_id === partnerId);
         const clicks = myFunnel?.total_unique_clicks || 0;
         return { total, eligible, submitted, clicks };

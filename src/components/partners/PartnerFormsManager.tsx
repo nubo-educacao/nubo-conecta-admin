@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Partner } from "@/services/partnersService";
+import { PartnerOpportunity } from "@/services/partnerOpportunitiesService";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +46,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Loader2, Code2, Check, ChevronsUpDown, X, Shield, Download, Copy, GripVertical, Upload, Grid3X3 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Code2, Check, ChevronsUpDown, X, Shield, Star, Download, Copy, GripVertical, Upload, Grid3X3 } from "lucide-react";
 import { toast } from "sonner";
 import { CriterionRuleBuilder } from "./CriterionRuleBuilder";
 import * as XLSX from "xlsx";
@@ -100,6 +100,7 @@ interface PartnerFormField {
     mapping_source: string | null;
     maskking: string | null;
     is_criterion: boolean;
+    criterion_type: 'eligibility' | 'priority';
     criterion_rule: any; // Using any for Json compatibility
     conditional_rule: any; // JSONB storage: { field_id: string, operator: string, value: any }
     sort_order: number;
@@ -119,6 +120,7 @@ interface FormFieldValues {
     mapping_source: string;
     maskking: string;
     is_criterion: boolean;
+    criterion_type: 'eligibility' | 'priority';
     criterion_rule: string;
     conditional_rule: string; // JSON string in form
     sort_order: number;
@@ -136,6 +138,7 @@ const EMPTY_FIELD: FormFieldValues = {
     mapping_source: "",
     maskking: "",
     is_criterion: false,
+    criterion_type: 'eligibility',
     criterion_rule: "",
     conditional_rule: "",
     sort_order: 0,
@@ -357,10 +360,10 @@ function SortableFieldRow({ field, index, onEdit, onDelete, onClone, allFields }
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface PartnerFormsManagerProps {
-    partners: Partner[];
+    opportunities: PartnerOpportunity[];
 }
 
-export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
+export function PartnerFormsManager({ opportunities }: PartnerFormsManagerProps) {
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedPartnerId = searchParams.get("partnerId") || "";
@@ -369,14 +372,22 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
     const { data: dbColumns = [] } = useQuery({
         queryKey: ["mapping-columns"],
         queryFn: async () => {
-            const { data, error } = await supabase.rpc("get_table_columns_for_mapping", {
-                table_names: ['user_profiles', 'user_preferences', 'user_income', 'user_enem_scores']
-            });
-            if (error) throw error;
-            return data.map((c: any) => ({
-                value: c.t_schema === 'auth' ? `auth.${c.t_name}.${c.c_name}` : `${c.t_name}.${c.c_name}`,
-                label: getMappingLabel(c.t_schema === 'auth' ? `auth.${c.t_name}.${c.c_name}` : `${c.t_name}.${c.c_name}`)
-            }));
+            try {
+                const { data, error } = await supabase.rpc("get_table_columns_for_mapping", {
+                    table_names: ['user_profiles', 'user_preferences', 'user_income', 'user_enem_scores']
+                });
+                if (error) {
+                    console.warn("RPC get_table_columns_for_mapping failed, mappings will be empty.");
+                    return [];
+                }
+                return data.map((c: any) => ({
+                    value: c.t_schema === 'auth' ? `auth.${c.t_name}.${c.c_name}` : `${c.t_name}.${c.c_name}`,
+                    label: getMappingLabel(c.t_schema === 'auth' ? `auth.${c.t_name}.${c.c_name}` : `${c.t_name}.${c.c_name}`)
+                }));
+            } catch (err) {
+                console.warn("RPC failed:", err);
+                return [];
+            }
         },
         staleTime: 1000 * 60 * 5, // 5 minutes cache
     });
@@ -590,8 +601,9 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
                 mapping_source: values.mapping_source || null,
                 maskking: values.maskking || null,
                 is_criterion: values.is_criterion && !!values.criterion_rule,
-                criterion_rule: (values.is_criterion && values.criterion_rule) 
-                    ? (typeof values.criterion_rule === 'string' ? JSON.parse(values.criterion_rule) : values.criterion_rule) 
+                criterion_type: values.is_criterion ? values.criterion_type : 'eligibility',
+                criterion_rule: (values.is_criterion && values.criterion_rule)
+                    ? (typeof values.criterion_rule === 'string' ? JSON.parse(values.criterion_rule) : values.criterion_rule)
                     : null,
                 conditional_rule: values.conditional_rule 
                     ? (typeof values.conditional_rule === 'string' ? JSON.parse(values.conditional_rule) : values.conditional_rule) 
@@ -953,7 +965,7 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
             const existingNames = new Set((destFields || []).map(f => f.field_name.toLowerCase()));
             
             const newFields = sourceFields.map((f, idx) => {
-                let baseName = f.field_name;
+                const baseName = f.field_name;
                 let finalName = baseName;
                 
                 if (existingNames.has(finalName.toLowerCase())) {
@@ -1157,6 +1169,7 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
             mapping_source: field.mapping_source || "",
             maskking: field.maskking || "",
             is_criterion: field.is_criterion,
+            criterion_type: field.criterion_type === 'priority' ? 'priority' : 'eligibility',
             criterion_rule: field.criterion_rule ? JSON.stringify(field.criterion_rule, null, 2) : "",
             conditional_rule: field.conditional_rule ? JSON.stringify(field.conditional_rule, null, 2) : "",
             sort_order: field.sort_order,
@@ -1280,34 +1293,26 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
 
     return (
         <div className="space-y-6">
-            {/* Partner Selector */}
+            {/* Opportunity Selector */}
             <div className="flex items-end gap-4">
                 <div className="flex-1 max-w-sm space-y-2">
-                    <Label>Selecione um Parceiro</Label>
+                    <Label>Selecione uma Oportunidade</Label>
                     <Select value={selectedPartnerId} onValueChange={setSelectedPartnerId}>
                         <SelectTrigger>
-                            <SelectValue placeholder="Escolha um parceiro..." />
+                            <SelectValue placeholder="Escolha uma oportunidade..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {partners.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                    {p.name}
+                            {opportunities.map((opp) => (
+                                <SelectItem key={opp.id} value={opp.id}>
+                                    {opp.name}
+                                    {opp.institution_name && opp.institution_name !== opp.name
+                                        ? ` — ${opp.institution_name}`
+                                        : ""}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 </div>
-                {selectedPartnerId && (() => {
-                    const partner = partners.find(p => p.id === selectedPartnerId);
-                    if (!partner) return null;
-                    return (
-                        <div className="mb-1">
-                            <Badge variant={partner.applications_open ? "default" : "secondary"} className="text-sm px-3 py-1 md:mt-6">
-                                {partner.applications_open ? "Inscrições Abertas" : "Inscrições Encerradas"}
-                            </Badge>
-                        </div>
-                    );
-                })()}
             </div>
 
             {selectedPartnerId && (
@@ -1334,26 +1339,30 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
                         );
                     })()}
 
-                    {/* Eligibility Rules Dialog */}
+                    {/* Criteria Rules Dialog — 2 sections: Eligibility + Priority */}
                     <Dialog open={isRulesDialogOpen} onOpenChange={setIsRulesDialogOpen}>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
                                     <Shield className="h-5 w-5" />
-                                    Critérios de Elegibilidade
+                                    Critérios de Seleção
                                 </DialogTitle>
                             </DialogHeader>
-                            <div className="py-2">
+                            <div className="py-2 space-y-6">
                                 {(() => {
-                                    const criterionFields = fields.filter((f) => f.is_criterion);
-                                    if (criterionFields.length === 0) {
+                                    const allCriterionFields = fields.filter((f) => f.is_criterion);
+                                    if (allCriterionFields.length === 0) {
                                         return (
                                             <div className="text-center py-8 text-muted-foreground border border-dashed rounded-md">
-                                                Nenhum campo com critério de elegibilidade configurado.
+                                                Nenhum campo com critério configurado.
                                             </div>
                                         );
                                     }
-                                    return (
+
+                                    const eligibilityFields = allCriterionFields.filter((f) => f.criterion_type !== 'priority');
+                                    const priorityFields = allCriterionFields.filter((f) => f.criterion_type === 'priority');
+
+                                    const renderCriterionTable = (criterionFields: typeof allCriterionFields) => (
                                         <div className="rounded-md border overflow-auto">
                                             <Table>
                                                 <TableHeader>
@@ -1401,6 +1410,36 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
                                                 </TableBody>
                                             </Table>
                                         </div>
+                                    );
+
+                                    return (
+                                        <>
+                                            {/* Section 1: Eligibility */}
+                                            <div>
+                                                <h4 className="text-sm font-semibold flex items-center gap-2 mb-2">
+                                                    <Shield className="h-4 w-4 text-red-500" />
+                                                    Critérios de Elegibilidade
+                                                    <span className="text-xs text-muted-foreground font-normal">(eliminatório)</span>
+                                                </h4>
+                                                {eligibilityFields.length > 0
+                                                    ? renderCriterionTable(eligibilityFields)
+                                                    : <p className="text-sm text-muted-foreground italic pl-6">Nenhum critério de elegibilidade configurado.</p>
+                                                }
+                                            </div>
+
+                                            {/* Section 2: Priority */}
+                                            <div>
+                                                <h4 className="text-sm font-semibold flex items-center gap-2 mb-2">
+                                                    <Star className="h-4 w-4 text-yellow-500" />
+                                                    Critérios de Priorização
+                                                    <span className="text-xs text-muted-foreground font-normal">(preferencial)</span>
+                                                </h4>
+                                                {priorityFields.length > 0
+                                                    ? renderCriterionTable(priorityFields)
+                                                    : <p className="text-sm text-muted-foreground italic pl-6">Nenhum critério de priorização configurado.</p>
+                                                }
+                                            </div>
+                                        </>
                                     );
                                 })()}
                             </div>
@@ -2314,7 +2353,7 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
                                     )}
                                 </div>
 
-                                {/* Elegibilidade? */}
+                                {/* Critério? */}
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors">
                                         <Switch
@@ -2322,7 +2361,7 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
                                             onCheckedChange={(val) => setFormValues({ ...formValues, is_criterion: val })}
                                         />
                                         <div className="space-y-0.5">
-                                            <Label>Critério de Elegibilidade?</Label>
+                                            <Label>Critério de Seleção?</Label>
                                             <p className="text-xs text-muted-foreground">
                                                 Se sim, a resposta será avaliada para determinar a aprovação.
                                             </p>
@@ -2330,13 +2369,30 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
                                     </div>
 
                                     {formValues.is_criterion && (
-                                        <div className="ml-6 animate-in slide-in-from-left-2 fade-in duration-200">
+                                        <div className="ml-6 space-y-3 animate-in slide-in-from-left-2 fade-in duration-200">
+                                            <div>
+                                                <Label className="text-sm">Tipo de Critério</Label>
+                                                <select
+                                                    value={formValues.criterion_type}
+                                                    onChange={(e) => setFormValues({ ...formValues, criterion_type: e.target.value as 'eligibility' | 'priority' })}
+                                                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                >
+                                                    <option value="eligibility">Elegibilidade (eliminatório)</option>
+                                                    <option value="priority">Priorização (preferencial)</option>
+                                                </select>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {formValues.criterion_type === 'eligibility'
+                                                        ? 'Candidato que não atender será considerado inelegível.'
+                                                        : 'Candidato que atender terá prioridade, mas não será eliminado.'}
+                                                </p>
+                                            </div>
                                             <CriterionRuleBuilder
                                                 fieldName={formValues.field_name}
                                                 value={formValues.criterion_rule}
                                                 onChange={(jsonStr) => setFormValues({ ...formValues, criterion_rule: jsonStr })}
                                                 dataType={formValues.data_type}
                                                 optionsList={formValues.optionsList}
+                                                label={formValues.criterion_type === 'priority' ? 'Regra de Priorização' : 'Regra de Elegibilidade'}
                                             />
                                         </div>
                                     )}
@@ -2404,15 +2460,15 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>Parceiro de Origem</Label>
+                            <Label>Oportunidade de Origem</Label>
                             <Select value={importSourcePartnerId} onValueChange={setImportSourcePartnerId}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Selecione o parceiro..." />
+                                    <SelectValue placeholder="Selecione a oportunidade..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {partners.map((p) => (
-                                        <SelectItem key={p.id} value={p.id}>
-                                            {p.name}
+                                    {opportunities.map((opp) => (
+                                        <SelectItem key={opp.id} value={opp.id}>
+                                            {opp.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -2469,15 +2525,15 @@ export function PartnerFormsManager({ partners }: PartnerFormsManagerProps) {
                     )}
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>Parceiro de Destino</Label>
+                            <Label>Oportunidade de Destino</Label>
                             <Select value={cloneFieldTargetPartnerId} onValueChange={setCloneFieldTargetPartnerId}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Selecione o parceiro..." />
+                                    <SelectValue placeholder="Selecione a oportunidade..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {partners.map((p) => (
-                                        <SelectItem key={p.id} value={p.id}>
-                                            {p.name}
+                                    {opportunities.map((opp) => (
+                                        <SelectItem key={opp.id} value={opp.id}>
+                                            {opp.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

@@ -28,6 +28,7 @@ const partnerSchema = z.object({
     brand_color: z.string().optional(),
     cover_url: z.string().optional(),
     logo_url: z.string().optional(),
+    website_url: z.string().url("URL inválida").optional().or(z.literal("")),
 });
 
 type PartnerFormValues = z.infer<typeof partnerSchema>;
@@ -54,6 +55,7 @@ export function PartnerForm({ initialData, onSubmit, onCancel, onDelete }: Partn
             brand_color: initialData?.brand_color || "",
             cover_url: initialData?.cover_url || "",
             logo_url: initialData?.logo_url || "",
+            website_url: initialData?.website_url || "",
         },
     });
 
@@ -216,6 +218,21 @@ export function PartnerForm({ initialData, onSubmit, onCancel, onDelete }: Partn
                             )}
                         />
                     </div>
+
+                    {/* Website URL */}
+                    <FormField
+                        control={form.control}
+                        name="website_url"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Website</FormLabel>
+                                <FormControl>
+                                    <Input type="url" placeholder="https://exemplo.com.br" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
                     {/* Description */}
                     <FormField

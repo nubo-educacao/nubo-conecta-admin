@@ -2,6 +2,8 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SystemInstructionsEditor from "@/components/agent/SystemInstructionsEditor";
 import StartersManager from "@/components/agent/StartersManager";
+import SystemIntentsManager from "@/components/agent/SystemIntentsManager";
+import FewShotManager from "@/components/agent/FewShotManager";
 
 export default function AgentConfig() {
   return (
@@ -19,14 +21,24 @@ export default function AgentConfig() {
         <TabsList className="bg-muted/50 border">
           <TabsTrigger value="instructions">System Instructions</TabsTrigger>
           <TabsTrigger value="starters">Conversation Starters</TabsTrigger>
+          <TabsTrigger value="intents">System Intents</TabsTrigger>
+          <TabsTrigger value="few-shot">Few-Shot Examples</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="instructions" className="space-y-4">
           <SystemInstructionsEditor />
         </TabsContent>
-        
+
         <TabsContent value="starters" className="space-y-4">
           <StartersManager />
+        </TabsContent>
+
+        <TabsContent value="intents" className="space-y-4">
+          <SystemIntentsManager />
+        </TabsContent>
+
+        <TabsContent value="few-shot" className="space-y-4">
+          <FewShotManager />
         </TabsContent>
       </Tabs>
     </div>

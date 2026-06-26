@@ -19,21 +19,29 @@ import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 
 const STATUS_LABELS: Record<OpportunityStatus, string> = {
-  draft:          'Rascunho',
-  pending_review: 'Aguardando Revisão',
-  approved:       'Aprovada',
+  inactive: 'Inativo',
+  incoming: 'Em breve',
+  opened:   'Aberto',
+  closed:   'Encerrado',
 };
 
 const STATUS_COLORS: Record<OpportunityStatus, string> = {
-  draft:          'bg-gray-100 text-gray-700',
-  pending_review: 'bg-yellow-100 text-yellow-800',
-  approved:       'bg-green-100 text-green-800',
+  inactive: 'bg-gray-100 text-gray-700',
+  incoming: 'bg-yellow-100 text-yellow-800',
+  opened:   'bg-green-100 text-green-800',
+  closed:   'bg-gray-200 text-gray-600',
 };
 
+const STATUS_TRANSITIONS: { from: OpportunityStatus[]; to: OpportunityStatus; label: string; color: string }[] = [
+  { from: ['inactive'],               to: 'incoming', label: 'Em breve',  color: 'text-yellow-700 bg-yellow-100 hover:bg-yellow-200' },
+  { from: ['inactive', 'incoming'],   to: 'opened',   label: 'Abrir',     color: 'text-green-700 bg-green-100 hover:bg-green-200' },
+  { from: ['opened'],                 to: 'closed',   label: 'Encerrar',  color: 'text-gray-700 bg-gray-200 hover:bg-gray-300' },
+  { from: ['closed', 'incoming'],     to: 'inactive', label: 'Desativar', color: 'text-red-700 bg-red-100 hover:bg-red-200' },
+];
+
 const TYPE_LABELS: Record<PartnerOpportunityType, string> = {
-  bolsa:     'Bolsa',
-  bootcamp:  'Bootcamp',
-  mentoria:  'Mentoria',
+  'programa de bolsa':      'Programa de Bolsa',
+  'programa educacional':   'Programa Educacional',
 };
 
 interface FormState {
@@ -41,20 +49,46 @@ interface FormState {
   name: string;
   description: string;
   opportunity_type: PartnerOpportunityType;
+  category: string;
   status: OpportunityStatus;
   redirect_url: string;
   redirect_enabled: boolean;
+  starts_at: string;
+  ends_at: string;
 }
 
 const emptyForm: FormState = {
   institution_id: '',
   name: '',
   description: '',
-  opportunity_type: 'bolsa',
-  status: 'draft',
+  opportunity_type: 'programa de bolsa',
+  category: '',
+  status: 'inactive',
   redirect_url: '',
   redirect_enabled: false,
+  starts_at: '',
+  ends_at: '',
 };
+
+function getVigenciaBadge(starts_at: string | null, ends_at: string | null) {
+  if (!starts_at && !ends_at) return { label: 'Sem prazo', className: 'bg-gray-100 text-gray-600' };
+  const now = new Date();
+  if (ends_at) {
+    const end = new Date(ends_at);
+    if (end < now) return { label: 'Encerrado', className: 'bg-red-100 text-red-700' };
+    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 7) return { label: `Encerra em ${daysLeft}d`, className: 'bg-yellow-100 text-yellow-800' };
+  }
+  const start = starts_at ? new Date(starts_at) : null;
+  if (!start || start <= now) return { label: 'Aberto', className: 'bg-green-100 text-green-700' };
+  return { label: 'Futuro', className: 'bg-blue-100 text-blue-700' };
+}
+
+function formatDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export default function PartnerOpportunitiesPage() {
   const [page, setPage]           = useState(0);
@@ -131,9 +165,12 @@ export default function PartnerOpportunitiesPage() {
       name:             opp.name,
       description:      opp.description ?? '',
       opportunity_type: opp.opportunity_type,
+      category:         opp.category ?? '',
       status:           opp.status,
       redirect_url:     (opp.external_redirect_config as any)?.url ?? '',
       redirect_enabled: (opp.external_redirect_config as any)?.enabled ?? false,
+      starts_at:        opp.starts_at ? formatDatetimeLocal(opp.starts_at) : '',
+      ends_at:          opp.ends_at ? formatDatetimeLocal(opp.ends_at) : '',
     });
     setEditingId(opp.id);
     setDialogMode('edit');
@@ -151,10 +188,13 @@ export default function PartnerOpportunitiesPage() {
       name: formState.name,
       description: formState.description || undefined,
       opportunity_type: formState.opportunity_type,
+      category: formState.category || undefined,
       external_redirect_config: {
         enabled: formState.redirect_enabled,
         url: formState.redirect_url || undefined,
       },
+      starts_at: formState.starts_at ? new Date(formState.starts_at).toISOString() : null,
+      ends_at: formState.ends_at ? new Date(formState.ends_at).toISOString() : null,
     };
 
     if (dialogMode === 'create') {
@@ -187,7 +227,7 @@ export default function PartnerOpportunitiesPage() {
 
       {/* Status filter */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {(['all', 'draft', 'pending_review', 'approved'] as const).map((s) => (
+        {(['all', 'inactive', 'incoming', 'opened', 'closed'] as const).map((s) => (
           <button
             key={s}
             onClick={() => { setStatus(s); setPage(0); }}
@@ -216,6 +256,7 @@ export default function PartnerOpportunitiesPage() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Instituição</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Tipo</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Vigência</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Criado em</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-600">Ações</th>
               </tr>
@@ -223,7 +264,7 @@ export default function PartnerOpportunitiesPage() {
             <tbody className="divide-y divide-gray-100">
               {(data?.data ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                     Nenhuma oportunidade encontrada.
                   </td>
                 </tr>
@@ -244,29 +285,33 @@ export default function PartnerOpportunitiesPage() {
                         {STATUS_LABELS[opp.status]}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const badge = getVigenciaBadge(opp.starts_at, opp.ends_at);
+                        return (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3 text-gray-500">
                       {new Date(opp.created_at).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {opp.status !== 'approved' && (
-                          <button
-                            onClick={() => statusMutation.mutate({ id: opp.id, status: 'approved' })}
-                            disabled={statusMutation.isPending}
-                            className="px-3 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full hover:bg-green-200 transition-colors disabled:opacity-50"
-                          >
-                            Aprovar
-                          </button>
-                        )}
-                        {opp.status === 'approved' && (
-                          <button
-                            onClick={() => statusMutation.mutate({ id: opp.id, status: 'draft' })}
-                            disabled={statusMutation.isPending}
-                            className="px-3 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full hover:bg-red-200 transition-colors disabled:opacity-50"
-                          >
-                            Rejeitar
-                          </button>
-                        )}
+                        {STATUS_TRANSITIONS
+                          .filter((t) => t.from.includes(opp.status))
+                          .map((t) => (
+                            <button
+                              key={t.to}
+                              onClick={() => statusMutation.mutate({ id: opp.id, status: t.to })}
+                              disabled={statusMutation.isPending}
+                              className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors disabled:opacity-50 ${t.color}`}
+                            >
+                              {t.label}
+                            </button>
+                          ))}
                         <button
                           onClick={() => openEdit(opp)}
                           className="px-3 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors"
@@ -375,10 +420,42 @@ export default function PartnerOpportunitiesPage() {
                   onChange={(e) => setFormState(prev => ({ ...prev, opportunity_type: e.target.value as PartnerOpportunityType }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="bolsa">Bolsa</option>
-                  <option value="bootcamp">Bootcamp</option>
-                  <option value="mentoria">Mentoria</option>
+                  <option value="programa de bolsa">Programa de Bolsa</option>
+                  <option value="programa educacional">Programa Educacional</option>
                 </select>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="text-sm font-semibold text-gray-600 block mb-1">Categoria (Category)</label>
+                <input
+                  value={formState.category}
+                  onChange={(e) => setFormState(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="Ex: Bolsa de Estudos, Mentoria, etc."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Início das Inscrições</label>
+                  <input
+                    type="datetime-local"
+                    value={formState.starts_at}
+                    onChange={(e) => setFormState(prev => ({ ...prev, starts_at: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 block mb-1">Fim das Inscrições</label>
+                  <input
+                    type="datetime-local"
+                    value={formState.ends_at}
+                    onChange={(e) => setFormState(prev => ({ ...prev, ends_at: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
               {/* External Redirect */}

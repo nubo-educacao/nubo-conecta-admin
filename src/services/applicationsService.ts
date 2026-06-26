@@ -9,7 +9,7 @@ export interface ApplicationWithDetails {
     partner_name: string | null;
     full_name: string | null;
     phone: string | null;
-    status: "DRAFT" | "SUBMITTED";
+    status: "DRAFT" | "SUBMITTED" | "redirected";
     answers: Record<string, unknown>;
     eligibility_results: any;
     created_at: string;
@@ -48,11 +48,31 @@ export async function getApplicationsWithDetails(
 }
 
 /**
+ * Fetches student applications for a partner institution.
+ * Used by partner portal to show applications across all opportunities of the institution.
+ */
+export async function getApplicationsByInstitution(
+    institutionId: string
+): Promise<ApplicationWithDetails[]> {
+    const { data, error } = await (supabase.rpc as any)(
+        "get_partner_applications_by_institution",
+        { p_institution_id: institutionId }
+    );
+
+    if (error) {
+        console.error("Error fetching applications by institution:", error);
+        throw error;
+    }
+
+    return (data ?? []) as ApplicationWithDetails[];
+}
+
+/**
  * Fetches the list of partners for the filter dropdown.
  */
 export async function getPartnersList(): Promise<PartnerOption[]> {
     const { data, error } = await supabase
-        .from("partners")
+        .from("partner_opportunities")
         .select("id, name")
         .order("name", { ascending: true });
 
@@ -74,6 +94,23 @@ export async function getEligibleCountForPartner(partnerId: string): Promise<num
 
     if (error) {
         console.error("Error fetching eligible count:", error);
+        return 0;
+    }
+
+    return (data as number) || 0;
+}
+
+/**
+ * Gets the count of eligible students for a partner institution.
+ * Used by partner portal to count eligible students across all opportunities.
+ */
+export async function getEligibleCountByInstitution(institutionId: string): Promise<number> {
+    const { data, error } = await (supabase.rpc as any)("get_eligible_count_by_institution", {
+        p_institution_id: institutionId,
+    });
+
+    if (error) {
+        console.error("Error fetching eligible count by institution:", error);
         return 0;
     }
 

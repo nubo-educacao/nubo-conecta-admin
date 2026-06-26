@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { getPartners } from "@/services/partnersService";
+import { listPartnerOpportunities } from "@/services/partnerOpportunitiesService";
 import { PartnerFormsManager } from "@/components/partners/PartnerFormsManager";
 
 export default function PartnerForms() {
-    const { data: partners = [], isLoading } = useQuery({
-        queryKey: ["partners", "name", "asc"],
-        queryFn: () => getPartners("name", "asc"),
+    const { data: opportunitiesResult, isLoading } = useQuery({
+        queryKey: ["partner-opportunities-all"],
+        queryFn: () => listPartnerOpportunities({ limit: 100 }),
     });
 
-    const isInitialLoading = isLoading && partners.length === 0;
+    const opportunities = opportunitiesResult?.data ?? [];
+    const isInitialLoading = isLoading && opportunities.length === 0;
 
     if (isInitialLoading) {
         return (
@@ -24,11 +25,11 @@ export default function PartnerForms() {
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Formulários de Elegibilidade</h1>
                 <p className="text-muted-foreground">
-                    Configure os campos e critérios para o Passaporte de cada parceiro.
+                    Configure os campos e critérios para o Passaporte de cada oportunidade parceira.
                 </p>
             </div>
 
-            <PartnerFormsManager partners={partners} />
+            <PartnerFormsManager opportunities={opportunities} />
         </div>
     );
 }

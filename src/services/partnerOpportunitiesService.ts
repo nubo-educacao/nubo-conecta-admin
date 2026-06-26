@@ -4,8 +4,8 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-export type OpportunityStatus = 'draft' | 'pending_review' | 'approved';
-export type PartnerOpportunityType = 'bolsa' | 'bootcamp' | 'mentoria';
+export type OpportunityStatus = 'inactive' | 'incoming' | 'opened' | 'closed';
+export type PartnerOpportunityType = 'programa de bolsa' | 'programa educacional';
 
 export interface PartnerOpportunity {
   id: string;
@@ -14,11 +14,14 @@ export interface PartnerOpportunity {
   name: string;
   description: string | null;
   opportunity_type: PartnerOpportunityType;
+  category: string | null;
   eligibility_criteria: Record<string, unknown>;
   external_redirect_config: {
     enabled?: boolean;
     url?: string;
   };
+  starts_at: string | null;
+  ends_at: string | null;
   status: OpportunityStatus;
   created_at: string;
 }
@@ -101,8 +104,11 @@ export interface CreatePartnerOpportunityInput {
   name:                    string;
   description?:            string;
   opportunity_type:        PartnerOpportunityType;
+  category?:               string;
   eligibility_criteria?:   Record<string, unknown>;
   external_redirect_config?: { enabled?: boolean; url?: string };
+  starts_at?: string | null;
+  ends_at?: string | null;
 }
 
 export async function createPartnerOpportunity(
@@ -114,7 +120,7 @@ export async function createPartnerOpportunity(
       ...input,
       eligibility_criteria: input.eligibility_criteria ?? {},
       external_redirect_config: input.external_redirect_config ?? {},
-      status: 'draft' as OpportunityStatus,
+      status: 'inactive' as OpportunityStatus,
     })
     .select()
     .single();

@@ -12,12 +12,14 @@ import Login from "./pages/Login";
 import Index from "./pages/Index";
 import AIInsights from "./pages/AIInsights";
 import NotFound from "./pages/NotFound";
+import AppCMS from "./pages/AppCMS";
 
 // Pages — Inteligência
 import Conversas from "./pages/Conversas";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import AgentConfig from "./pages/AgentConfig";
 import MatchEngine from "./pages/MatchEngine";
+import AgentTelemetry from "./pages/AgentTelemetry";
 
 // Pages — Dados Educacionais
 import Calendar from "./pages/Calendar";
@@ -25,14 +27,17 @@ import Institutions from "./pages/educational-data/Institutions";
 import Campus from "./pages/educational-data/Campus";
 import Courses from "./pages/educational-data/Courses";
 import Opportunities from "./pages/educational-data/Opportunities";
+import DataPipeline from "./pages/educational-data/DataPipeline";
 
 // Pages — Parceiros & B2B
+import PassportDashboard from "./pages/PassportDashboard";
 import Partners from "./pages/Partners";
 import PartnerSolicitations from "./pages/PartnerSolicitations";
 import PartnerForms from "./pages/PartnerForms";
 import PartnerUsers from "./pages/PartnerUsers";
 import PartnerApplications from "./pages/PartnerApplications";
 import PartnerOpportunities from "./pages/PartnerOpportunities";
+import Programs from "./pages/Programs";
 import FunnelUsers from "./pages/FunnelUsers";
 
 // Pages — Atendimento e App
@@ -43,6 +48,7 @@ import SeanEllis from "./pages/SeanEllis";
 // Pages — Configurações
 import Users from "./pages/Users";
 import Support from "./pages/Support";
+import Roadmap from "./pages/Roadmap";
 
 // Pages — Partner Portal Sandbox
 import PartnerPortalForms from "./pages/PartnerPortalForms";
@@ -71,7 +77,7 @@ const App = () => (
               <Route path="/knowledge" element={<KnowledgeBase />} />
               {/* Stub routes para Sprint 2 */}
               <Route path="/match-engine" element={<MatchEngine />} />
-              <Route path="/agent-telemetry" element={<NotFound />} />
+              <Route path="/agent-telemetry" element={<AgentTelemetry />} />
               <Route path="/agent-config" element={<AgentConfig />} />
 
               {/* Dados Educacionais */}
@@ -79,12 +85,14 @@ const App = () => (
               <Route path="/educational/campus" element={<Campus />} />
               <Route path="/educational/courses" element={<Courses />} />
               <Route path="/educational/opportunities" element={<Opportunities />} />
+              <Route path="/educational/data-pipeline" element={<DataPipeline />} />
               <Route path="/calendar" element={<Calendar />} />
 
               {/* Parceiros & B2B */}
-              <Route path="/b2b-dashboard" element={<NotFound />} />
+              <Route path="/b2b-dashboard" element={<PassportDashboard />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/partner-opportunities" element={<PartnerOpportunities />} />
+              <Route path="/programs" element={<Programs />} />
               <Route path="/forms" element={<PartnerForms />} />
               <Route path="/applications" element={<PartnerApplications />} />
               <Route path="/solicitations" element={<PartnerSolicitations />} />
@@ -93,13 +101,14 @@ const App = () => (
 
               {/* Atendimento e App */}
               <Route path="/students" element={<Students />} />
-              <Route path="/app-cms" element={<NotFound />} />
+              <Route path="/app-cms" element={<AppCMS />} />
               <Route path="/influencers" element={<Influencers />} />
               <Route path="/sean-ellis" element={<SeanEllis />} />
 
               {/* Configurações */}
               <Route path="/users" element={<Users />} />
               <Route path="/support" element={<Support />} />
+              <Route path="/roadmap" element={<Roadmap />} />
             </Route>
 
             {/* Partner Portal Sandbox */}
