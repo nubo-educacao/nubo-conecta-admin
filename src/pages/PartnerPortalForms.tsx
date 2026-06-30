@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
     getMyPartnerId,
     getPartnerDetails,
     getPartnerSteps,
     getPartnerFormFieldsFull,
+    getPartnerOpportunities,
     type PartnerStep,
     type PartnerFormFieldFull,
 } from "@/services/partnerPortalService";
@@ -22,6 +23,7 @@ import {
     Database,
     ToggleRight,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     BarChart,
     Bar,
@@ -199,7 +201,9 @@ function QuestionCard({
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function PartnerPortalForms() {
-    // 1. Resolve partner
+    const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+
+    // 1. Resolve partner (institution)
     const { data: partnerId, isLoading: loadingPartnerId } = useQuery({
         queryKey: ["myPartnerId"],
         queryFn: getMyPartnerId,
@@ -212,18 +216,32 @@ export default function PartnerPortalForms() {
         enabled: !!partnerId,
     });
 
-    // 3. Steps
-    const { data: steps = [], isLoading: loadingSteps } = useQuery({
-        queryKey: ["partnerSteps", partnerId],
-        queryFn: () => getPartnerSteps(partnerId!),
+    // 3. Opportunities
+    const { data: opportunities = [], isLoading: loadingOpportunities } = useQuery({
+        queryKey: ["partnerOpportunities", partnerId],
+        queryFn: () => getPartnerOpportunities(partnerId!),
         enabled: !!partnerId,
     });
 
-    // 4. Form fields
+    // Auto-select first opportunity if none is selected
+    useEffect(() => {
+        if (opportunities.length > 0 && !selectedOpportunityId) {
+            setSelectedOpportunityId(opportunities[0].id);
+        }
+    }, [opportunities, selectedOpportunityId]);
+
+    // 4. Steps
+    const { data: steps = [], isLoading: loadingSteps } = useQuery({
+        queryKey: ["partnerSteps", selectedOpportunityId],
+        queryFn: () => getPartnerSteps(selectedOpportunityId!),
+        enabled: !!selectedOpportunityId,
+    });
+
+    // 5. Form fields
     const { data: formFields = [], isLoading: loadingFields } = useQuery({
-        queryKey: ["partnerFormFieldsFull", partnerId],
-        queryFn: () => getPartnerFormFieldsFull(partnerId!),
-        enabled: !!partnerId,
+        queryKey: ["partnerFormFieldsFull", selectedOpportunityId],
+        queryFn: () => getPartnerFormFieldsFull(selectedOpportunityId!),
+        enabled: !!selectedOpportunityId,
     });
 
     // ─── Computed Stats ──────────────────────────────────────────────────────
@@ -292,9 +310,27 @@ export default function PartnerPortalForms() {
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">{partner?.name || "Portal do Parceiro"}</h1>
-                <p className="text-muted-foreground">Visualize as perguntas do formulário</p>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">{partner?.name || "Portal do Parceiro"}</h1>
+                    <p className="text-muted-foreground">Visualize as perguntas do formulário</p>
+                </div>
+                {opportunities.length > 0 && (
+                    <div className="w-full sm:w-72">
+                        <Select value={selectedOpportunityId || ""} onValueChange={setSelectedOpportunityId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma oportunidade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {opportunities.map((opp) => (
+                                    <SelectItem key={opp.id} value={opp.id}>
+                                        {opp.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
             </div>
 
             {/* Stats Cards */}

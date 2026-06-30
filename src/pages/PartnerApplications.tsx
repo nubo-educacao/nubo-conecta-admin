@@ -105,11 +105,9 @@ function exportToExcel(
     const allHeaders = Array.from(new Set([...fixedHeaders, ...dynamicHeaders, ...extraHeaders]));
 
     const getEligibilityStr = (app: ApplicationWithDetails): string => {
-        if (!app.eligibility_results || !Array.isArray(app.eligibility_results)) return "—";
-        const res = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
-        if (!res) return "—";
-        const met = Number(res.met_criteria) || 0;
-        const total = Number(res.total_criteria) || 0;
+        if (!app.eligibility_results || !Array.isArray(app.eligibility_results) || app.eligibility_results.length === 0) return "—";
+        const total = app.eligibility_results.length;
+        const met = app.eligibility_results.filter((r: any) => r.met === true).length;
         return `${met}/${total}`;
     };
 
@@ -226,12 +224,7 @@ export default function PartnerApplications() {
         enabled: !!effectivePartnerId,
     });
 
-    // 4. Fetch eligible count for the filtered partner
-    const { data: eligibleCount = 0 } = useQuery({
-        queryKey: ["eligibleCount", effectivePartnerId],
-        queryFn: () => getEligibleCountForPartner(effectivePartnerId!),
-        enabled: !!effectivePartnerId,
-    });
+
 
     // 5. Fetch form counts for calculating completion on the fly
     const { data: formCounts = {} } = useQuery({
@@ -276,12 +269,10 @@ export default function PartnerApplications() {
         const submitted = filteredApps.filter((a) => a.status === "SUBMITTED").length;
         
         const eligible = filteredApps.filter((app) => {
-            if (!app.eligibility_results || !Array.isArray(app.eligibility_results)) return false;
-            const res = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
-            if (!res) return false;
-            const met = Number(res.met_criteria) || 0;
-            const totalFields = Number(res.total_criteria) || 0;
-            return met === totalFields && totalFields > 0;
+            if (!app.eligibility_results || !Array.isArray(app.eligibility_results) || app.eligibility_results.length === 0) return false;
+            const totalCriteria = app.eligibility_results.length;
+            const metCriteria = app.eligibility_results.filter((r: any) => r.met === true).length;
+            return metCriteria === totalCriteria && totalCriteria > 0;
         }).length;
 
         return { total, eligible, submitted };
