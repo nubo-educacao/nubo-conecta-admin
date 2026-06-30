@@ -90,12 +90,8 @@ def backfill():
                     }).eq("id", app_id).execute()
 
                 # 5. Update user_profiles with mapped data
-                if profile_updates or eligibility_results:
-                    updates = {**profile_updates}
-                    if eligibility_results:
-                        updates["eligibility_results"] = eligibility_results
-
-                    supabase.table("user_profiles").update(updates).eq("id", user_id).execute()
+                if profile_updates:
+                    supabase.table("user_profiles").update(profile_updates).eq("id", user_id).execute()
 
                 # 6. Update user_preferences with mapped data
                 if pref_updates:

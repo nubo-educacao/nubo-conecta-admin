@@ -72,6 +72,31 @@ export async function getPartnerDetails(partnerId: string) {
     return data;
 }
 
+export interface PartnerOpportunity {
+    id: string;
+    institution_id: string;
+    name: string;
+    status: string;
+}
+
+/**
+ * Gets all partner opportunities for a given institution.
+ */
+export async function getPartnerOpportunities(institutionId: string): Promise<PartnerOpportunity[]> {
+    const { data, error } = await supabase
+        .from("partner_opportunities")
+        .select("id, institution_id, name, status")
+        .eq("institution_id", institutionId)
+        .order("name", { ascending: true });
+
+    if (error) {
+        console.error("Error fetching partner opportunities:", error);
+        throw error;
+    }
+
+    return (data ?? []) as PartnerOpportunity[];
+}
+
 /**
  * Gets the form field definitions for a partner.
  */

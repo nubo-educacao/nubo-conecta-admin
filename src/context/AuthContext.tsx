@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(session?.user ?? null);
             setUserRole(session?.user?.role ?? null);
             if (session?.user) {
-                fetchPermissions(session.user.id);
+                fetchPermissions(session.user.id, session.user.role);
             } else {
                 hasInitiallyLoadedRef.current = true;
                 setLoading(false);
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUserRole(session?.user?.role ?? null);
             if (session?.user) {
                 // After initial load, all subsequent fetches are silent background refreshes.
-                fetchPermissions(session.user.id);
+                fetchPermissions(session.user.id, session.user.role);
             } else {
                 setPermissions([]);
                 setLoading(false);
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return () => subscription.unsubscribe();
     }, []);
 
-    const fetchPermissions = async (userId: string) => {
+    const fetchPermissions = async (userId: string, currentRole?: string) => {
         const isInitialLoad = !hasInitiallyLoadedRef.current;
         console.log("AuthContext: Buscando permissões para", userId, "initial:", isInitialLoad);
 
@@ -94,7 +94,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             setPermissions(userPerms);
 
-            if (userPerms.length === 0 && userRole !== "partner") {
+            const roleToCheck = currentRole || userRole;
+            if (userPerms.length === 0 && roleToCheck !== "partner") {
                 console.warn("AuthContext: Usuário sem permissões detectado!");
                 toast.error("Você não tem permissão para acessar o painel.");
             }

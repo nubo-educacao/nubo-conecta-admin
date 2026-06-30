@@ -84,22 +84,51 @@ interface ApplicationsTableProps {
 
 // ─── Eligibility formatter ─────────────────────────────────────────────────────
 
-function EligibilityCell({ eligibilityResults }: { eligibilityResults: any }) {
+function EligibilityCell({ app }: { app: ApplicationWithDetails }) {
+    const eligibilityResults = app.eligibility_results;
     if (!eligibilityResults || !Array.isArray(eligibilityResults) || eligibilityResults.length === 0) {
         return <span className="text-muted-foreground">—</span>;
     }
-    // eligibility_results is a flat list of criterion evaluations:
-    //   [{ met: boolean, user_answer: string, question_text: string }, ...]
-    const total = eligibilityResults.length;
-    const met = eligibilityResults.filter((r: any) => r.met === true).length;
-    const isEligible = met === total && total > 0;
+    
+    const isGrouped = eligibilityResults.length > 0 && 'partner_id' in eligibilityResults[0];
+    
+    if (isGrouped) {
+        // Find the eligibility object for this partner
+        const resultForPartner = eligibilityResults.find((r: any) => r.partner_id === app.partner_id);
+        
+        if (!resultForPartner) {
+            return <span className="text-muted-foreground">—</span>;
+        }
 
-    return (
-        <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className="font-medium" title={isEligible ? "Totalmente elegível" : "Parcialmente elegível"}>{met} / {total}</span>
-            {isEligible && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-        </div>
-    );
+        const total = resultForPartner.total_criteria || 0;
+        const met = resultForPartner.met_criteria || 0;
+        
+        if (total === 0) {
+             return <span className="text-muted-foreground">—</span>;
+        }
+        
+        const isEligible = met === total;
+        return (
+            <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="font-medium" title={isEligible ? "Totalmente elegível" : "Parcialmente elegível"}>{met} / {total}</span>
+                {isEligible && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+            </div>
+        );
+    } else {
+        // Legacy flat format
+        const total = eligibilityResults.length;
+        const met = eligibilityResults.filter((r: any) => r.met === true).length;
+        if (total === 0) {
+            return <span className="text-muted-foreground">—</span>;
+        }
+        const isEligible = met === total;
+        return (
+            <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="font-medium" title={isEligible ? "Totalmente elegível" : "Parcialmente elegível"}>{met} / {total}</span>
+                {isEligible && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+            </div>
+        );
+    }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -230,22 +259,23 @@ export default function ApplicationsTable({
                                         <StatusBadge status={app.status} />
                                     </TableCell>
                                     <TableCell>
-                                        <EligibilityCell eligibilityResults={app.eligibility_results} />
+                                        <EligibilityCell app={app} />
                                     </TableCell>
                                     <TableCell className="text-center">
                                         {(() => {
                                             const filled = Object.keys(app.answers || {}).length;
                                             const totalForms = formCounts[app.partner_id] || 0;
                                             let percent = 0;
-                                            if (app.status === 'SUBMITTED') {
+                                            if (app.status === 'SUBMITTED' || app.status?.toUpperCase() === 'REDIRECTED') {
                                                 percent = 100;
                                             } else if (totalForms > 0) {
                                                 percent = Math.min(100, Math.round((filled * 100) / totalForms));
                                             }
+                                            const displayTotal = percent === 100 ? filled : (totalForms || '?');
                                             return (
                                                 <div className="flex flex-col items-center">
                                                     <span className="font-medium text-primary">{percent}%</span>
-                                                    <span className="text-[10px] text-muted-foreground">{filled} / {totalForms || '?'} resps</span>
+                                                    <span className="text-[10px] text-muted-foreground">{filled} / {displayTotal} resps</span>
                                                 </div>
                                             );
                                         })()}

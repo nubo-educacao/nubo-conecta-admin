@@ -105,20 +105,25 @@ function exportToExcel(
     const allHeaders = Array.from(new Set([...fixedHeaders, ...dynamicHeaders, ...extraHeaders]));
 
     const getEligibilityStr = (app: ApplicationWithDetails): string => {
-        if (!app.eligibility_results || !Array.isArray(app.eligibility_results)) return "—";
-        const res = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
-        if (!res) return "—";
-        const met = Number(res.met_criteria) || 0;
-        const total = Number(res.total_criteria) || 0;
-        return `${met}/${total}`;
+        if (!app.eligibility_results || !Array.isArray(app.eligibility_results) || app.eligibility_results.length === 0) return "—";
+        const isGrouped = app.eligibility_results.length > 0 && 'partner_id' in app.eligibility_results[0];
+        if (isGrouped) {
+            const resultForPartner = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
+            if (!resultForPartner || resultForPartner.total_criteria === undefined || resultForPartner.total_criteria === null) return "—";
+            return `${resultForPartner.met_criteria || 0}/${resultForPartner.total_criteria}`;
+        } else {
+            const total = app.eligibility_results.length;
+            const met = app.eligibility_results.filter((r: any) => r.met === true).length;
+            return `${met}/${total}`;
+        }
     };
 
     const getProgressStr = (app: ApplicationWithDetails): string => {
         if (!formCounts) return "—";
         const totalForms = formCounts[app.partner_id] || 0;
-        if (app.status === 'SUBMITTED') return "100%";
-        if (totalForms === 0) return "—";
         const filled = Object.keys(app.answers || {}).length;
+        if (app.status === 'SUBMITTED' || app.status?.toUpperCase() === 'REDIRECTED') return `100% (${filled}/${filled})`;
+        if (totalForms === 0) return "—";
         const percent = Math.min(100, Math.round((filled * 100) / totalForms));
         return `${percent}% (${filled}/${totalForms})`;
     };
@@ -226,12 +231,7 @@ export default function PartnerApplications() {
         enabled: !!effectivePartnerId,
     });
 
-    // 4. Fetch eligible count for the filtered partner
-    const { data: eligibleCount = 0 } = useQuery({
-        queryKey: ["eligibleCount", effectivePartnerId],
-        queryFn: () => getEligibleCountForPartner(effectivePartnerId!),
-        enabled: !!effectivePartnerId,
-    });
+
 
     // 5. Fetch form counts for calculating completion on the fly
     const { data: formCounts = {} } = useQuery({
@@ -251,7 +251,7 @@ export default function PartnerApplications() {
             const filled = Object.keys(app.answers || {}).length;
             const totalForms = formCounts[app.partner_id] || 0;
             let percent = 0;
-            if (app.status === 'SUBMITTED') {
+            if (app.status === 'SUBMITTED' || app.status?.toUpperCase() === 'REDIRECTED') {
                 percent = 100;
             } else if (totalForms > 0) {
                 percent = Math.min(100, Math.round((filled * 100) / totalForms));
@@ -273,15 +273,22 @@ export default function PartnerApplications() {
 
     const stats = useMemo(() => {
         const total = filteredApps.length;
-        const submitted = filteredApps.filter((a) => a.status === "SUBMITTED").length;
+        const submitted = filteredApps.filter((a) => a.status === "SUBMITTED" || a.status?.toLowerCase() === "redirected").length;
         
         const eligible = filteredApps.filter((app) => {
-            if (!app.eligibility_results || !Array.isArray(app.eligibility_results)) return false;
-            const res = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
-            if (!res) return false;
-            const met = Number(res.met_criteria) || 0;
-            const totalFields = Number(res.total_criteria) || 0;
-            return met === totalFields && totalFields > 0;
+            if (!app.eligibility_results || !Array.isArray(app.eligibility_results) || app.eligibility_results.length === 0) return false;
+            const isGrouped = app.eligibility_results.length > 0 && 'partner_id' in app.eligibility_results[0];
+            if (isGrouped) {
+                const resultForPartner = app.eligibility_results.find((r: any) => r.partner_id === app.partner_id);
+                if (!resultForPartner) return false;
+                const totalCriteria = resultForPartner.total_criteria || 0;
+                const metCriteria = resultForPartner.met_criteria || 0;
+                return metCriteria === totalCriteria && totalCriteria > 0;
+            } else {
+                const totalCriteria = app.eligibility_results.length;
+                const metCriteria = app.eligibility_results.filter((r: any) => r.met === true).length;
+                return metCriteria === totalCriteria && totalCriteria > 0;
+            }
         }).length;
 
         return { total, eligible, submitted };
