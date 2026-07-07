@@ -8,8 +8,8 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ImportPipelineControl from "@/components/institutions/ImportPipelineControl";
-import { useAllEtlLogs, useRollbackEtlStep } from "@/hooks/useEtlPipeline";
-import { AlertCircle, CheckCircle, Clock, Loader, Undo2 } from "lucide-react";
+import { useAllEtlLogs, useRollbackEtlStep, useStopEtlStep } from "@/hooks/useEtlPipeline";
+import { AlertCircle, CheckCircle, Clock, Loader, Undo2, Square } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -40,6 +40,7 @@ export default function Institutions() {
     const logsCount = logsData?.count || 0;
     
     const { mutate: rollbackStep, isPending: isRollingBack, variables: rollbackVars, rollbackProgress } = useRollbackEtlStep();
+    const { mutate: stopStep, isPending: isStopping, variables: stopVars } = useStopEtlStep();
 
     const handleSearch = () => {
         setPage(0);
@@ -195,7 +196,6 @@ export default function Institutions() {
                                             prouni_occupied: "Ocupação ProUni",
                                             emec: "e-MEC",
                                             refresh_opportunities: "Sincronização Opportunities",
-                                            refresh_catalog: "Sincronização Catálogo",
                                             rollback_sisu: "Base SiSU (Rollback)",
                                             rollback_sisu_vacancies: "Vagas SiSU (Rollback)",
                                             rollback_prouni_base: "Base ProUni (Rollback)",
@@ -273,6 +273,11 @@ export default function Institutions() {
                                                             <Loader className="w-3.5 h-3.5 animate-spin" /> Rodando
                                                         </span>
                                                     )}
+                                                    {log.status === "cancelled" && (
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                            <Square className="w-3.5 h-3.5 fill-current" /> Cancelado
+                                                        </span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-sm text-slate-700 font-medium">
                                                     {log.user_name || (
@@ -305,39 +310,57 @@ export default function Institutions() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {!log.etl_type.startsWith('rollback_') && (
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
+                                                        <>
+                                                            {log.status === 'running' ? (
                                                                 <Button
-                                                                    variant="outline"
+                                                                    variant="destructive"
                                                                     size="sm"
-                                                                    disabled={log.status === 'running' || log.etl_type === 'emec' || log.etl_type.startsWith('refresh_') || (isRollingBack && rollbackVars?.logId === log.id)}
-                                                                    title="Limpar dados do ciclo associado a esta importação"
+                                                                    onClick={() => stopStep({ logId: log.id })}
+                                                                    disabled={isStopping && stopVars?.logId === log.id}
+                                                                    title="Parar execução"
                                                                 >
-                                                                    {isRollingBack && rollbackVars?.logId === log.id ? (
-                                                                        <span className="flex items-center gap-1">
-                                                                            <Loader className="h-3.5 w-3.5 animate-spin" />
-                                                                            {rollbackProgress?.logId === log.id && rollbackProgress.processed > 0
-                                                                            ? rollbackProgress.processed.toLocaleString('pt-BR')
-                                                                            : '...'}
-                                                                        </span>
-                                                                    ) : <Undo2 className="h-4 w-4" />}
+                                                                    {isStopping && stopVars?.logId === log.id ? (
+                                                                        <Loader className="h-4 w-4 animate-spin" />
+                                                                    ) : (
+                                                                        <Square className="h-4 w-4 fill-current" />
+                                                                    )}
                                                                 </Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Confirmar Rollback</AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        Tem certeza que deseja desfazer esta operação? Esta ação deletará todos os registros de vagas e oportunidades associados a este log no banco de dados.
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => rollbackStep({ logId: log.id })} className="bg-red-600 hover:bg-red-700 focus:ring-red-600">
-                                                                        Confirmar Rollback
-                                                                    </AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
+                                                            ) : (
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            disabled={log.status === 'running' || log.etl_type === 'emec' || log.etl_type.startsWith('refresh_') || (isRollingBack && rollbackVars?.logId === log.id)}
+                                                                            title="Limpar dados do ciclo associado a esta importação"
+                                                                        >
+                                                                            {isRollingBack && rollbackVars?.logId === log.id ? (
+                                                                                <span className="flex items-center gap-1">
+                                                                                    <Loader className="h-3.5 w-3.5 animate-spin" />
+                                                                                    {rollbackProgress?.logId === log.id && rollbackProgress.processed > 0
+                                                                                    ? rollbackProgress.processed.toLocaleString('pt-BR')
+                                                                                    : '...'}
+                                                                                </span>
+                                                                            ) : <Undo2 className="h-4 w-4" />}
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>Confirmar Rollback</AlertDialogTitle>
+                                                                            <AlertDialogDescription>
+                                                                                Tem certeza que deseja desfazer esta operação? Esta ação deletará todos os registros de vagas e oportunidades associados a este log no banco de dados.
+                                                                            </AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => rollbackStep({ logId: log.id })} className="bg-red-600 hover:bg-red-700 focus:ring-red-600">
+                                                                                Confirmar Rollback
+                                                                            </AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </TableCell>
                                             </TableRow>
