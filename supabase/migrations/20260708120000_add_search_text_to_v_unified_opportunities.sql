@@ -345,12 +345,10 @@ CREATE UNIQUE INDEX uq_v_unified_opportunities_id_type
 CREATE INDEX idx_v_unified_opportunities_institution
   ON public.v_unified_opportunities (institution_id);
 
--- Índice GIN em search_text para busca LIKE eficiente (pg_trgm)
--- Requer extensão pg_trgm (pré-instalada no Supabase)
-CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
+-- Índice GIN em search_text para busca LIKE eficiente (pg_trgm já está em public)
 CREATE INDEX idx_v_unified_opportunities_search_text
   ON public.v_unified_opportunities
-  USING gin (search_text extensions.gin_trgm_ops);
+  USING gin (search_text gin_trgm_ops);
 
 -- ====================================================================================
 -- 3. search_opportunities — agora usa search_text diretamente (mais eficiente)
