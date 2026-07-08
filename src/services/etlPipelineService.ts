@@ -2,19 +2,17 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type EtlStepType =
   | 'prouni_base'
-  | 'prouni_vacancies'
-  | 'prouni_occupied'
+  | 'prouni_clone'
   | 'sisu'
   | 'sisu_vacancies'
   | 'emec'
-  | 'refresh_opportunities'
-  | 'refresh_catalog';
+  | 'refresh_opportunities';
 
 export interface EtlRunLog {
   id: string;
   program_id: string;
   etl_type: EtlStepType;
-  status: 'running' | 'success' | 'error';
+  status: 'running' | 'success' | 'error' | 'cancelled';
   records_processed: number;
   errors: string | null;
   started_at: string;
@@ -87,15 +85,21 @@ export async function triggerEtlStep(
   programId?: string,
   onProgress?: (processed: number, total: number) => void
 ): Promise<{ processed: number; errors: string[] }> {
-  const rpcName = `etl_import_${step}`;
+  // Map 'prouni_base' to the new unified function 'etl_import_prouni'
+  const rpcName = step === 'prouni_base' ? 'etl_import_prouni' : `etl_import_${step}`;
   
   // EMEC and refreshes do not need program_id
-  const needsProgramId = !['emec', 'refresh_opportunities', 'refresh_catalog'].includes(step);
-  const isBatched = !['refresh_opportunities', 'refresh_catalog'].includes(step);
+  const needsProgramId = !['emec', 'refresh_opportunities'].includes(step);
+  const isBatched = !['refresh_opportunities'].includes(step);
 
   if (isBatched) {
+    // ProUni uses keyset pagination over ctid (server returns next_cursor);
+    // SiSU steps still use classic offset pagination.
+    const useKeyset = step === 'prouni_base';
+
     let hasMore = true;
     let offset = 0;
+    let cursor: string | null = null;
     const limit = 5000;
     let totalProcessed = 0;
     let logId: string | undefined = undefined;
@@ -103,33 +107,40 @@ export async function triggerEtlStep(
     let totalRawRows = 0;
 
     while (hasMore) {
-      const params: any = { p_limit: limit, p_offset: offset };
+      const params: any = { p_limit: limit };
+      if (useKeyset) {
+        if (cursor) params.p_after_ctid = cursor;
+      } else {
+        params.p_offset = offset;
+      }
       if (programId && needsProgramId) params.p_program_id = programId;
       if (logId) params.p_log_id = logId;
 
       const { data, error } = await supabase.rpc(rpcName, params);
 
       if (error) {
-        throw new Error(`ETL Step [${step}] failed at offset ${offset}: ${error.message}`);
+        const at = useKeyset ? `cursor ${cursor ?? 'start'}` : `offset ${offset}`;
+        throw new Error(`ETL Step [${step}] failed at ${at}: ${error.message}`);
       }
       if (data?.status === 'error') {
         const msg = typeof data.errors === 'string' ? data.errors : JSON.stringify(data.errors);
-        throw new Error(msg || `ETL Step [${step}] returned an error status at offset ${offset}.`);
+        throw new Error(msg || `ETL Step [${step}] returned an error status.`);
       }
 
       const batchProcessed = data?.processed ?? data?.opportunities_processed ?? data?.vacancies_processed ?? 0;
       totalProcessed += batchProcessed;
-      
+
       hasMore = data?.has_more === true;
       logId = data?.log_id;
       totalRawRows = data?.total_raw_rows ?? totalRawRows;
-      
+
+      cursor = data?.next_cursor ?? cursor;
       offset += limit;
 
       if (onProgress && totalRawRows > 0) {
-        // Passa a quantidade de linhas brutas percorridas vs o total do CSV para o cálculo da porcentagem.
-        // Na última volta (hasMore = false), o offset pode estourar o totalRawRows, então travamos no 100%.
-        const processedRaw = Math.min(offset, totalRawRows);
+        // Keyset: rows processed so far is the exact numerator. Offset mode: rows scanned.
+        // Cap at the raw total so the final (partial) batch shows 100% instead of overshooting.
+        const processedRaw = Math.min(useKeyset ? totalProcessed : offset, totalRawRows);
         onProgress(processedRaw, totalRawRows);
       } else if (onProgress && !hasMore) {
         onProgress(1, 1); // 100% fallback caso totalRawRows seja 0
@@ -198,6 +209,19 @@ export async function fetchAllEtlLogs(page: number, pageSize: number): Promise<{
 }
 
 /**
+ * Stops an ongoing ETL step and cancels its backend execution in Supabase.
+ */
+export async function stopEtlStep(logId: string): Promise<{ status: string; message: string; pid_cancelled: number | null }> {
+  const { data, error } = await supabase.rpc('etl_stop_log', { p_log_id: logId });
+
+  if (error) {
+    throw new Error(`Erro ao parar execução: ${error.message}`);
+  }
+
+  return data as any;
+}
+
+/**
  * Rolls back an ETL step by deleting inserted records in batches
  */
 export async function rollbackEtlStep(
@@ -240,4 +264,28 @@ export async function rollbackEtlStep(
     message: 'Rollback completed successfully in batches',
     processed: totalProcessed,
   };
+}
+
+/**
+ * Triggers the clone cycle RPC to copy opportunities and vacancies from one program to another
+ */
+export async function triggerCloneCycle(
+  sourceProgramId: string,
+  targetProgramId: string
+): Promise<{ status: string; opp_cloned: number; vac_cloned: number; errors: string | null }> {
+  const { data, error } = await supabase.rpc('etl_clone_prouni_cycle', {
+    p_source_program_id: sourceProgramId,
+    p_target_program_id: targetProgramId,
+  });
+
+  if (error) {
+    throw new Error(`Clone cycle failed: ${error.message}`);
+  }
+
+  if (data?.status === 'error') {
+    const msg = typeof data.errors === 'string' ? data.errors : JSON.stringify(data.errors);
+    throw new Error(msg || 'Clone cycle returned an error status.');
+  }
+
+  return data;
 }

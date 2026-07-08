@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useActivePrograms, useEtlLogs, useTriggerEtlStep, useUpdatePrevCycle } from '@/hooks/useEtlPipeline';
+import { useActivePrograms, useEtlLogs, useTriggerEtlStep, useUpdatePrevCycle, useCloneCycle, useStopEtlStep } from '@/hooks/useEtlPipeline';
 import { EtlStepType, Program } from '@/services/etlPipelineService';
-import { Play, CheckCircle2, XCircle, Clock, Loader2, Database } from 'lucide-react';
+import { Play, CheckCircle2, XCircle, Clock, Loader2, Database, Square } from 'lucide-react';
 
 export default function ImportPipelineControl() {
   const { data: programs, isLoading: isLoadingPrograms } = useActivePrograms();
@@ -14,9 +14,20 @@ export default function ImportPipelineControl() {
 
   const { mutate: triggerStep, isPending } = useTriggerEtlStep();
   const { mutate: updatePrevCycle } = useUpdatePrevCycle();
-
+  const { mutate: cloneCycle, isPending: isCloning } = useCloneCycle();
+  const { mutate: stopStep, isPending: isStopping } = useStopEtlStep();
+ 
   const handlePrevCycleChange = (programId: string, prevProgramId: string) => {
     updatePrevCycle({ programId, prevProgramId: prevProgramId || null });
+  };
+
+  const handleClone = (targetProgramId: string) => {
+    const program = programs?.find(p => p.id === targetProgramId);
+    if (!program || !program.prev_program_id) return;
+    
+    if (confirm(`Deseja clonar os dados do ciclo anterior para este ciclo? Todas as oportunidades e vagas serão copiadas.`)) {
+      cloneCycle({ sourceProgramId: program.prev_program_id, targetProgramId });
+    }
   };
 
   const getStepStatus = (step: EtlStepType, logs: any[] | undefined) => {
@@ -29,7 +40,7 @@ export default function ImportPipelineControl() {
   const [progressMap, setProgressMap] = useState<Record<string, { pct: number }>>({});
 
   const handleTrigger = (step: EtlStepType, programId: string | null) => {
-    if (!programId && !['emec', 'refresh_opportunities', 'refresh_catalog'].includes(step)) return;
+    if (!programId && !['emec', 'refresh_opportunities'].includes(step)) return;
     
     setProgressMap(prev => ({ ...prev, [step]: { pct: 0 } }));
     
@@ -47,6 +58,7 @@ export default function ImportPipelineControl() {
     const status = getStepStatus(step, logs);
     if (status === 'success') return <span className="flex items-center text-green-600 text-sm font-medium"><CheckCircle2 className="w-4 h-4 mr-1"/> Importado</span>;
     if (status === 'error') return <span className="flex items-center text-red-600 text-sm font-medium"><XCircle className="w-4 h-4 mr-1"/> Erro</span>;
+    if (status === 'cancelled') return <span className="flex items-center text-amber-600 text-sm font-medium"><XCircle className="w-4 h-4 mr-1"/> Cancelado</span>;
     if (status === 'running') {
       const prog = progressMap[step];
       const displayPct = prog ? ` ${prog.pct}%` : '';
@@ -68,25 +80,42 @@ export default function ImportPipelineControl() {
   }, [isPending]);
 
   const renderButton = (step: EtlStepType, label: string, disabled: boolean, programId: string | null, logs: any[] | undefined) => {
-    const status = getStepStatus(step, logs);
+    const currentLog = logs?.find((l) => l.etl_type === step);
+    const status = currentLog?.status;
     const isRunning = status === 'running' || isPending;
+
+    if (isRunning) {
+      return (
+        <button
+          onClick={() => currentLog && stopStep({ logId: currentLog.id })}
+          disabled={isStopping}
+          className="flex items-center justify-between w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors mt-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300"
+          title="Parar execução"
+        >
+          <span className="flex items-center">
+            {isStopping ? 'Parando...' : 'Parar Execução'}
+            {elapsed > 0 && <span className="ml-2 text-xs font-normal opacity-70">({elapsed}s)</span>}
+            {progressMap[step] !== undefined && <span className="ml-2 text-xs font-bold text-red-600">{progressMap[step].pct}%</span>}
+          </span>
+          {isStopping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4 fill-current" />}
+        </button>
+      );
+    }
 
     return (
       <button
         onClick={() => handleTrigger(step, programId)}
-        disabled={disabled || isRunning}
+        disabled={disabled}
         className={`flex items-center justify-between w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors mt-2 ${
-          disabled || isRunning
+          disabled
             ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
             : 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300'
         }`}
       >
         <span className="flex items-center">
           {label}
-          {isRunning && elapsed > 0 && <span className="ml-2 text-xs font-normal opacity-70">({elapsed}s)</span>}
-          {isRunning && progressMap[step] !== undefined && <span className="ml-2 text-xs font-bold text-blue-600">{progressMap[step].pct}%</span>}
         </span>
-        {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+        <Play className="w-4 h-4" />
       </button>
     );
   };
@@ -111,7 +140,7 @@ export default function ImportPipelineControl() {
               <Database className="w-5 h-5 mr-2 text-blue-600" />
               Pipeline ProUni
             </h3>
-            <p className="text-xs text-gray-500 mt-1">Integração de Base, Vagas e Ocupação.</p>
+            <p className="text-xs text-gray-500 mt-1">Integração Unificada e Herança.</p>
           </div>
 
           <div className="space-y-2">
@@ -132,13 +161,13 @@ export default function ImportPipelineControl() {
 
           {selectedProuniId && (
             <div className="space-y-2 mt-4">
-              <label className="text-sm font-semibold text-gray-700">Ciclo Anterior (Comparação Opcional)</label>
+              <label className="text-sm font-semibold text-gray-700">Ciclo Anterior (Comparação / Herança)</label>
               <select
                 value={prouniPrograms.find(p => p.id === selectedProuniId)?.prev_program_id || ''}
                 onChange={(e) => handlePrevCycleChange(selectedProuniId, e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">-- Sem ciclo anterior (ocultar comparação) --</option>
+                <option value="">-- Sem ciclo anterior --</option>
                 {prouniPrograms
                   .filter((p) => p.id !== selectedProuniId && p.is_fully_imported)
                   .map((p) => (
@@ -147,9 +176,6 @@ export default function ImportPipelineControl() {
                     </option>
                   ))}
               </select>
-              <p className="text-xs text-gray-500">
-                O ciclo listado acima deve ter completado toda a importação (is_fully_imported).
-              </p>
             </div>
           )}
 
@@ -158,35 +184,38 @@ export default function ImportPipelineControl() {
               <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
                 <div className="flex justify-between items-start mb-1">
                   <div>
-                    <span className="text-sm font-semibold text-slate-800">1. Base de Dados</span>
+                    <span className="text-sm font-semibold text-slate-800">1. Importação Unificada</span>
                     <p className="text-xs text-slate-500 font-mono mt-1">Tabela: rawprouni</p>
                   </div>
                   {renderStatusBadge('prouni_base', prouniLogs)}
                 </div>
-                {renderButton('prouni_base', 'Importar Base ProUni', false, selectedProuniId, prouniLogs)}
+                {renderButton('prouni_base', 'Importar Base + Vagas', false, selectedProuniId, prouniLogs)}
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-                <div className="flex justify-between items-start mb-1">
-                  <div>
-                    <span className="text-sm font-semibold text-slate-800">2. Vagas</span>
-                    <p className="text-xs text-slate-500 font-mono mt-1">Tabela: rawprounivacancies</p>
+              {prouniPrograms.find(p => p.id === selectedProuniId)?.prev_program_id && (
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                  <div className="flex justify-between items-start mb-1">
+                    <div>
+                      <span className="text-sm font-semibold text-slate-800">2. Herança (Clonagem)</span>
+                      <p className="text-xs text-slate-500 mt-1">Copia vagas e oportunidades do ciclo anterior.</p>
+                    </div>
                   </div>
-                  {renderStatusBadge('prouni_vacancies', prouniLogs)}
+                  <button
+                    onClick={() => handleClone(selectedProuniId)}
+                    disabled={isCloning}
+                    className={`flex items-center justify-between w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors mt-2 ${
+                      isCloning
+                        ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-white border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300'
+                    }`}
+                  >
+                    <span className="flex items-center">
+                      {isCloning ? 'Clonando...' : 'Clonar do Ciclo Anterior'}
+                    </span>
+                    {isCloning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  </button>
                 </div>
-                {renderButton('prouni_vacancies', 'Importar Vagas', !isStepSuccess('prouni_base', prouniLogs), selectedProuniId, prouniLogs)}
-              </div>
-
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-                <div className="flex justify-between items-start mb-1">
-                  <div>
-                    <span className="text-sm font-semibold text-slate-800">3. Ocupação</span>
-                    <p className="text-xs text-slate-500 font-mono mt-1">Tabela: rawprouniocuppied</p>
-                  </div>
-                  {renderStatusBadge('prouni_occupied', prouniLogs)}
-                </div>
-                {renderButton('prouni_occupied', 'Importar Ocupação', !isStepSuccess('prouni_vacancies', prouniLogs), selectedProuniId, prouniLogs)}
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -313,17 +342,6 @@ export default function ImportPipelineControl() {
                 {renderStatusBadge('refresh_opportunities', globalLogs)}
               </div>
               {renderButton('refresh_opportunities', 'Atualizar', false, null, globalLogs)}
-            </div>
-
-            <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-              <div className="flex justify-between items-start mb-1">
-                <div>
-                  <span className="text-sm font-semibold text-slate-800">Catálogo de Cursos</span>
-                  <p className="text-xs text-slate-500 font-mono mt-1">mv_course_catalog</p>
-                </div>
-                {renderStatusBadge('refresh_catalog', globalLogs)}
-              </div>
-              {renderButton('refresh_catalog', 'Atualizar', false, null, globalLogs)}
             </div>
           </div>
         </div>

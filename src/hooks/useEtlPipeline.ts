@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchActivePrograms, fetchEtlLogs, triggerEtlStep, EtlStepType, fetchAllEtlLogs, rollbackEtlStep, updateProgramPrevCycle } from '@/services/etlPipelineService';
+import { fetchActivePrograms, fetchEtlLogs, triggerEtlStep, EtlStepType, fetchAllEtlLogs, rollbackEtlStep, updateProgramPrevCycle, triggerCloneCycle, stopEtlStep } from '@/services/etlPipelineService';
 import { toast } from 'sonner';
 
 export function useActivePrograms() {
@@ -50,6 +50,26 @@ export function useTriggerEtlStep() {
   });
 }
 
+export function useStopEtlStep() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ logId }: { logId: string }) => stopEtlStep(logId),
+    onSuccess: (data) => {
+      toast.success('Execução parada com sucesso!', {
+        description: data.pid_cancelled ? 'O processo no banco de dados foi interrompido.' : 'Apenas o status foi atualizado (nenhum processo em andamento).',
+      });
+      queryClient.invalidateQueries({ queryKey: ['etl-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['etl-logs-all'] });
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao parar a execução', {
+        description: error.message,
+      });
+    },
+  });
+}
+
 export function useRollbackEtlStep() {
   const queryClient = useQueryClient();
   const [rollbackProgress, setRollbackProgress] = useState<{ logId: string; processed: number } | null>(null);
@@ -93,6 +113,28 @@ export function useUpdatePrevCycle() {
     },
     onError: (error: any) => {
       toast.error('Erro ao atualizar ciclo anterior', {
+        description: error.message,
+      });
+    },
+  });
+}
+
+export function useCloneCycle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ sourceProgramId, targetProgramId }: { sourceProgramId: string; targetProgramId: string }) =>
+      triggerCloneCycle(sourceProgramId, targetProgramId),
+    onSuccess: (data) => {
+      toast.success('Ciclo clonado com sucesso!', {
+        description: `${data.opp_cloned} oportunidades e ${data.vac_cloned} vagas clonadas.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['active-programs'] });
+      queryClient.invalidateQueries({ queryKey: ['etl-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['etl-logs-all'] });
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao clonar ciclo', {
         description: error.message,
       });
     },
