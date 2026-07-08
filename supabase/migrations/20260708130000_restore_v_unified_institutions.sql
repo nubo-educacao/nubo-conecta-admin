@@ -8,7 +8,7 @@
 -- (equivalente à migration 20260706130000, seção 3).
 -- Não afeta nenhuma outra tabela/função.
 
-CREATE VIEW public.v_unified_institutions AS
+CREATE OR REPLACE VIEW public.v_unified_institutions AS
 WITH inst_opps AS (
   SELECT v.institution_id, array_agg(DISTINCT v.opportunity_type) AS opp_types
   FROM public.v_unified_opportunities v GROUP BY v.institution_id
