@@ -17,11 +17,14 @@
 -- e verificado contra o estado real do banco em 2026-07-08.
 
 -- ====================================================================================
--- 0. Remove dependências diretas (que dependem do shape/colunas da matview)
+-- 0. Remove dependências diretas EXPLICITAMENTE (sem CASCADE para não derrubar objetos não previstos)
+--    Ordem: primeiro funções que dependem da matview, depois a view que depende dela,
+--    só então a matview em si.
 -- ====================================================================================
-DROP FUNCTION IF EXISTS public.search_opportunities(text) CASCADE;
-DROP FUNCTION IF EXISTS public.get_unified_opportunities_by_distance(double precision, double precision) CASCADE;
-DROP MATERIALIZED VIEW IF EXISTS public.v_unified_opportunities CASCADE;
+DROP FUNCTION IF EXISTS public.search_opportunities(text);
+DROP FUNCTION IF EXISTS public.get_unified_opportunities_by_distance(double precision, double precision);
+DROP VIEW IF EXISTS public.v_unified_institutions;  -- depende de v_unified_opportunities via WITH inst_opps
+DROP MATERIALIZED VIEW IF EXISTS public.v_unified_opportunities;  -- sem CASCADE
 
 -- ====================================================================================
 -- 1. Recria v_unified_opportunities com search_text
@@ -446,6 +449,43 @@ GRANT EXECUTE ON FUNCTION public.get_unified_opportunities_by_distance(double pr
 -- 5. Popula search_text nos dados existentes via REFRESH
 -- ====================================================================================
 REFRESH MATERIALIZED VIEW CONCURRENTLY public.v_unified_opportunities;
+
+-- ====================================================================================
+-- 6. Recria v_unified_institutions (dropada no passo 0 para evitar conflito com a matview)
+-- ====================================================================================
+CREATE VIEW public.v_unified_institutions AS
+WITH inst_opps AS (
+  SELECT v.institution_id, array_agg(DISTINCT v.opportunity_type) AS opp_types
+  FROM public.v_unified_opportunities v GROUP BY v.institution_id
+)
+SELECT
+  i.id, i.name,
+  COALESCE(pi.location,
+    CASE
+      WHEN ie.city IS NOT NULL AND ie.state IS NOT NULL THEN (ie.city || ' - ') || ie.state
+      WHEN ie.city IS NOT NULL THEN ie.city
+      WHEN ie.state IS NOT NULL THEN ie.state
+      ELSE (SELECT (c.city || ' - ') || c.state FROM public.campus c WHERE c.institution_id = i.id AND c.city IS NOT NULL LIMIT 1)
+    END
+  ) AS location,
+  pi.logo_url, pi.cover_url, pi.brand_color, pi.description, pi.website_url,
+  sisu.acronym,
+  CASE WHEN i.is_partner IS TRUE THEN 'partner' ELSE 'mec' END AS type,
+  io.opp_types,
+  COALESCE(sisu.academic_organization,  ie.academic_organization)  AS academic_organization,
+  COALESCE(sisu.administrative_category, ie.administrative_category) AS administrative_category,
+  CASE WHEN i.is_partner IS TRUE THEN NULL ELSE ie.igc END AS igc,
+  CASE WHEN i.is_partner IS TRUE THEN NULL ELSE ie.ci END AS ci,
+  CASE WHEN i.is_partner IS TRUE THEN NULL ELSE ie.ci_ead END AS ci_ead,
+  CASE WHEN i.is_partner IS TRUE THEN NULL ELSE ie.legal_nature END AS legal_nature,
+  CASE WHEN i.is_partner IS TRUE THEN NULL ELSE ie.maintainer_name END AS maintainer_name
+FROM public.institutions i
+  LEFT JOIN public.partner_institutions pi  ON pi.institution_id = i.id
+  LEFT JOIN public.institutions_info_emec ie   ON ie.institution_id = i.id
+  LEFT JOIN public.institutions_info_sisu sisu ON sisu.institution_id = i.id
+  LEFT JOIN inst_opps io ON io.institution_id = i.id;
+
+GRANT SELECT ON public.v_unified_institutions TO anon, authenticated, service_role;
 
 -- Sinaliza PostgREST para recarregar o schema com as novas colunas/funções
 NOTIFY pgrst, 'reload schema';
