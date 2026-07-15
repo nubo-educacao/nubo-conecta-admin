@@ -27,8 +27,10 @@ import {
     ExternalLink,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { ApplicationWithDetails, PartnerOption } from "@/services/applicationsService";
+import type { ApplicationWithDetails, PartnerOption, OpportunityPhase } from "@/services/applicationsService";
 import { getPartnerFormCounts } from "@/services/applicationsService";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus } from "lucide-react";
 
 // ─── Status helpers ──────────────────────────────────────────────────────────
 
@@ -80,26 +82,59 @@ interface ApplicationsTableProps {
     partnerFilter?: string;
     onPartnerFilterChange?: (value: string) => void;
     onFilteredDataChange?: (applications: ApplicationWithDetails[]) => void;
+    // Props for Opportunity Phases
+    phases?: OpportunityPhase[];
+    onPhaseChange?: (appId: string, phaseId: string | null) => void;
+    onBulkPhaseChange?: (appIds: string[], phaseId: string | null) => void;
 }
 
 // ─── Eligibility formatter ─────────────────────────────────────────────────────
 
-function EligibilityCell({ eligibilityResults }: { eligibilityResults: any }) {
+function EligibilityCell({ app }: { app: ApplicationWithDetails }) {
+    const eligibilityResults = app.eligibility_results;
     if (!eligibilityResults || !Array.isArray(eligibilityResults) || eligibilityResults.length === 0) {
         return <span className="text-muted-foreground">—</span>;
     }
-    // eligibility_results is a flat list of criterion evaluations:
-    //   [{ met: boolean, user_answer: string, question_text: string }, ...]
-    const total = eligibilityResults.length;
-    const met = eligibilityResults.filter((r: any) => r.met === true).length;
-    const isEligible = met === total && total > 0;
+    
+    const isGrouped = eligibilityResults.length > 0 && 'partner_id' in eligibilityResults[0];
+    
+    if (isGrouped) {
+        // Find the eligibility object for this partner
+        const resultForPartner = eligibilityResults.find((r: any) => r.partner_id === app.partner_id);
+        
+        if (!resultForPartner) {
+            return <span className="text-muted-foreground">—</span>;
+        }
 
-    return (
-        <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className="font-medium" title={isEligible ? "Totalmente elegível" : "Parcialmente elegível"}>{met} / {total}</span>
-            {isEligible && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-        </div>
-    );
+        const total = resultForPartner.total_criteria || 0;
+        const met = resultForPartner.met_criteria || 0;
+        
+        if (total === 0) {
+             return <span className="text-muted-foreground">—</span>;
+        }
+        
+        const isEligible = met === total;
+        return (
+            <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="font-medium" title={isEligible ? "Totalmente elegível" : "Parcialmente elegível"}>{met} / {total}</span>
+                {isEligible && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+            </div>
+        );
+    } else {
+        // Legacy flat format
+        const total = eligibilityResults.length;
+        const met = eligibilityResults.filter((r: any) => r.met === true).length;
+        if (total === 0) {
+            return <span className="text-muted-foreground">—</span>;
+        }
+        const isEligible = met === total;
+        return (
+            <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="font-medium" title={isEligible ? "Totalmente elegível" : "Parcialmente elegível"}>{met} / {total}</span>
+                {isEligible && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+            </div>
+        );
+    }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -112,10 +147,16 @@ export default function ApplicationsTable({
     partnerFilter,
     onPartnerFilterChange,
     onFilteredDataChange,
+    phases = [],
+    onPhaseChange,
+    onBulkPhaseChange,
 }: ApplicationsTableProps) {
     const showPartnerColumn = !!partners;
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
+    
+    // Checkbox selections for bulk actions
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     const { data: formCounts = {} } = useQuery({
         queryKey: ["partnerFormCountsTable"],
@@ -134,12 +175,38 @@ export default function ApplicationsTable({
         });
     }, [applications, statusFilter, search]);
 
+    // Reset selected IDs when applications list changes or filters apply
+    useEffect(() => {
+        setSelectedIds([]);
+    }, [filteredApplications]);
+
     // Report filtered applications to parent
     useEffect(() => {
         if (onFilteredDataChange) {
             onFilteredDataChange(filteredApplications);
         }
     }, [filteredApplications, onFilteredDataChange]);
+
+    // Toggle single selection
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
+    // Toggle all selection
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filteredApplications.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredApplications.map(app => app.id));
+        }
+    };
+
+    // Helper to get opportunity phases for a row
+    const getPhasesForApp = (app: ApplicationWithDetails) => {
+        return phases.filter(p => p.opportunity_id === app.partner_id);
+    };
 
     if (isLoading) {
         return (
@@ -151,6 +218,51 @@ export default function ApplicationsTable({
 
     return (
         <div className="space-y-4">
+            {/* Bulk Action Bar */}
+            {selectedIds.length > 0 && onBulkPhaseChange && (
+                <div className="flex flex-col sm:flex-row items-center justify-between p-3 rounded-md bg-secondary/50 border gap-3 animate-in fade-in slide-in-from-top-2">
+                    <span className="text-sm font-medium text-muted-foreground">
+                        {selectedIds.length} candidatura(s) selecionada(s)
+                    </span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Select
+                            onValueChange={(val) => {
+                                const finalVal = val === "none" ? null : val;
+                                onBulkPhaseChange(selectedIds, finalVal);
+                                setSelectedIds([]);
+                            }}
+                        >
+                            <SelectTrigger className="w-full sm:w-[220px]">
+                                <SelectValue placeholder="Mudar Fase em Massa" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Sem Fase</SelectItem>
+                                {/* We get phases that are relevant to the selected applications */}
+                                {Array.from(new Set(filteredApplications
+                                    .filter(app => selectedIds.includes(app.id))
+                                    .map(app => app.partner_id)
+                                )).map(oppId => {
+                                    const oppPhases = phases.filter(p => p.opportunity_id === oppId);
+                                    if (oppPhases.length === 0) return null;
+                                    return (
+                                        <div key={oppId} className="px-2 py-1">
+                                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block mb-1">
+                                                {filteredApplications.find(a => a.partner_id === oppId)?.partner_name || "Oportunidade"}
+                                            </span>
+                                            {oppPhases.map(p => (
+                                                <SelectItem key={p.id} value={p.id}>
+                                                    {p.name}
+                                                </SelectItem>
+                                            ))}
+                                        </div>
+                                    );
+                                })}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            )}
+
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
@@ -195,11 +307,20 @@ export default function ApplicationsTable({
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            {onBulkPhaseChange && (
+                                <TableHead className="w-[40px]">
+                                    <Checkbox
+                                        checked={selectedIds.length > 0 && selectedIds.length === filteredApplications.length}
+                                        onCheckedChange={toggleSelectAll}
+                                    />
+                                </TableHead>
+                            )}
                             <TableHead>Nome</TableHead>
                             <TableHead>Whatsapp</TableHead>
                             {showPartnerColumn && <TableHead>Parceiro</TableHead>}
                             <TableHead>Status</TableHead>
                             <TableHead>Elegibilidade</TableHead>
+                            {phases.length > 0 || onPhaseChange ? <TableHead>Fase Atual</TableHead> : null}
                             <TableHead className="text-center">Progresso</TableHead>
                             <TableHead>Data</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
@@ -208,13 +329,21 @@ export default function ApplicationsTable({
                     <TableBody>
                         {filteredApplications.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={showPartnerColumn ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={showPartnerColumn ? 9 : 8} className="text-center py-8 text-muted-foreground">
                                     Nenhuma candidatura encontrada.
                                 </TableCell>
                             </TableRow>
                         ) : (
                             filteredApplications.map((app) => (
                                 <TableRow key={app.id}>
+                                    {onBulkPhaseChange && (
+                                        <TableCell>
+                                            <Checkbox
+                                                checked={selectedIds.includes(app.id)}
+                                                onCheckedChange={() => toggleSelect(app.id)}
+                                            />
+                                        </TableCell>
+                                    )}
                                     <TableCell className="font-medium whitespace-nowrap">
                                         {app.full_name || "—"}
                                     </TableCell>
@@ -230,22 +359,49 @@ export default function ApplicationsTable({
                                         <StatusBadge status={app.status} />
                                     </TableCell>
                                     <TableCell>
-                                        <EligibilityCell eligibilityResults={app.eligibility_results} />
+                                        <EligibilityCell app={app} />
                                     </TableCell>
+                                    {phases.length > 0 || onPhaseChange ? (
+                                        <TableCell className="whitespace-nowrap">
+                                            <div className="flex items-center gap-1">
+                                                <Select
+                                                    value={app.phase_id || "none"}
+                                                    onValueChange={(val) => {
+                                                        if (onPhaseChange) {
+                                                            onPhaseChange(app.id, val === "none" ? null : val);
+                                                        }
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-8 w-[140px] text-xs">
+                                                        <SelectValue placeholder="Sem Fase" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">Sem Fase</SelectItem>
+                                                        {getPhasesForApp(app).map(p => (
+                                                            <SelectItem key={p.id} value={p.id} className="text-xs">
+                                                                {p.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </TableCell>
+                                    ) : null}
                                     <TableCell className="text-center">
                                         {(() => {
                                             const filled = Object.keys(app.answers || {}).length;
                                             const totalForms = formCounts[app.partner_id] || 0;
                                             let percent = 0;
-                                            if (app.status === 'SUBMITTED') {
+                                            if (app.status === 'SUBMITTED' || app.status?.toUpperCase() === 'REDIRECTED') {
                                                 percent = 100;
                                             } else if (totalForms > 0) {
                                                 percent = Math.min(100, Math.round((filled * 100) / totalForms));
                                             }
+                                            const displayTotal = percent === 100 ? filled : (totalForms || '?');
                                             return (
                                                 <div className="flex flex-col items-center">
                                                     <span className="font-medium text-primary">{percent}%</span>
-                                                    <span className="text-[10px] text-muted-foreground">{filled} / {totalForms || '?'} resps</span>
+                                                    <span className="text-[10px] text-muted-foreground">{filled} / {displayTotal} resps</span>
                                                 </div>
                                             );
                                         })()}
