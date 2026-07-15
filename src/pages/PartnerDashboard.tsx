@@ -5,6 +5,7 @@ import {
     getPartnerFormFields,
     getPartnerDetails,
     getPartnerRedirectUsers,
+    getPartnerOpportunities,
     type PartnerFormField,
 } from "@/services/partnerPortalService";
 import {
@@ -250,11 +251,20 @@ export default function PartnerDashboard() {
         enabled: !!partnerId,
     });
 
+    // 4.2 Fetch opportunities to get the opportunityId
+    const { data: opportunities = [] } = useQuery({
+        queryKey: ["partnerOpportunities", partnerId],
+        queryFn: () => getPartnerOpportunities(partnerId!),
+        enabled: !!partnerId,
+    });
+    
+    const opportunityId = opportunities.length > 0 ? opportunities[0].id : null;
+
     // 4.5 Fetch opportunity phases
     const { data: phases = [] } = useQuery({
-        queryKey: ["opportunityPhases", partnerId],
-        queryFn: () => getOpportunityPhases(partnerId!),
-        enabled: !!partnerId,
+        queryKey: ["opportunityPhases", opportunityId],
+        queryFn: () => getOpportunityPhases(opportunityId!),
+        enabled: !!opportunityId,
     });
 
     // 5. Fetch eligible count for this partner institution
