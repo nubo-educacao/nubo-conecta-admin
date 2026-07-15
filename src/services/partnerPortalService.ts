@@ -22,6 +22,7 @@ export interface PartnerFormField {
     options: unknown[] | null;
     mapping_source: string | null;
     is_criterion: boolean;
+    criterion_type: string | null;
     criterion_rule: Record<string, unknown> | null;
     sort_order: number;
 }
