@@ -49,6 +49,7 @@ import {
 import { Plus, Pencil, Trash2, Loader2, Code2, Check, ChevronsUpDown, X, Shield, Star, Download, Copy, GripVertical, Upload, Grid3X3 } from "lucide-react";
 import { toast } from "sonner";
 import { CriterionRuleBuilder } from "./CriterionRuleBuilder";
+import { PhaseManagerModal } from "./PhaseManagerModal";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import {
@@ -105,6 +106,7 @@ interface PartnerFormField {
     conditional_rule: any; // JSONB storage: { field_id: string, operator: string, value: any }
     sort_order: number;
     optional: boolean;
+    ui_component?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -125,6 +127,7 @@ interface FormFieldValues {
     conditional_rule: string; // JSON string in form
     sort_order: number;
     optional: boolean;
+    ui_component: string;
 }
 
 const EMPTY_FIELD: FormFieldValues = {
@@ -143,6 +146,7 @@ const EMPTY_FIELD: FormFieldValues = {
     conditional_rule: "",
     sort_order: 0,
     optional: false,
+    ui_component: "",
 };
 
 import { DATA_TYPES, getMappingLabel, MASK_TYPES_TEXT, MASK_TYPES_NUMBER } from "@/constants/formConstants";
@@ -610,6 +614,7 @@ export function PartnerFormsManager({ opportunities }: PartnerFormsManagerProps)
                     : null,
                 sort_order: values.sort_order,
                 optional: values.optional,
+                ui_component: values.ui_component || null,
             };
 
             if (editingField) {
@@ -1174,6 +1179,7 @@ export function PartnerFormsManager({ opportunities }: PartnerFormsManagerProps)
             conditional_rule: field.conditional_rule ? JSON.stringify(field.conditional_rule, null, 2) : "",
             sort_order: field.sort_order,
             optional: field.optional ?? false,
+            ui_component: field.ui_component || "",
         });
         setIsDialogOpen(true);
     };
@@ -1335,6 +1341,11 @@ export function PartnerFormsManager({ opportunities }: PartnerFormsManagerProps)
                                         </Badge>
                                     )}
                                 </Button>
+                                
+                                <PhaseManagerModal 
+                                    opportunityId={selectedPartnerId}
+                                    opportunityName={opportunities.find(o => o.id === selectedPartnerId)?.name || "Oportunidade"}
+                                />
                             </div>
                         );
                     })()}
@@ -1895,7 +1906,7 @@ export function PartnerFormsManager({ opportunities }: PartnerFormsManagerProps)
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label>Tipo de Dado</Label>
                                 <Select
@@ -1924,6 +1935,14 @@ export function PartnerFormsManager({ opportunities }: PartnerFormsManagerProps)
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Componente UI (opcional)</Label>
+                                <Input
+                                    value={formValues.ui_component}
+                                    onChange={(e) => setFormValues({ ...formValues, ui_component: e.target.value })}
+                                    placeholder="Ex: RatingComponent"
+                                />
                             </div>
                             <div className="space-y-2 flex flex-col">
                                 <Label>Auto-Fill (mapping)</Label>

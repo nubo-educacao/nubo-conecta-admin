@@ -24,6 +24,10 @@ import {
     ToggleRight,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PhaseManagerModal } from "@/components/partners/PhaseManagerModal";
 import {
     BarChart,
     Bar,
@@ -202,6 +206,7 @@ function QuestionCard({
 
 export default function PartnerPortalForms() {
     const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+    const [isRulesDialogOpen, setIsRulesDialogOpen] = useState(false);
 
     // 1. Resolve partner (institution)
     const { data: partnerId, isLoading: loadingPartnerId } = useQuery({
@@ -332,6 +337,123 @@ export default function PartnerPortalForms() {
                     </div>
                 )}
             </div>
+            
+            {/* Action Buttons Row */}
+            {selectedOpportunityId && (
+                <div className="flex items-center gap-3">
+                    {/* Eligibility Rules Summary Button */}
+                    {(() => {
+                        const criterionFields = formFields.filter((f) => f.is_criterion);
+                        return (
+                            <Button
+                                variant="outline"
+                                className="gap-2"
+                                onClick={() => setIsRulesDialogOpen(true)}
+                            >
+                                <Shield className="h-4 w-4" />
+                                Critérios de Elegibilidade
+                                {criterionFields.length > 0 && (
+                                    <Badge variant="secondary" className="ml-1">
+                                        {criterionFields.length}
+                                    </Badge>
+                                )}
+                            </Button>
+                        );
+                    })()}
+                    
+                    <PhaseManagerModal 
+                        opportunityId={selectedOpportunityId}
+                        opportunityName={opportunities.find(o => o.id === selectedOpportunityId)?.name || "Oportunidade"}
+                    />
+                </div>
+            )}
+
+            {/* Criteria Rules Dialog */}
+            <Dialog open={isRulesDialogOpen} onOpenChange={setIsRulesDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Shield className="h-5 w-5" />
+                            Critérios de Seleção
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2 space-y-6">
+                        {(() => {
+                            const allCriterionFields = formFields.filter((f) => f.is_criterion);
+                            if (allCriterionFields.length === 0) {
+                                return (
+                                    <div className="text-center py-8 text-muted-foreground border border-dashed rounded-md">
+                                        Nenhum campo com critério configurado.
+                                    </div>
+                                );
+                            }
+
+                            const eligibilityFields = allCriterionFields.filter((f) => f.criterion_type !== 'priority');
+                            const priorityFields = allCriterionFields.filter((f) => f.criterion_type === 'priority');
+
+                            const renderCriterionTable = (criterionFields: typeof allCriterionFields) => (
+                                <div className="rounded-md border overflow-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Campo</TableHead>
+                                                <TableHead>Etapa</TableHead>
+                                                <TableHead>Regra</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {criterionFields.map((field) => {
+                                                const step = steps.find((s) => s.id === field.step_id);
+                                                const rulePreview = field.criterion_rule
+                                                    ? JSON.stringify(field.criterion_rule)
+                                                    : "—";
+                                                return (
+                                                    <TableRow key={field.id}>
+                                                        <TableCell className="font-mono text-sm">
+                                                            {field.field_name}
+                                                        </TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">
+                                                            {step ? step.step_name : "—"}
+                                                        </TableCell>
+                                                        <TableCell className="max-w-[300px]">
+                                                            <code className="text-xs bg-muted px-2 py-1 rounded break-all">
+                                                                {rulePreview}
+                                                            </code>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            );
+
+                            return (
+                                <>
+                                    {eligibilityFields.length > 0 && (
+                                        <div className="space-y-3">
+                                            <h3 className="font-semibold text-sm flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-red-500" />
+                                                Critérios Eliminatórios (Elegibilidade)
+                                            </h3>
+                                            {renderCriterionTable(eligibilityFields)}
+                                        </div>
+                                    )}
+                                    {priorityFields.length > 0 && (
+                                        <div className="space-y-3">
+                                            <h3 className="font-semibold text-sm flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                                Critérios Classificatórios (Prioridade)
+                                            </h3>
+                                            {renderCriterionTable(priorityFields)}
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">

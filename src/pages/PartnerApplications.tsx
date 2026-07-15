@@ -90,19 +90,7 @@ function exportToExcel(
         }
     });
     
-    // Collect all other keys present in any application's answers (ignoring form definitions)
-    const otherKeys = new Set<string>();
-    applications.forEach((app) => {
-        const ans = (app.answers as Record<string, unknown>) || {};
-        Object.keys(ans).forEach((key) => {
-            if (!knownKeys.has(key) && !stepIds.has(key)) {
-                otherKeys.add(key);
-            }
-        });
-    });
-    const extraHeaders = Array.from(otherKeys);
-    
-    const allHeaders = Array.from(new Set([...fixedHeaders, ...dynamicHeaders, ...extraHeaders]));
+    const allHeaders = Array.from(new Set([...fixedHeaders, ...dynamicHeaders]));
 
     const getEligibilityStr = (app: ApplicationWithDetails): string => {
         if (!app.eligibility_results || !Array.isArray(app.eligibility_results) || app.eligibility_results.length === 0) return "—";
@@ -172,9 +160,7 @@ function exportToExcel(
             }
         });
         
-        const extraCols = extraHeaders.map((k) => sanitize(ans[k]));
-        
-        return [...fixedCols, ...dynamicCols, ...extraCols];
+        return [...fixedCols, ...dynamicCols];
     });
 
 
