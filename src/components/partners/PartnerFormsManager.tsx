@@ -286,9 +286,15 @@ function FieldRow({
                 )}
             </TableCell>
             <TableCell className="w-[100px]">
-                <Badge variant="outline">
-                    {DATA_TYPES.find((d) => d.value === field.data_type)?.label || field.data_type}
-                </Badge>
+                {field.ui_component ? (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        Componente UI
+                    </Badge>
+                ) : (
+                    <Badge variant="outline">
+                        {DATA_TYPES.find((d) => d.value === field.data_type)?.label || field.data_type}
+                    </Badge>
+                )}
             </TableCell>
             <TableCell className="w-[120px]">
                 {field.maskking && field.maskking !== "none" ? (
@@ -1909,6 +1915,12 @@ export function PartnerFormsManager({ opportunities }: PartnerFormsManagerProps)
                                     const updates: Partial<typeof formValues> = { ui_component: nextVal };
                                     if (nextVal === "income_calculator") {
                                         updates.data_type = "number";
+                                        updates.mapping_source = "user_income.per_capita_income";
+                                    } else if (nextVal === "") {
+                                        // clearing ui_component — also clear the auto-set mapping
+                                        if (formValues.mapping_source === "user_income.per_capita_income") {
+                                            updates.mapping_source = "";
+                                        }
                                     }
                                     setFormValues(prev => ({ ...prev, ...updates }));
                                 }}
