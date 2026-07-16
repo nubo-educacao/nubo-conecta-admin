@@ -1937,12 +1937,40 @@ export function PartnerFormsManager({ opportunities }: PartnerFormsManagerProps)
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Componente UI (opcional)</Label>
-                                <Input
-                                    value={formValues.ui_component}
-                                    onChange={(e) => setFormValues({ ...formValues, ui_component: e.target.value })}
-                                    placeholder="Ex: RatingComponent"
-                                />
+                                <Label>Componente UI Especial (opcional)</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Substitui o campo de resposta por um componente interativo específico.
+                                </p>
+                                <Select
+                                    value={formValues.ui_component || "__none__"}
+                                    onValueChange={(val) =>
+                                        setFormValues({ ...formValues, ui_component: val === "__none__" ? "" : val })
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Nenhum (campo padrão)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none__">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">Nenhum</span>
+                                                <span className="text-xs text-muted-foreground">Campo de resposta padrão</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="income_calculator">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">🧮 Calculadora de Renda</span>
+                                                <span className="text-xs text-muted-foreground">Calcula renda per capita por nº de membros e rendas individuais</span>
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {formValues.ui_component && formValues.ui_component !== "" && (
+                                    <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                                        <span className="font-mono bg-blue-100 px-1.5 py-0.5 rounded">{formValues.ui_component}</span>
+                                        <span>será usado no lugar do campo padrão</span>
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-2 flex flex-col">
                                 <Label>Auto-Fill (mapping)</Label>
