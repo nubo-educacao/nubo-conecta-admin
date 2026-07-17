@@ -56,6 +56,15 @@ function ComplexDataRenderer({ value, field }: { value: unknown; field?: Partner
         );
     }
 
+    // Especial: income_calculator
+    if (field?.ui_component === 'income_calculator' || (typeof value === 'object' && value !== null && 'per_capita_income' in value)) {
+        const val = value as any;
+        if (typeof val.per_capita_income === 'number') {
+             const formatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val.per_capita_income);
+             return <span className="text-sm font-semibold text-emerald-600">{formatted}</span>;
+        }
+    }
+
     // Pattern 2: Object Dictionary
     const entries = Object.entries(value);
     if (entries.length === 0) return <span className="text-muted-foreground italic">Vazio</span>;
