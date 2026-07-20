@@ -55,12 +55,13 @@ export default function KnowledgeBase() {
     const uploadContent = useUploadDocumentContent();
     const downloadContent = useDownloadDocumentContent();
 
-    // Fetch partners for the select
+    // Fetch partner opportunities for the select (knowledge_documents.partner_id
+    // references partner_opportunities, not partners — see migration 20260615120000)
     const { data: partners = [] } = useQuery({
-        queryKey: ["partners-list"],
+        queryKey: ["partner-opportunities-list"],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from("partners")
+                .from("partner_opportunities")
                 .select("id, name")
                 .order("name");
             if (error) throw error;
@@ -101,7 +102,7 @@ export default function KnowledgeBase() {
         try {
             const sanitizedTitle = data.title
                 .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[̀-ͯ]/g, "")
                 .replace(/[^a-zA-Z0-9\s-]/g, "")
                 .trim()
                 .replace(/\s+/g, "_")
