@@ -57,7 +57,7 @@ function ComplexDataRenderer({ value, field }: { value: unknown; field?: Partner
     }
 
     // Especial: income_calculator
-    if (field?.ui_component === 'income_calculator' || (typeof value === 'object' && value !== null && 'per_capita_income' in value)) {
+    if (typeof value === 'object' && value !== null && 'per_capita_income' in value) {
         const val = value as any;
         if (typeof val.per_capita_income === 'number') {
              const formatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val.per_capita_income);
