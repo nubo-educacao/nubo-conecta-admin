@@ -94,7 +94,7 @@ export default function KnowledgeBase() {
         title: string;
         description: string;
         category_id: string;
-        partner_id: string | null;
+        partner_opportunity_ids: string[];
         keywords: string[];
         content: string;
         change_summary: string;
@@ -123,7 +123,7 @@ export default function KnowledgeBase() {
                 title: data.title,
                 description: data.description || undefined,
                 category_id: data.category_id || undefined,
-                partner_id: data.partner_id,
+                partner_opportunity_ids: data.partner_opportunity_ids,
                 storage_path: storagePath,
                 keywords: data.keywords,
                 change_summary: data.change_summary || undefined,

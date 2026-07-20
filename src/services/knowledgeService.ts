@@ -11,6 +11,11 @@ export interface KnowledgeCategory {
     created_at: string;
 }
 
+export interface PartnerOpportunityRef {
+    id: string;
+    name: string;
+}
+
 export interface KnowledgeDocument {
     id: string;
     title: string;
@@ -27,6 +32,8 @@ export interface KnowledgeDocument {
     created_at: string;
     updated_at: string;
     keywords: string[];
+    /** N:N — todas as oportunidades parceiras vinculadas a este documento (ver knowledge_document_opportunities). */
+    partner_opportunities: PartnerOpportunityRef[];
 }
 
 export interface KnowledgeDocumentVersion {
@@ -135,6 +142,8 @@ export async function manageKnowledgeDocument(params: {
     description?: string;
     category_id?: string;
     partner_id?: string | null;
+    /** N:N — quando informado, substitui o vínculo 1:1 legado (partner_id) como fonte de verdade. */
+    partner_opportunity_ids?: string[];
     storage_path?: string;
     is_active?: boolean;
     keywords?: string[];
@@ -152,6 +161,7 @@ export async function manageKnowledgeDocument(params: {
         p_keywords: params.keywords || null,
         p_change_summary: params.change_summary || null,
         p_delete: params.delete || false,
+        p_partner_opportunity_ids: params.partner_opportunity_ids || null,
     });
 
     if (error) {
