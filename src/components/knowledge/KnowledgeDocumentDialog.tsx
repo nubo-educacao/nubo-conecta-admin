@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import KnowledgeTestChat from "@/components/knowledge/KnowledgeTestChat";
+import PartnerOpportunityMultiSelect from "@/components/knowledge/PartnerOpportunityMultiSelect";
 import {
     Dialog,
     DialogContent,
@@ -45,7 +46,7 @@ interface KnowledgeDocumentDialogProps {
         title: string;
         description: string;
         category_id: string;
-        partner_id: string | null;
+        partner_opportunity_ids: string[];
         keywords: string[];
         content: string;
         change_summary: string;
@@ -66,7 +67,7 @@ export default function KnowledgeDocumentDialog({
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [categoryId, setCategoryId] = useState("");
-    const [partnerId, setPartnerId] = useState<string | null>(null);
+    const [partnerOpportunityIds, setPartnerOpportunityIds] = useState<string[]>([]);
     const [keywords, setKeywords] = useState<string[]>([]);
     const [keywordInput, setKeywordInput] = useState("");
     const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -130,7 +131,7 @@ export default function KnowledgeDocumentDialog({
                 let finalTitle = "";
                 let finalDescription = "";
                 let finalCategoryId = "";
-                let finalPartnerId: string | null = null;
+                let finalPartnerOpportunityId: string | null = null;
                 let finalKeywords: string[] = [];
                 let finalMarkdown = "";
 
@@ -173,7 +174,7 @@ export default function KnowledgeDocumentDialog({
                         if (data.partner_name && data.partner_name.trim() !== "") {
                             const pNameStr = data.partner_name.toLowerCase();
                             const matchingPartner = partners.find(p => p.name.toLowerCase().includes(pNameStr) || pNameStr.includes(p.name.toLowerCase()));
-                            if (matchingPartner) finalPartnerId = matchingPartner.id;
+                            if (matchingPartner) finalPartnerOpportunityId = matchingPartner.id;
                         }
                     }
 
@@ -203,8 +204,8 @@ export default function KnowledgeDocumentDialog({
                 if (finalCategoryId && !categoryId) {
                     setCategoryId(finalCategoryId);
                 }
-                if (finalPartnerId && !partnerId) {
-                    setPartnerId(finalPartnerId);
+                if (finalPartnerOpportunityId && partnerOpportunityIds.length === 0) {
+                    setPartnerOpportunityIds([finalPartnerOpportunityId]);
                 }
                 if (finalKeywords && finalKeywords.length > 0) {
                     setKeywords(prev => Array.from(new Set([...prev, ...finalKeywords])));
@@ -246,7 +247,10 @@ export default function KnowledgeDocumentDialog({
             setTitle(document.title);
             setDescription(document.description || "");
             setCategoryId(document.category_id || "");
-            setPartnerId(document.partner_id);
+            setPartnerOpportunityIds(
+                document.partner_opportunities?.map((o) => o.id) ??
+                    (document.partner_id ? [document.partner_id] : [])
+            );
             setKeywords(document.keywords || []);
             textDataRef.current = markdownContent;
             if (contentRef.current) contentRef.current.value = markdownContent;
@@ -255,7 +259,7 @@ export default function KnowledgeDocumentDialog({
             setTitle("");
             setDescription("");
             setCategoryId("");
-            setPartnerId(null);
+            setPartnerOpportunityIds([]);
             setKeywords([]);
             textDataRef.current = "";
             if (contentRef.current) contentRef.current.value = "";
@@ -289,7 +293,7 @@ export default function KnowledgeDocumentDialog({
             title: title.trim(),
             description: description.trim(),
             category_id: categoryId,
-            partner_id: partnerId,
+            partner_opportunity_ids: partnerOpportunityIds,
             keywords,
             content: currentContent,
             change_summary: changeSummary.trim(),
@@ -328,43 +332,31 @@ export default function KnowledgeDocumentDialog({
                         />
                     </div>
 
-                    {/* Row 3: Category + Partner */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>Categoria</Label>
-                            <Select value={categoryId} onValueChange={setCategoryId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map((cat) => (
-                                        <SelectItem key={cat.id} value={cat.id}>
-                                            {cat.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    {/* Row 3: Category */}
+                    <div className="space-y-2">
+                        <Label>Categoria</Label>
+                        <Select value={categoryId} onValueChange={setCategoryId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories.map((cat) => (
+                                    <SelectItem key={cat.id} value={cat.id}>
+                                        {cat.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                        <div className="space-y-2">
-                            <Label>Parceiro (opcional)</Label>
-                            <Select
-                                value={partnerId || "none"}
-                                onValueChange={(v) => setPartnerId(v === "none" ? null : v)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Nenhum" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Nenhum</SelectItem>
-                                    {partners.map((p) => (
-                                        <SelectItem key={p.id} value={p.id}>
-                                            {p.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    {/* Row 3b: Partner Opportunities (N:N — um documento pode servir a mais de uma oportunidade) */}
+                    <div className="space-y-2">
+                        <Label>Oportunidades Parceiras (opcional)</Label>
+                        <PartnerOpportunityMultiSelect
+                            options={partners}
+                            selectedIds={partnerOpportunityIds}
+                            onChange={setPartnerOpportunityIds}
+                        />
                     </div>
 
                     {/* Row 4: Keywords */}

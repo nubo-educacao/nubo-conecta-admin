@@ -35,7 +35,7 @@ export default function KnowledgeTable({
                     <TableRow>
                         <TableHead>Título</TableHead>
                         <TableHead>Categoria</TableHead>
-                        <TableHead>Parceiro</TableHead>
+                        <TableHead>Oportunidades Parceiras</TableHead>
                         <TableHead>Keywords</TableHead>
                         <TableHead className="text-center">Versão</TableHead>
                         <TableHead className="text-center">Ativo</TableHead>
@@ -61,7 +61,17 @@ export default function KnowledgeTable({
                                     )}
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
-                                    {doc.partner_name || "—"}
+                                    {doc.partner_opportunities.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1 max-w-[220px]">
+                                            {doc.partner_opportunities.map((po) => (
+                                                <Badge key={po.id} variant="outline" className="text-xs">
+                                                    {po.name}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        "—"
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-wrap gap-1 max-w-[200px]">
