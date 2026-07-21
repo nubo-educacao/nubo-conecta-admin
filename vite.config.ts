@@ -18,4 +18,5 @@ export default defineConfig({
   },
 } as UserConfig);
 
-// Trigger Vercel CI
+// Trigger Vercel CI (Verified Commits Disabled)
+
