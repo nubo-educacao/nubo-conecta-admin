@@ -39,10 +39,12 @@ const SECTION_TYPES = [
 ];
 
 const DATA_SOURCES = [
-  { value: "partner_opportunities", label: "Oportunidades Parceiras" },
+  { value: "partner_opportunities", label: "Oportunidades Parceiras (legado)" },
+  { value: "featured_opportunities", label: "Oportunidades em Destaque (abertas primeiro)" },
   { value: "recent_opportunities", label: "Oportunidades Recentes" },
   { value: "match_results", label: "Resultados de Match" },
-  { value: "institutions", label: "Instituições Parceiras" },
+  { value: "institutions", label: "Instituições Parceiras (legado)" },
+  { value: "institutions_with_open_opps", label: "Instituições em Destaque (parceiras+MEC, vagas abertas primeiro)" },
   { value: "important_dates", label: "Datas do Calendário" },
   { value: "static", label: "Estático (sem dados)" },
 ];
