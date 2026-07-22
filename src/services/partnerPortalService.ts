@@ -25,6 +25,8 @@ export interface PartnerFormField {
     criterion_type: string | null;
     criterion_rule: Record<string, unknown> | null;
     sort_order: number;
+    optional: boolean;
+    conditional_rule: Record<string, unknown> | null;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -214,8 +216,6 @@ export interface PartnerStep {
 }
 
 export interface PartnerFormFieldFull extends PartnerFormField {
-    optional: boolean;
-    conditional_rule: Record<string, unknown> | null;
     maskking: string | null;
 }
 

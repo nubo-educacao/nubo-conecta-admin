@@ -28,7 +28,8 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApplicationWithDetails, PartnerOption, OpportunityPhase } from "@/services/applicationsService";
-import { getPartnerFormCounts } from "@/services/applicationsService";
+import { getPartnerFormFieldsMap } from "@/services/applicationsService";
+import { calculateApplicationProgress } from "@/utils/calculateApplicationProgress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus } from "lucide-react";
 
@@ -77,12 +78,23 @@ interface ApplicationsTableProps {
     applications: ApplicationWithDetails[];
     isLoading: boolean;
     onViewAnswers: (app: ApplicationWithDetails) => void;
-    /** If provided, renders the partner filter dropdown (Admin mode) */
+    /**
+     * Oportunidade filter dropdown + column (partner_opportunities).
+     * Controlled mode (server-side refetch): pass partnerFilter + onPartnerFilterChange.
+     * Uncontrolled mode (client-side filter): pass only `partners`, omit the callback —
+     * used by the partner portal, where applications are already scoped to 1 institution.
+     */
     partners?: PartnerOption[];
     partnerFilter?: string;
     onPartnerFilterChange?: (value: string) => void;
+    /**
+     * Parceiro (institution) filter dropdown + column (ADR-0014). Admin-only —
+     * omitted in the partner portal, where the view is already scoped to 1 partner.
+     * Always client-side (institution_id already present on each application row).
+     */
+    institutions?: PartnerOption[];
     onFilteredDataChange?: (applications: ApplicationWithDetails[]) => void;
-    // Props for Opportunity Phases
+    // Props for Opportunity Phases — also powers the Fase filter dropdown (ADR-0014)
     phases?: OpportunityPhase[];
     onPhaseChange?: (appId: string, phaseId: string | null) => void;
     onBulkPhaseChange?: (appIds: string[], phaseId: string | null) => void;
@@ -146,26 +158,43 @@ export default function ApplicationsTable({
     partners,
     partnerFilter,
     onPartnerFilterChange,
+    institutions,
     onFilteredDataChange,
     phases = [],
     onPhaseChange,
     onBulkPhaseChange,
 }: ApplicationsTableProps) {
-    const showPartnerColumn = !!partners;
+    const showOpportunityColumn = !!partners;
+    const showInstitutionColumn = !!institutions;
+    const showPhaseColumn = phases.length > 0 || !!onPhaseChange;
+    const showPhaseFilter = phases.length > 0;
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
-    
+    const [institutionFilter, setInstitutionFilter] = useState<string>("all");
+    const [phaseFilter, setPhaseFilter] = useState<string>("all");
+
+    // Oportunidade filter: controlled (server-side refetch, admin) when
+    // onPartnerFilterChange is provided; otherwise uncontrolled (client-side
+    // filter over the already-fetched list), used by the partner portal.
+    const [internalOpportunityFilter, setInternalOpportunityFilter] = useState<string>("all");
+    const isOpportunityFilterControlled = !!onPartnerFilterChange;
+    const opportunityFilterValue = isOpportunityFilterControlled ? (partnerFilter || "all") : internalOpportunityFilter;
+    const handleOpportunityFilterChange = onPartnerFilterChange || setInternalOpportunityFilter;
+
     // Checkbox selections for bulk actions
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-    const { data: formCounts = {} } = useQuery({
-        queryKey: ["partnerFormCountsTable"],
-        queryFn: getPartnerFormCounts,
+    const { data: formFieldsMap = {} } = useQuery({
+        queryKey: ["partnerFormFieldsMap"],
+        queryFn: getPartnerFormFieldsMap,
     });
 
     const filteredApplications = useMemo(() => {
         return applications.filter((app) => {
             if (statusFilter !== "all" && app.status !== statusFilter) return false;
+            if (institutionFilter !== "all" && app.institution_id !== institutionFilter) return false;
+            if (phaseFilter !== "all" && app.phase_id !== phaseFilter) return false;
+            if (!isOpportunityFilterControlled && internalOpportunityFilter !== "all" && app.partner_id !== internalOpportunityFilter) return false;
             if (search) {
                 const searchLower = search.toLowerCase();
                 const nameMatch = app.full_name?.toLowerCase().includes(searchLower);
@@ -173,7 +202,7 @@ export default function ApplicationsTable({
             }
             return true;
         });
-    }, [applications, statusFilter, search]);
+    }, [applications, statusFilter, institutionFilter, phaseFilter, isOpportunityFilterControlled, internalOpportunityFilter, search]);
 
     // Reset selected IDs when applications list changes or filters apply
     useEffect(() => {
@@ -207,6 +236,18 @@ export default function ApplicationsTable({
     const getPhasesForApp = (app: ApplicationWithDetails) => {
         return phases.filter(p => p.opportunity_id === app.partner_id);
     };
+
+    const columnCount =
+        2 + // Nome, Whatsapp
+        (onBulkPhaseChange ? 1 : 0) +
+        (showInstitutionColumn ? 1 : 0) +
+        (showOpportunityColumn ? 1 : 0) +
+        1 + // Status
+        1 + // Elegibilidade
+        (showPhaseColumn ? 1 : 0) +
+        1 + // Progresso
+        1 + // Data
+        1; // Ações
 
     if (isLoading) {
         return (
@@ -274,14 +315,44 @@ export default function ApplicationsTable({
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                {partners && onPartnerFilterChange && (
-                    <Select value={partnerFilter || "all"} onValueChange={onPartnerFilterChange}>
-                        <SelectTrigger className="w-full sm:w-[220px]">
+                {institutions && (
+                    <Select value={institutionFilter} onValueChange={setInstitutionFilter}>
+                        <SelectTrigger className="w-full sm:w-[200px]">
                             <SelectValue placeholder="Todos os Parceiros" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todos os Parceiros</SelectItem>
+                            {institutions.map((i) => (
+                                <SelectItem key={i.id} value={i.id}>
+                                    {i.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+                {partners && (
+                    <Select value={opportunityFilterValue} onValueChange={handleOpportunityFilterChange}>
+                        <SelectTrigger className="w-full sm:w-[220px]">
+                            <SelectValue placeholder="Todas as Oportunidades" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas as Oportunidades</SelectItem>
                             {partners.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+                {showPhaseFilter && (
+                    <Select value={phaseFilter} onValueChange={setPhaseFilter}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Todas as Fases" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas as Fases</SelectItem>
+                            {phases.map((p) => (
                                 <SelectItem key={p.id} value={p.id}>
                                     {p.name}
                                 </SelectItem>
@@ -317,10 +388,11 @@ export default function ApplicationsTable({
                             )}
                             <TableHead>Nome</TableHead>
                             <TableHead>Whatsapp</TableHead>
-                            {showPartnerColumn && <TableHead>Parceiro</TableHead>}
+                            {showInstitutionColumn && <TableHead>Parceiro</TableHead>}
+                            {showOpportunityColumn && <TableHead>Oportunidade</TableHead>}
                             <TableHead>Status</TableHead>
                             <TableHead>Elegibilidade</TableHead>
-                            {phases.length > 0 || onPhaseChange ? <TableHead>Fase Atual</TableHead> : null}
+                            {showPhaseColumn && <TableHead>Fase Atual</TableHead>}
                             <TableHead className="text-center">Progresso</TableHead>
                             <TableHead>Data</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
@@ -329,7 +401,7 @@ export default function ApplicationsTable({
                     <TableBody>
                         {filteredApplications.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={showPartnerColumn ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={columnCount} className="text-center py-8 text-muted-foreground">
                                     Nenhuma candidatura encontrada.
                                 </TableCell>
                             </TableRow>
@@ -350,7 +422,12 @@ export default function ApplicationsTable({
                                     <TableCell className="whitespace-nowrap">
                                         {formatPhone(app.phone)}
                                     </TableCell>
-                                    {showPartnerColumn && (
+                                    {showInstitutionColumn && (
+                                        <TableCell className="whitespace-nowrap">
+                                            {app.institution_name || "—"}
+                                        </TableCell>
+                                    )}
+                                    {showOpportunityColumn && (
                                         <TableCell className="whitespace-nowrap">
                                             {app.partner_name || "—"}
                                         </TableCell>
@@ -361,7 +438,11 @@ export default function ApplicationsTable({
                                     <TableCell>
                                         <EligibilityCell app={app} />
                                     </TableCell>
-                                    {phases.length > 0 || onPhaseChange ? (
+                                    {showPhaseColumn && !onPhaseChange ? (
+                                        <TableCell className="whitespace-nowrap">
+                                            {phases.find(p => p.id === app.phase_id)?.name || "Sem Fase"}
+                                        </TableCell>
+                                    ) : showPhaseColumn ? (
                                         <TableCell className="whitespace-nowrap">
                                             <div className="flex items-center gap-1">
                                                 <Select
@@ -389,15 +470,16 @@ export default function ApplicationsTable({
                                     ) : null}
                                     <TableCell className="text-center">
                                         {(() => {
-                                            const filled = Object.keys(app.answers || {}).length;
-                                            const totalForms = formCounts[app.partner_id] || 0;
+                                            const fields = formFieldsMap[app.partner_id] || [];
+                                            const ans = app.answers || {};
                                             let percent = 0;
                                             if (app.status === 'SUBMITTED' || app.status?.toUpperCase() === 'REDIRECTED') {
                                                 percent = 100;
-                                            } else if (totalForms > 0) {
-                                                percent = Math.min(100, Math.round((filled * 100) / totalForms));
+                                            } else if (fields.length > 0) {
+                                                percent = calculateApplicationProgress(ans, fields);
                                             }
-                                            const displayTotal = percent === 100 ? filled : (totalForms || '?');
+                                            const filled = Object.keys(ans).length;
+                                            const displayTotal = percent === 100 ? filled : (fields.length || '?');
                                             return (
                                                 <div className="flex flex-col items-center">
                                                     <span className="font-medium text-primary">{percent}%</span>
