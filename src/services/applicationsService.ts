@@ -7,6 +7,9 @@ export interface ApplicationWithDetails {
     user_id: string;
     partner_id: string;
     partner_name: string | null;
+    /** Real partner institution (institutions.id), distinct from the opportunity. See ADR-0014. */
+    institution_id?: string | null;
+    institution_name?: string | null;
     full_name: string | null;
     phone: string | null;
     status: "DRAFT" | "SUBMITTED" | "redirected";
@@ -93,6 +96,46 @@ export async function getPartnersList(): Promise<PartnerOption[]> {
 
     return (data ?? []) as PartnerOption[];
 }
+
+/**
+ * Fetches the list of partner institutions for the Parceiro filter dropdown (ADR-0014).
+ * Distinct from getPartnersList(), which actually lists partner_opportunities.
+ */
+export async function getInstitutionsList(): Promise<PartnerOption[]> {
+    const { data, error } = await supabase
+        .from("institutions")
+        .select("id, name")
+        .eq("is_partner", true)
+        .order("name", { ascending: true });
+
+    if (error) {
+        console.error("Error fetching institutions list:", error);
+        throw error;
+    }
+
+    return (data ?? []) as PartnerOption[];
+}
+
+/**
+ * Gets all opportunity phases across every opportunity (admin Fase filter, ADR-0014).
+ * Unlike getPhasesByInstitution/getOpportunityPhases, this is not scoped to a
+ * single institution or opportunity — used where the applications list itself
+ * is not pre-filtered to one opportunity (e.g. the admin /applications table).
+ */
+export async function getAllPhases(): Promise<OpportunityPhase[]> {
+    const { data, error } = await supabase
+        .from("opportunity_phases")
+        .select("id, opportunity_id, name, description, sort_order, created_at")
+        .order("sort_order", { ascending: true });
+
+    if (error) {
+        console.error("Error fetching all phases:", error);
+        throw error;
+    }
+
+    return (data ?? []) as OpportunityPhase[];
+}
+
 /**
  * Gets the count of eligible students for a specific partner.
  * Uses the calculate_passport_eligibility results stored in user_profiles.
