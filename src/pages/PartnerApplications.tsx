@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
     getApplicationsWithDetails,
     getPartnersList,
+    getInstitutionsList,
+    getAllPhases,
     getEligibleCountForPartner,
     getPartnerFormCounts,
     type ApplicationWithDetails,
@@ -170,7 +172,7 @@ function exportToExcel(
         return `"${sanitized.replace(/"/g, '""')}"`;
     };
 
-    const BOM = "\uFEFF";
+    const BOM = "﻿";
     const csvContent =
         BOM +
         [
@@ -196,10 +198,22 @@ export default function PartnerApplications() {
     const [partnerFilter, setPartnerFilter] = useState<string>("all");
     const [filteredApps, setFilteredApps] = useState<ApplicationWithDetails[]>([]);
 
-    // 1. Fetch partners list for filter
+    // 1. Fetch opportunities list for the Oportunidade filter
     const { data: partners = [] } = useQuery({
         queryKey: ["partnersList"],
         queryFn: getPartnersList,
+    });
+
+    // 1.1 Fetch partner institutions for the Parceiro filter (ADR-0014)
+    const { data: institutions = [] } = useQuery({
+        queryKey: ["institutionsList"],
+        queryFn: getInstitutionsList,
+    });
+
+    // 1.2 Fetch all opportunity phases for the Fase filter (ADR-0014)
+    const { data: allPhases = [] } = useQuery({
+        queryKey: ["allPhases"],
+        queryFn: getAllPhases,
     });
 
     // 2. Fetch all applications (or filtered by partner)
@@ -381,6 +395,8 @@ export default function PartnerApplications() {
                         partners={partners}
                         partnerFilter={partnerFilter}
                         onPartnerFilterChange={setPartnerFilter}
+                        institutions={institutions}
+                        phases={allPhases}
                         onFilteredDataChange={setFilteredApps}
                     />
                 </CardContent>

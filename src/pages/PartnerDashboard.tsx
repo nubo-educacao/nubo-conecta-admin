@@ -198,7 +198,7 @@ function exportToExcel(
         return `"${sanitized.replace(/"/g, '""')}"`;
     };
 
-    const BOM = "\uFEFF";
+    const BOM = "﻿";
     const csvContent =
         BOM +
         [
@@ -516,6 +516,7 @@ export default function PartnerDashboard() {
                         isLoading={loadingApps}
                         onViewAnswers={handleViewAnswers}
                         onFilteredDataChange={setFilteredApps}
+                        partners={opportunities}
                         phases={phases}
                         onPhaseChange={handlePhaseChange}
                         onBulkPhaseChange={handleBulkPhaseChange}
