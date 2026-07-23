@@ -1,6 +1,6 @@
 import { ImportantDate, DATE_TYPE_COLORS, DATE_TYPE_LABELS, DateType } from "@/services/calendarService";
 import { Badge } from "@/components/ui/badge";
-import { format, isSameMonth } from "date-fns";
+import { format, areIntervalsOverlapping, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarDays } from "lucide-react";
 
@@ -10,11 +10,18 @@ interface DatesListProps {
 }
 
 export default function DatesList({ dates, selectedMonth }: DatesListProps) {
-    // Filter dates that fall within the selected month
+    const monthStart = startOfMonth(selectedMonth);
+    const monthEnd = endOfMonth(selectedMonth);
+
+    // Filter dates that fall within or overlap the selected month
     const monthDates = dates.filter((d) => {
         const start = new Date(d.start_date);
         const end = d.end_date ? new Date(d.end_date) : start;
-        return isSameMonth(start, selectedMonth) || isSameMonth(end, selectedMonth);
+        return areIntervalsOverlapping(
+            { start, end },
+            { start: monthStart, end: monthEnd },
+            { inclusive: true }
+        );
     });
 
     const formatDateRange = (startStr: string, endStr?: string | null) => {
