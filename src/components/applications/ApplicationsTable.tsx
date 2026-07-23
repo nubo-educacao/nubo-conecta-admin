@@ -79,13 +79,13 @@ interface ApplicationsTableProps {
     isLoading: boolean;
     onViewAnswers: (app: ApplicationWithDetails) => void;
     /**
-     * Oportunidade filter dropdown + column (partner_opportunities).
-     * Controlled mode (server-side refetch): pass partnerFilter + onPartnerFilterChange.
-     * Uncontrolled mode (client-side filter): pass only `partners`, omit the callback —
-     * used by the partner portal, where applications are already scoped to 1 institution.
+     * Oportunidade filter dropdown + column (partner_opportunities). Always
+     * client-side/internal now — the table owns the filter state. Pass
+     * `onPartnerFilterChange` if the parent needs to react to the current
+     * selection (e.g. to fetch form fields for export), it's a notify-only
+     * callback, not a controlled value.
      */
     partners?: PartnerOption[];
-    partnerFilter?: string;
     onPartnerFilterChange?: (value: string) => void;
     /**
      * Parceiro (institution) filter dropdown + column (ADR-0014). Admin-only —
@@ -156,7 +156,6 @@ export default function ApplicationsTable({
     isLoading,
     onViewAnswers,
     partners,
-    partnerFilter,
     onPartnerFilterChange,
     institutions,
     onFilteredDataChange,
@@ -172,14 +171,7 @@ export default function ApplicationsTable({
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [institutionFilter, setInstitutionFilter] = useState<string>("all");
     const [phaseFilter, setPhaseFilter] = useState<string>("all");
-
-    // Oportunidade filter: controlled (server-side refetch, admin) when
-    // onPartnerFilterChange is provided; otherwise uncontrolled (client-side
-    // filter over the already-fetched list), used by the partner portal.
-    const [internalOpportunityFilter, setInternalOpportunityFilter] = useState<string>("all");
-    const isOpportunityFilterControlled = !!onPartnerFilterChange;
-    const opportunityFilterValue = isOpportunityFilterControlled ? (partnerFilter || "all") : internalOpportunityFilter;
-    const handleOpportunityFilterChange = onPartnerFilterChange || setInternalOpportunityFilter;
+    const [opportunityFilter, setOpportunityFilter] = useState<string>("all");
 
     // Checkbox selections for bulk actions
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -189,12 +181,76 @@ export default function ApplicationsTable({
         queryFn: getPartnerFormFieldsMap,
     });
 
+    // ─── Cascading (faceted) filter options ───────────────────────────────
+    // Each dropdown's options are derived from `applications` narrowed by the
+    // OTHER currently-active filters (excluding itself), so e.g. picking a
+    // Parceiro only leaves that parceiro's Oportunidades selectable, and
+    // Status=Rascunho only leaves Fases that actually occur among rascunhos.
+
+    const availableInstitutions = useMemo(() => {
+        if (!institutions) return [];
+        const relevant = applications.filter((app) =>
+            (opportunityFilter === "all" || app.partner_id === opportunityFilter) &&
+            (phaseFilter === "all" || app.phase_id === phaseFilter) &&
+            (statusFilter === "all" || app.status === statusFilter)
+        );
+        const ids = new Set(relevant.map((app) => app.institution_id).filter(Boolean));
+        return institutions.filter((i) => ids.has(i.id));
+    }, [institutions, applications, opportunityFilter, phaseFilter, statusFilter]);
+
+    const availableOpportunities = useMemo(() => {
+        if (!partners) return [];
+        const relevant = applications.filter((app) =>
+            (institutionFilter === "all" || app.institution_id === institutionFilter) &&
+            (phaseFilter === "all" || app.phase_id === phaseFilter) &&
+            (statusFilter === "all" || app.status === statusFilter)
+        );
+        const ids = new Set(relevant.map((app) => app.partner_id).filter(Boolean));
+        return partners.filter((p) => ids.has(p.id));
+    }, [partners, applications, institutionFilter, phaseFilter, statusFilter]);
+
+    const availablePhases = useMemo(() => {
+        const relevant = applications.filter((app) =>
+            (institutionFilter === "all" || app.institution_id === institutionFilter) &&
+            (opportunityFilter === "all" || app.partner_id === opportunityFilter) &&
+            (statusFilter === "all" || app.status === statusFilter)
+        );
+        const ids = new Set(relevant.map((app) => app.phase_id).filter(Boolean));
+        return phases.filter((p) => ids.has(p.id));
+    }, [phases, applications, institutionFilter, opportunityFilter, statusFilter]);
+
+    // If the active selection is no longer among the available (narrowed)
+    // options, reset it back to "all" instead of silently filtering to nothing.
+    useEffect(() => {
+        if (institutionFilter !== "all" && !availableInstitutions.some((i) => i.id === institutionFilter)) {
+            setInstitutionFilter("all");
+        }
+    }, [availableInstitutions, institutionFilter]);
+
+    useEffect(() => {
+        if (opportunityFilter !== "all" && !availableOpportunities.some((p) => p.id === opportunityFilter)) {
+            setOpportunityFilter("all");
+        }
+    }, [availableOpportunities, opportunityFilter]);
+
+    useEffect(() => {
+        if (phaseFilter !== "all" && !availablePhases.some((p) => p.id === phaseFilter)) {
+            setPhaseFilter("all");
+        }
+    }, [availablePhases, phaseFilter]);
+
+    // Notify the parent of the current Oportunidade selection (e.g. so it can
+    // fetch that opportunity's form fields to build export columns).
+    useEffect(() => {
+        onPartnerFilterChange?.(opportunityFilter);
+    }, [opportunityFilter, onPartnerFilterChange]);
+
     const filteredApplications = useMemo(() => {
         return applications.filter((app) => {
             if (statusFilter !== "all" && app.status !== statusFilter) return false;
             if (institutionFilter !== "all" && app.institution_id !== institutionFilter) return false;
             if (phaseFilter !== "all" && app.phase_id !== phaseFilter) return false;
-            if (!isOpportunityFilterControlled && internalOpportunityFilter !== "all" && app.partner_id !== internalOpportunityFilter) return false;
+            if (opportunityFilter !== "all" && app.partner_id !== opportunityFilter) return false;
             if (search) {
                 const searchLower = search.toLowerCase();
                 const nameMatch = app.full_name?.toLowerCase().includes(searchLower);
@@ -202,7 +258,7 @@ export default function ApplicationsTable({
             }
             return true;
         });
-    }, [applications, statusFilter, institutionFilter, phaseFilter, isOpportunityFilterControlled, internalOpportunityFilter, search]);
+    }, [applications, statusFilter, institutionFilter, phaseFilter, opportunityFilter, search]);
 
     // Reset selected IDs when applications list changes or filters apply
     useEffect(() => {
@@ -322,7 +378,7 @@ export default function ApplicationsTable({
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todos os Parceiros</SelectItem>
-                            {institutions.map((i) => (
+                            {availableInstitutions.map((i) => (
                                 <SelectItem key={i.id} value={i.id}>
                                     {i.name}
                                 </SelectItem>
@@ -331,13 +387,13 @@ export default function ApplicationsTable({
                     </Select>
                 )}
                 {partners && (
-                    <Select value={opportunityFilterValue} onValueChange={handleOpportunityFilterChange}>
+                    <Select value={opportunityFilter} onValueChange={setOpportunityFilter}>
                         <SelectTrigger className="w-full sm:w-[220px]">
                             <SelectValue placeholder="Todas as Oportunidades" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todas as Oportunidades</SelectItem>
-                            {partners.map((p) => (
+                            {availableOpportunities.map((p) => (
                                 <SelectItem key={p.id} value={p.id}>
                                     {p.name}
                                 </SelectItem>
@@ -352,7 +408,7 @@ export default function ApplicationsTable({
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todas as Fases</SelectItem>
-                            {phases.map((p) => (
+                            {availablePhases.map((p) => (
                                 <SelectItem key={p.id} value={p.id}>
                                     {p.name}
                                 </SelectItem>

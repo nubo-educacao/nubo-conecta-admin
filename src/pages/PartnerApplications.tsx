@@ -76,15 +76,18 @@ export default function PartnerApplications() {
         queryFn: getAllPhases,
     });
 
-    // 2. Fetch all applications (or filtered by partner)
-    const effectivePartnerId = partnerFilter === "all" ? undefined : partnerFilter;
-
+    // 2. Fetch all applications once — filtering (Parceiro/Oportunidade/Fase/
+    // Status) is entirely client-side inside ApplicationsTable now, so the
+    // dropdown options can cascade against the full dataset.
     const { data: applications = [], isLoading } = useQuery({
-        queryKey: ["applicationsWithDetails", effectivePartnerId ?? "all"],
-        queryFn: () => getApplicationsWithDetails(effectivePartnerId),
+        queryKey: ["applicationsWithDetails", "all"],
+        queryFn: () => getApplicationsWithDetails(),
     });
 
-    // 3. Fetch form fields for the filtered partner
+    // 3. Fetch form fields for the currently selected Oportunidade (notified
+    // by ApplicationsTable via onPartnerFilterChange), used to build the
+    // per-question export columns for that opportunity's form.
+    const effectivePartnerId = partnerFilter === "all" ? undefined : partnerFilter;
     const { data: formFields = [] } = useQuery({
         queryKey: ["partnerFormFields", effectivePartnerId],
         queryFn: () => getPartnerFormFields(effectivePartnerId!),
@@ -252,7 +255,6 @@ export default function PartnerApplications() {
                         isLoading={isLoading}
                         onViewAnswers={handleViewAnswers}
                         partners={partners}
-                        partnerFilter={partnerFilter}
                         onPartnerFilterChange={setPartnerFilter}
                         institutions={institutions}
                         phases={allPhases}
