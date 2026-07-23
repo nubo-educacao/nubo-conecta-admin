@@ -336,7 +336,7 @@ export default function PartnerDashboard() {
                 <CardContent className="h-[250px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={completionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDashboard="3 3" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="name" fontSize={12} />
                             <YAxis fontSize={12} allowDecimals={false} />
                             <RechartsTooltip cursor={{ fill: 'transparent' }} />
