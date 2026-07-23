@@ -28,7 +28,8 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApplicationWithDetails, PartnerOption, OpportunityPhase } from "@/services/applicationsService";
-import { getPartnerFormCounts } from "@/services/applicationsService";
+import { getPartnerFormFieldsMap } from "@/services/applicationsService";
+import { calculateApplicationProgress } from "@/utils/calculateApplicationProgress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus } from "lucide-react";
 
@@ -183,9 +184,9 @@ export default function ApplicationsTable({
     // Checkbox selections for bulk actions
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-    const { data: formCounts = {} } = useQuery({
-        queryKey: ["partnerFormCountsTable"],
-        queryFn: getPartnerFormCounts,
+    const { data: formFieldsMap = {} } = useQuery({
+        queryKey: ["partnerFormFieldsMap"],
+        queryFn: getPartnerFormFieldsMap,
     });
 
     const filteredApplications = useMemo(() => {
@@ -469,15 +470,16 @@ export default function ApplicationsTable({
                                     ) : null}
                                     <TableCell className="text-center">
                                         {(() => {
-                                            const filled = Object.keys(app.answers || {}).length;
-                                            const totalForms = formCounts[app.partner_id] || 0;
+                                            const fields = formFieldsMap[app.partner_id] || [];
+                                            const ans = app.answers || {};
                                             let percent = 0;
                                             if (app.status === 'SUBMITTED' || app.status?.toUpperCase() === 'REDIRECTED') {
                                                 percent = 100;
-                                            } else if (totalForms > 0) {
-                                                percent = Math.min(100, Math.round((filled * 100) / totalForms));
+                                            } else if (fields.length > 0) {
+                                                percent = calculateApplicationProgress(ans, fields);
                                             }
-                                            const displayTotal = percent === 100 ? filled : (totalForms || '?');
+                                            const filled = Object.keys(ans).length;
+                                            const displayTotal = percent === 100 ? filled : (fields.length || '?');
                                             return (
                                                 <div className="flex flex-col items-center">
                                                     <span className="font-medium text-primary">{percent}%</span>

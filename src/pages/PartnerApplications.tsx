@@ -6,9 +6,10 @@ import {
     getInstitutionsList,
     getAllPhases,
     getEligibleCountForPartner,
-    getPartnerFormCounts,
+    getPartnerFormFieldsMap,
     type ApplicationWithDetails,
 } from "@/services/applicationsService";
+import { calculateApplicationProgress } from "@/utils/calculateApplicationProgress";
 import { getPartnerFormFields, type PartnerFormField } from "@/services/partnerPortalService";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,12 +34,12 @@ function exportToExcel(
     applications: ApplicationWithDetails[],
     formFields: PartnerFormField[],
     partnerName: string,
-    formCounts?: Record<string, number>,
+    formFieldsMap?: Record<string, PartnerFormField[]>,
     phases?: OpportunityPhase[]
 ) {
     const { headers, rows } = buildApplicationsExport(applications, formFields, {
         showPartnerColumn: true,
-        formCounts,
+        formFieldsMap,
         phases,
     });
     downloadApplicationsCsv(
@@ -92,10 +93,10 @@ export default function PartnerApplications() {
 
 
 
-    // 5. Fetch form counts for calculating completion on the fly
-    const { data: formCounts = {} } = useQuery({
-        queryKey: ["partnerFormCountsTable"],
-        queryFn: getPartnerFormCounts,
+    // 5. Fetch form fields map for smart completion calculation
+    const { data: formFieldsMap = {} } = useQuery({
+        queryKey: ["partnerFormFieldsMap"],
+        queryFn: getPartnerFormFieldsMap,
     });
 
     const completionChartData = useMemo(() => {
@@ -107,13 +108,12 @@ export default function PartnerApplications() {
         };
 
         filteredApps.forEach(app => {
-            const filled = Object.keys(app.answers || {}).length;
-            const totalForms = formCounts[app.partner_id] || 0;
+            const fields = formFieldsMap[app.partner_id] || [];
             let percent = 0;
             if (app.status === 'SUBMITTED' || app.status?.toUpperCase() === 'REDIRECTED') {
                 percent = 100;
-            } else if (totalForms > 0) {
-                percent = Math.min(100, Math.round((filled * 100) / totalForms));
+            } else if (fields.length > 0) {
+                percent = calculateApplicationProgress(app.answers || {}, fields);
             }
 
             if (percent <= 25) buckets["1. Até 25%"]++;
@@ -126,7 +126,7 @@ export default function PartnerApplications() {
             name: bucket,
             count: buckets[bucket as keyof typeof buckets]
         }));
-    }, [filteredApps, formCounts]);
+    }, [filteredApps, formFieldsMap]);
 
     // ─── Stats ───────────────────────────────────────────────────────────────
 
@@ -171,7 +171,7 @@ export default function PartnerApplications() {
                     </p>
                 </div>
                 <Button
-                    onClick={() => exportToExcel(filteredApps, formFields, partners.find(p => p.id === partnerFilter)?.name || "Geral", formCounts, allPhases)}
+                    onClick={() => exportToExcel(filteredApps, formFields, partners.find(p => p.id === partnerFilter)?.name || "Geral", formFieldsMap, allPhases)}
                     disabled={filteredApps.length === 0}
                     className="flex items-center gap-2"
                 >

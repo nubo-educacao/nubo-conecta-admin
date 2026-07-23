@@ -8,6 +8,7 @@
 
 import type { ApplicationWithDetails, OpportunityPhase } from "@/services/applicationsService";
 import type { PartnerFormField } from "@/services/partnerPortalService";
+import { calculateApplicationProgress } from "@/utils/calculateApplicationProgress";
 import { parseIncomeValue, formatIncomeBreakdown, formatCurrencyBRL } from "@/lib/incomeFormat";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -21,7 +22,7 @@ const INCOME_MAPPING_SOURCE = "user_income.per_capita_income";
 export interface BuildApplicationsExportOptions {
     /** Only the admin export includes the Parceiro (institution) column — ADR-0014/0015. */
     showPartnerColumn: boolean;
-    formCounts?: Record<string, number>;
+    formFieldsMap?: Record<string, PartnerFormField[]>;
     /** When provided (non-empty), a Fase column is added. */
     phases?: OpportunityPhase[];
 }
@@ -74,14 +75,15 @@ function getEligibilityStr(app: ApplicationWithDetails): string {
     return `${met}/${total}`;
 }
 
-function getProgressStr(app: ApplicationWithDetails, formCounts?: Record<string, number>): string {
-    if (!formCounts) return "—";
-    const totalForms = formCounts[app.partner_id] || 0;
-    const filled = Object.keys(app.answers || {}).length;
+function getProgressStr(app: ApplicationWithDetails, formFieldsMap?: Record<string, PartnerFormField[]>): string {
+    if (!formFieldsMap) return "—";
+    const fields = formFieldsMap[app.partner_id] || [];
+    const ans = app.answers || {};
+    const filled = Object.keys(ans).length;
     if (app.status === "SUBMITTED" || app.status?.toUpperCase() === "REDIRECTED") return `100% (${filled}/${filled})`;
-    if (totalForms === 0) return "—";
-    const percent = Math.min(100, Math.round((filled * 100) / totalForms));
-    return `${percent}% (${filled}/${totalForms})`;
+    if (fields.length === 0) return "—";
+    const percent = calculateApplicationProgress(ans, fields);
+    return `${percent}% (${filled}/${fields.length})`;
 }
 
 function getPhaseStr(app: ApplicationWithDetails, phases?: OpportunityPhase[]): string {
@@ -172,7 +174,7 @@ export function buildApplicationsExport(
             ...(showPhaseColumn ? [getPhaseStr(app, options.phases)] : []),
             STATUS_LABELS[app.status] || app.status,
             getEligibilityStr(app),
-            getProgressStr(app, options.formCounts),
+            getProgressStr(app, options.formFieldsMap),
             new Date(app.created_at).toLocaleDateString("pt-BR"),
         ];
 
