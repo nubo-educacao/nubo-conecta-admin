@@ -10,13 +10,12 @@ import {
 import {
     getApplicationsByInstitution,
     getEligibleCountByInstitution,
-    getPartnerFormFieldsMap,
+    getPartnerFormCounts,
     getOpportunityPhases,
     updateApplicationPhase,
     updateApplicationsPhaseBulk,
     type ApplicationWithDetails,
 } from "@/services/applicationsService";
-import { calculateApplicationProgress } from "@/utils/calculateApplicationProgress";
 import { getPartnerFunnel } from "@/services/passportDashboardService";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,12 +44,12 @@ function exportToExcel(
     applications: ApplicationWithDetails[],
     formFields: import("@/services/partnerPortalService").PartnerFormField[],
     partnerName: string,
-    formFieldsMap?: Record<string, import("@/services/partnerPortalService").PartnerFormField[]>,
+    formCounts?: Record<string, number>,
     phases?: import("@/services/applicationsService").OpportunityPhase[]
 ) {
     const { headers, rows } = buildApplicationsExport(applications, formFields, {
         showPartnerColumn: false,
-        formFieldsMap,
+        formCounts,
         phases,
     });
     downloadApplicationsCsv(
@@ -119,10 +118,10 @@ export default function PartnerDashboard() {
         enabled: !!partnerId,
     });
 
-    // 6. Fetch form fields map for smart completion calculation
-    const { data: formFieldsMap = {} } = useQuery({
-        queryKey: ["partnerFormFieldsMap"],
-        queryFn: getPartnerFormFieldsMap,
+    // 6. Fetch form counts for calculating completion on the fly
+    const { data: formCounts = {} } = useQuery({
+        queryKey: ["partnerFormCountsTable"],
+        queryFn: getPartnerFormCounts,
     });
 
     const completionChartData = useMemo(() => {
@@ -134,12 +133,13 @@ export default function PartnerDashboard() {
         };
 
         filteredApps.forEach(app => {
-            const fields = formFieldsMap[app.partner_id] || [];
+            const filled = Object.keys(app.answers || {}).length;
+            const totalForms = formCounts[app.partner_id] || 0;
             let percent = 0;
             if (app.status === 'SUBMITTED' || app.status?.toUpperCase() === 'REDIRECTED') {
                 percent = 100;
-            } else if (fields.length > 0) {
-                percent = calculateApplicationProgress(app.answers || {}, fields);
+            } else if (totalForms > 0) {
+                percent = Math.min(100, Math.round((filled * 100) / totalForms));
             }
 
             if (percent <= 25) buckets["1. Até 25%"]++;
@@ -152,7 +152,7 @@ export default function PartnerDashboard() {
             name: bucket,
             count: buckets[bucket as keyof typeof buckets]
         }));
-    }, [filteredApps, formFieldsMap]);
+    }, [filteredApps, formCounts]);
 
     // 7. Fetch partner funnel
     const { data: funnelData } = useQuery({
@@ -267,7 +267,7 @@ export default function PartnerDashboard() {
                         Importar CSV
                     </Button>
                     <Button
-                        onClick={() => exportToExcel(filteredApps, formFields, partner?.name || "parceiro", formFieldsMap, phases)}
+                        onClick={() => exportToExcel(filteredApps, formFields, partner?.name || "parceiro", formCounts, phases)}
                         disabled={filteredApps.length === 0}
                         className="flex items-center gap-2"
                     >

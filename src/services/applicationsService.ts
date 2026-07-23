@@ -172,7 +172,6 @@ export async function getEligibleCountByInstitution(institutionId: string): Prom
 
 /**
  * Gets the count of fields per partner to calculate application completion percentage.
- * @deprecated Use getPartnerFormFieldsMap for smart progress calculation.
  */
 export async function getPartnerFormCounts(): Promise<Record<string, number>> {
     const { data, error } = await supabase.from('partner_forms').select('partner_id');
@@ -185,24 +184,6 @@ export async function getPartnerFormCounts(): Promise<Record<string, number>> {
         counts[row.partner_id] = (counts[row.partner_id] || 0) + 1;
     }
     return counts;
-}
-
-/**
- * Fetches all partner_forms fields grouped by partner_id.
- * Used to calculate smart completion percentages (optional + conditional_rule aware).
- */
-export async function getPartnerFormFieldsMap(): Promise<Record<string, import("@/services/partnerPortalService").PartnerFormField[]>> {
-    const { data, error } = await supabase.from('partner_forms').select('*');
-    if (error) {
-        console.error("Error fetching partner forms fields:", error);
-        return {};
-    }
-    const map: Record<string, import("@/services/partnerPortalService").PartnerFormField[]> = {};
-    for (const row of (data || [])) {
-        if (!map[row.partner_id]) map[row.partner_id] = [];
-        map[row.partner_id].push(row as import("@/services/partnerPortalService").PartnerFormField);
-    }
-    return map;
 }
 
 /**
@@ -262,7 +243,7 @@ export async function updateApplicationPhase(
         console.error("Error updating application phase:", error);
         throw error;
     }
-
+    
     if (!data || data.length === 0) {
         console.error("No rows updated. RLS might have prevented the update.");
         throw new Error("Não foi possível atualizar a fase (Permissão negada ou registro não encontrado).");
@@ -366,7 +347,7 @@ export async function reorderOpportunityPhases(
             .from("opportunity_phases")
             .update({ sort_order: i })
             .eq("id", orderedPhaseIds[i]);
-
+            
         if (error) {
             console.error(`Error updating sort_order for phase ${orderedPhaseIds[i]}:`, error);
             throw error;
