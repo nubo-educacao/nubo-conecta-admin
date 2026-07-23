@@ -7,6 +7,9 @@ export interface ApplicationWithDetails {
     user_id: string;
     partner_id: string;
     partner_name: string | null;
+    /** Real partner institution (institutions.id), distinct from the opportunity. See ADR-0014. */
+    institution_id?: string | null;
+    institution_name?: string | null;
     full_name: string | null;
     phone: string | null;
     status: "DRAFT" | "SUBMITTED" | "redirected";
@@ -93,6 +96,46 @@ export async function getPartnersList(): Promise<PartnerOption[]> {
 
     return (data ?? []) as PartnerOption[];
 }
+
+/**
+ * Fetches the list of partner institutions for the Parceiro filter dropdown (ADR-0014).
+ * Distinct from getPartnersList(), which actually lists partner_opportunities.
+ */
+export async function getInstitutionsList(): Promise<PartnerOption[]> {
+    const { data, error } = await supabase
+        .from("institutions")
+        .select("id, name")
+        .eq("is_partner", true)
+        .order("name", { ascending: true });
+
+    if (error) {
+        console.error("Error fetching institutions list:", error);
+        throw error;
+    }
+
+    return (data ?? []) as PartnerOption[];
+}
+
+/**
+ * Gets all opportunity phases across every opportunity (admin Fase filter, ADR-0014).
+ * Unlike getPhasesByInstitution/getOpportunityPhases, this is not scoped to a
+ * single institution or opportunity — used where the applications list itself
+ * is not pre-filtered to one opportunity (e.g. the admin /applications table).
+ */
+export async function getAllPhases(): Promise<OpportunityPhase[]> {
+    const { data, error } = await supabase
+        .from("opportunity_phases")
+        .select("id, opportunity_id, name, description, sort_order, created_at")
+        .order("sort_order", { ascending: true });
+
+    if (error) {
+        console.error("Error fetching all phases:", error);
+        throw error;
+    }
+
+    return (data ?? []) as OpportunityPhase[];
+}
+
 /**
  * Gets the count of eligible students for a specific partner.
  * Uses the calculate_passport_eligibility results stored in user_profiles.
@@ -129,6 +172,7 @@ export async function getEligibleCountByInstitution(institutionId: string): Prom
 
 /**
  * Gets the count of fields per partner to calculate application completion percentage.
+ * @deprecated Use getPartnerFormFieldsMap for smart progress calculation.
  */
 export async function getPartnerFormCounts(): Promise<Record<string, number>> {
     const { data, error } = await supabase.from('partner_forms').select('partner_id');
@@ -141,6 +185,24 @@ export async function getPartnerFormCounts(): Promise<Record<string, number>> {
         counts[row.partner_id] = (counts[row.partner_id] || 0) + 1;
     }
     return counts;
+}
+
+/**
+ * Fetches all partner_forms fields grouped by partner_id.
+ * Used to calculate smart completion percentages (optional + conditional_rule aware).
+ */
+export async function getPartnerFormFieldsMap(): Promise<Record<string, import("@/services/partnerPortalService").PartnerFormField[]>> {
+    const { data, error } = await supabase.from('partner_forms').select('*');
+    if (error) {
+        console.error("Error fetching partner forms fields:", error);
+        return {};
+    }
+    const map: Record<string, import("@/services/partnerPortalService").PartnerFormField[]> = {};
+    for (const row of (data || [])) {
+        if (!map[row.partner_id]) map[row.partner_id] = [];
+        map[row.partner_id].push(row as import("@/services/partnerPortalService").PartnerFormField);
+    }
+    return map;
 }
 
 /**
@@ -200,7 +262,7 @@ export async function updateApplicationPhase(
         console.error("Error updating application phase:", error);
         throw error;
     }
-    
+
     if (!data || data.length === 0) {
         console.error("No rows updated. RLS might have prevented the update.");
         throw new Error("Não foi possível atualizar a fase (Permissão negada ou registro não encontrado).");
@@ -304,7 +366,7 @@ export async function reorderOpportunityPhases(
             .from("opportunity_phases")
             .update({ sort_order: i })
             .eq("id", orderedPhaseIds[i]);
-            
+
         if (error) {
             console.error(`Error updating sort_order for phase ${orderedPhaseIds[i]}:`, error);
             throw error;
