@@ -33,7 +33,11 @@ interface FieldGroup {
 }
 
 function groupFieldsByStep(formFields: PartnerFormField[]): FieldGroup[] {
-    const activeFields = formFields.filter((f) => f.step_id != null);
+    // step_id is nullable — fields without one (single-step forms, or any
+    // field not assigned to a repeatable step) still need a column; they
+    // fall into the "no_step" bucket below and are treated as flat/non-
+    // repeating, same as a step with no recorded iterations.
+    const activeFields = formFields;
     const groups: FieldGroup[] = [];
     const stepToIndex: Record<string, number> = {};
 
