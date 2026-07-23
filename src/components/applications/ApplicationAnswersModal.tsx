@@ -15,11 +15,36 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Check, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { parseIncomeValue, formatIncomeBreakdown, formatCurrencyBRL } from "@/lib/incomeFormat";
 
-// ─── Complex Data Renderer Helper ──────────────────────────────────────────
+// ─── Complex Data Renderer Helper ───────────────────────────────────
 
 function ComplexDataRenderer({ value, field }: { value: unknown; field?: PartnerFormField | null }) {
     if (value == null || value === "") return <span className="text-muted-foreground italic">Não preenchido</span>;
+
+    // Especial: income_calculator. IncomeCalculatorField stores its value as a
+    // JSON STRING (see IncomeCalculatorField.tsx:90), so this must run BEFORE
+    // the `typeof value !== "object"` early-return below — otherwise this
+    // branch is unreachable dead code and the raw JSON string prints verbatim
+    // (Bug D, ADR-0015).
+    const incomeValue = parseIncomeValue(value);
+    if (incomeValue) {
+        const breakdown = formatIncomeBreakdown(incomeValue);
+        return (
+            <div className="flex flex-col gap-1 text-sm">
+                <span>
+                    <span className="font-semibold text-slate-600">Nº de Residentes:</span> {breakdown.residentes ?? "—"}
+                </span>
+                <span>
+                    <span className="font-semibold text-slate-600">Renda Total:</span> {formatCurrencyBRL(breakdown.rendaTotal)}
+                </span>
+                <span className="font-semibold text-emerald-600">
+                    Renda Per Capita: {formatCurrencyBRL(breakdown.rendaPerCapita)}
+                </span>
+            </div>
+        );
+    }
+
     if (typeof value !== "object") return <span className="text-sm break-words whitespace-pre-wrap">{String(value)}</span>;
 
     // Pattern 1 & 3: Array
@@ -54,15 +79,6 @@ function ComplexDataRenderer({ value, field }: { value: unknown; field?: Partner
                 ))}
             </div>
         );
-    }
-
-    // Especial: income_calculator
-    if (typeof value === 'object' && value !== null && 'per_capita_income' in value) {
-        const val = value as any;
-        if (typeof val.per_capita_income === 'number') {
-             const formatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val.per_capita_income);
-             return <span className="text-sm font-semibold text-emerald-600">{formatted}</span>;
-        }
     }
 
     // Pattern 2: Object Dictionary
@@ -100,7 +116,7 @@ function ComplexDataRenderer({ value, field }: { value: unknown; field?: Partner
     );
 }
 
-// ─── Component ──────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────
 
 interface ApplicationAnswersModalProps {
     application: ApplicationWithDetails | null;
