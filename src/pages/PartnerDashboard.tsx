@@ -82,13 +82,6 @@ export default function PartnerDashboard() {
         enabled: !!partnerId,
     });
 
-    // 3. Fetch form field definitions
-    const { data: formFields = [] } = useQuery({
-        queryKey: ["partnerFormFields", partnerId],
-        queryFn: () => getPartnerFormFields(partnerId!),
-        enabled: !!partnerId,
-    });
-
     // 4. Fetch applications for this partner institution
     const { data: applications = [], isLoading: loadingApps, refetch: refetchApps } = useQuery({
         queryKey: ["applicationsWithDetails", partnerId],
@@ -104,6 +97,14 @@ export default function PartnerDashboard() {
     });
 
     const opportunityId = opportunities.length > 0 ? opportunities[0].id : null;
+
+    // 3. Fetch form field definitions — scoped to the opportunity (partner_forms.partner_id
+    // is an opportunity id), not the institution id returned by getMyPartnerId/partnerId.
+    const { data: formFields = [] } = useQuery({
+        queryKey: ["partnerFormFields", opportunityId],
+        queryFn: () => getPartnerFormFields(opportunityId!),
+        enabled: !!opportunityId,
+    });
 
     // 4.5 Fetch opportunity phases
     const { data: phases = [] } = useQuery({
