@@ -10,7 +10,6 @@ import {
     type ApplicationWithDetails,
 } from "@/services/applicationsService";
 import { calculateApplicationProgress } from "@/utils/calculateApplicationProgress";
-import { getPartnerFormFields, type PartnerFormField } from "@/services/partnerPortalService";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,31 +21,29 @@ import {
 import { toast } from "sonner";
 import ApplicationsTable from "@/components/applications/ApplicationsTable";
 import ApplicationAnswersModal from "@/components/applications/ApplicationAnswersModal";
-import { buildApplicationsExport, downloadApplicationsCsv } from "@/lib/applicationsExport";
+import { buildMultiSheetApplicationsExport, downloadApplicationsXlsx } from "@/lib/applicationsExport";
+import type { PartnerFormField } from "@/services/partnerPortalService";
 import type { OpportunityPhase } from "@/services/applicationsService";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 // ─── Excel Export ────────────────────────────────────────────────────────────
-// Shared helper (ADR-0015) — see src/lib/applicationsExport.ts. showPartnerColumn
-// is the only legitimate difference vs. the partner-portal export (PartnerDashboard.tsx).
+// Shared helper (ADR-0015) — see src/lib/applicationsExport.ts. One sheet per
+// Oportunidade (each with its own form's dynamic columns), named "Parceiro -
+// Oportunidade" — no need to pre-filter to a single Oportunidade to export.
+// showPartnerColumn is the only legitimate difference vs. the partner-portal
+// export (PartnerDashboard.tsx).
 
-function exportToExcel(
+async function exportToExcel(
     applications: ApplicationWithDetails[],
-    formFields: PartnerFormField[],
-    partnerName: string,
-    formFieldsMap?: Record<string, PartnerFormField[]>,
+    formFieldsMap: Record<string, PartnerFormField[]>,
     phases?: OpportunityPhase[]
 ) {
-    const { headers, rows } = buildApplicationsExport(applications, formFields, {
+    const sheets = buildMultiSheetApplicationsExport(applications, formFieldsMap, {
         showPartnerColumn: true,
         formFieldsMap,
         phases,
     });
-    downloadApplicationsCsv(
-        headers,
-        rows,
-        `candidaturas_${partnerName.replace(/\s+/g, "_").toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`
-    );
+    await downloadApplicationsXlsx(sheets, `candidaturas_${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success("Arquivo exportado com sucesso!");
 }
 
@@ -84,19 +81,14 @@ export default function PartnerApplications() {
         queryFn: () => getApplicationsWithDetails(),
     });
 
-    // 3. Fetch form fields for the currently selected Oportunidade (notified
-    // by ApplicationsTable via onPartnerFilterChange), used to build the
-    // per-question export columns for that opportunity's form.
+    // Currently selected Oportunidade (notified by ApplicationsTable via
+    // onPartnerFilterChange) — only used to label the progress chart now;
+    // export and the answers modal both use formFieldsMap (all opportunities).
     const effectivePartnerId = partnerFilter === "all" ? undefined : partnerFilter;
-    const { data: formFields = [] } = useQuery({
-        queryKey: ["partnerFormFields", effectivePartnerId],
-        queryFn: () => getPartnerFormFields(effectivePartnerId!),
-        enabled: !!effectivePartnerId,
-    });
 
-
-
-    // 5. Fetch form fields map for smart completion calculation
+    // 5. Fetch form fields map for smart completion calculation, the answers
+    // modal (per-application, keyed by that application's own Oportunidade),
+    // and the multi-sheet export (one opportunity's fields per sheet).
     const { data: formFieldsMap = {} } = useQuery({
         queryKey: ["partnerFormFieldsMap"],
         queryFn: getPartnerFormFieldsMap,
@@ -174,7 +166,7 @@ export default function PartnerApplications() {
                     </p>
                 </div>
                 <Button
-                    onClick={() => exportToExcel(filteredApps, formFields, partners.find(p => p.id === partnerFilter)?.name || "Geral", formFieldsMap, allPhases)}
+                    onClick={() => exportToExcel(filteredApps, formFieldsMap, allPhases)}
                     disabled={filteredApps.length === 0}
                     className="flex items-center gap-2"
                 >
@@ -266,7 +258,7 @@ export default function PartnerApplications() {
             {/* Answers Modal */}
             <ApplicationAnswersModal
                 application={selectedApp}
-                formFields={formFields}
+                formFields={selectedApp ? (formFieldsMap[selectedApp.partner_id] || []) : []}
                 open={modalOpen}
                 onOpenChange={setModalOpen}
             />

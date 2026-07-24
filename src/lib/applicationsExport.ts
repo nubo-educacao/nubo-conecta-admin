@@ -33,7 +33,11 @@ interface FieldGroup {
 }
 
 function groupFieldsByStep(formFields: PartnerFormField[]): FieldGroup[] {
-    const activeFields = formFields.filter((f) => f.step_id != null);
+    // step_id is nullable — fields without one (single-step forms, or any
+    // field not assigned to a repeatable step) still need a column; they
+    // fall into the "no_step" bucket below and are treated as flat/non-
+    // repeating, same as a step with no recorded iterations.
+    const activeFields = formFields;
     const groups: FieldGroup[] = [];
     const stepToIndex: Record<string, number> = {};
 
@@ -228,4 +232,82 @@ export function downloadApplicationsCsv(headers: string[], rows: string[][], fil
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+}
+
+// ─── Multi-sheet export (1 aba por Oportunidade) ────────────────────────────
+// buildApplicationsExport requires a single opportunity's formFields to build
+// its dynamic columns (different oportunidades have different forms) — that's
+// still true per-sheet here, we just no longer require the CALLER to pick one
+// up front. formFieldsMap (already fetched everywhere this is used, via
+// getPartnerFormFieldsMap) has every opportunity's fields keyed by partner_id,
+// so we can build one full buildApplicationsExport() call per group.
+
+export interface ApplicationsExportSheet {
+    sheetName: string;
+    headers: string[];
+    rows: string[][];
+}
+
+const EXCEL_SHEET_NAME_MAX = 31;
+const EXCEL_SHEET_NAME_INVALID_CHARS = /[\\/?*[\]:]/g;
+
+function sanitizeSheetName(rawName: string, usedNames: Set<string>): string {
+    const base = (rawName || "Oportunidade").replace(EXCEL_SHEET_NAME_INVALID_CHARS, "-").trim().slice(0, EXCEL_SHEET_NAME_MAX) || "Oportunidade";
+    if (!usedNames.has(base)) {
+        usedNames.add(base);
+        return base;
+    }
+    let i = 2;
+    let candidate: string;
+    do {
+        const suffix = ` (${i})`;
+        candidate = base.slice(0, EXCEL_SHEET_NAME_MAX - suffix.length) + suffix;
+        i++;
+    } while (usedNames.has(candidate));
+    usedNames.add(candidate);
+    return candidate;
+}
+
+/**
+ * Groups applications by Oportunidade (partner_id) and builds one full
+ * headers/rows export per group, each using that opportunity's own form
+ * fields — so every sheet gets its own correct set of dynamic answer columns
+ * instead of requiring the export to be scoped to a single Oportunidade.
+ */
+export function buildMultiSheetApplicationsExport(
+    applications: ApplicationWithDetails[],
+    formFieldsMap: Record<string, PartnerFormField[]>,
+    options: BuildApplicationsExportOptions
+): ApplicationsExportSheet[] {
+    const groups = new Map<string, ApplicationWithDetails[]>();
+    applications.forEach((app) => {
+        const key = app.partner_id || "sem_oportunidade";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(app);
+    });
+
+    const usedNames = new Set<string>();
+    const sheets: ApplicationsExportSheet[] = [];
+
+    groups.forEach((groupApps, partnerId) => {
+        const fields = formFieldsMap[partnerId] || [];
+        const { headers, rows } = buildApplicationsExport(groupApps, fields, options);
+        const partnerName = groupApps[0]?.partner_name || "Oportunidade";
+        const institutionName = options.showPartnerColumn ? groupApps[0]?.institution_name : null;
+        const rawName = institutionName ? `${institutionName} - ${partnerName}` : partnerName;
+        sheets.push({ sheetName: sanitizeSheetName(rawName, usedNames), headers, rows });
+    });
+
+    return sheets;
+}
+
+/** Builds an .xlsx workbook with one sheet per group and triggers a browser download. */
+export async function downloadApplicationsXlsx(sheets: ApplicationsExportSheet[], filename: string) {
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    sheets.forEach((sheet) => {
+        const ws = XLSX.utils.aoa_to_sheet([sheet.headers, ...sheet.rows]);
+        XLSX.utils.book_append_sheet(wb, ws, sheet.sheetName);
+    });
+    XLSX.writeFile(wb, filename);
 }

@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
     getMyPartnerId,
-    getPartnerFormFields,
     getPartnerDetails,
     getPartnerRedirectUsers,
     getPartnerOpportunities,
@@ -34,29 +33,28 @@ import ApplicationsTable from "@/components/applications/ApplicationsTable";
 import RedirectUsersTable from "@/components/applications/RedirectUsersTable";
 import ApplicationAnswersModal from "@/components/applications/ApplicationAnswersModal";
 import BulkCsvImportModal from "@/components/applications/BulkCsvImportModal";
-import { buildApplicationsExport, downloadApplicationsCsv } from "@/lib/applicationsExport";
+import { buildMultiSheetApplicationsExport, downloadApplicationsXlsx } from "@/lib/applicationsExport";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 // ─── Excel Export ────────────────────────────────────────────────────────────
-// Shared helper (ADR-0015) — see src/lib/applicationsExport.ts. showPartnerColumn
-// is false here: the partner portal is already scoped to a single institution.
+// Shared helper (ADR-0015) — see src/lib/applicationsExport.ts. One sheet per
+// Oportunidade (a institution can have more than one) — showPartnerColumn is
+// false here since the portal is already scoped to a single institution.
 
-function exportToExcel(
+async function exportToExcel(
     applications: ApplicationWithDetails[],
-    formFields: import("@/services/partnerPortalService").PartnerFormField[],
+    formFieldsMap: Record<string, import("@/services/partnerPortalService").PartnerFormField[]>,
     partnerName: string,
-    formFieldsMap?: Record<string, import("@/services/partnerPortalService").PartnerFormField[]>,
     phases?: import("@/services/applicationsService").OpportunityPhase[]
 ) {
-    const { headers, rows } = buildApplicationsExport(applications, formFields, {
+    const sheets = buildMultiSheetApplicationsExport(applications, formFieldsMap, {
         showPartnerColumn: false,
         formFieldsMap,
         phases,
     });
-    downloadApplicationsCsv(
-        headers,
-        rows,
-        `inscricoes_${partnerName.replace(/\s+/g, "_").toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`
+    await downloadApplicationsXlsx(
+        sheets,
+        `inscricoes_${partnerName.replace(/\s+/g, "_").toLowerCase()}_${new Date().toISOString().slice(0, 10)}.xlsx`
     );
     toast.success("Arquivo exportado com sucesso!");
 }
@@ -79,13 +77,6 @@ export default function PartnerDashboard() {
     const { data: partner } = useQuery({
         queryKey: ["partnerDetails", partnerId],
         queryFn: () => getPartnerDetails(partnerId!),
-        enabled: !!partnerId,
-    });
-
-    // 3. Fetch form field definitions
-    const { data: formFields = [] } = useQuery({
-        queryKey: ["partnerFormFields", partnerId],
-        queryFn: () => getPartnerFormFields(partnerId!),
         enabled: !!partnerId,
     });
 
@@ -267,7 +258,7 @@ export default function PartnerDashboard() {
                         Importar CSV
                     </Button>
                     <Button
-                        onClick={() => exportToExcel(filteredApps, formFields, partner?.name || "parceiro", formFieldsMap, phases)}
+                        onClick={() => exportToExcel(filteredApps, formFieldsMap, partner?.name || "parceiro", phases)}
                         disabled={filteredApps.length === 0}
                         className="flex items-center gap-2"
                     >
@@ -376,7 +367,7 @@ export default function PartnerDashboard() {
             {/* Answers Modal */}
             <ApplicationAnswersModal
                 application={selectedApp}
-                formFields={formFields}
+                formFields={selectedApp ? (formFieldsMap[selectedApp.partner_id] || []) : []}
                 open={modalOpen}
                 onOpenChange={setModalOpen}
             />
