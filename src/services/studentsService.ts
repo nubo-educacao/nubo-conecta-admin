@@ -11,6 +11,14 @@ export interface StudentProfile {
     is_nubo_student: boolean;
     created_at: string;
     whatsapp?: string | null;
+    race?: string | null;
+    family_income_per_capita?: number | null;
+    quota_types?: string[] | null;
+    enem_score?: number | null;
+    applications_count?: number;
+    matches_count?: number;
+    applications_list?: string[];
+    matches_list?: string[];
 }
 
 export interface UserPreference {
@@ -138,27 +146,23 @@ export const getStudentDetails = async (userId: string): Promise<StudentDetails>
     if (enemError) throw enemError;
 
     // 4. Get Favorites
-    // We try to fetch related names if possible, assuming relations are set up or we just show IDs
     const { data: favorites, error: favError } = await supabase
         .from("user_favorites")
         .select(`
             *,
-            courses ( course_name ),
-            partners ( name )
+            partner_opportunities ( id, name )
         `)
         .eq("user_id", userId);
 
-    if (favError) throw favError;
+    if (favError && favError.code !== 'PGRST116') {
+        console.warn("Could not fetch favorites:", favError);
+    }
 
     return {
         profile: profile as any as StudentProfile,
         preferences,
         enem_scores: enem_scores || [],
-        favorites: favorites?.map((f: any) => ({
-            ...f,
-            courses: f.courses ? { name: f.courses.course_name } : null,
-            partners: f.partners ? { name: f.partners.name } : null
-        })) || []
+        favorites: favorites || []
     };
 };
 
