@@ -49,12 +49,13 @@ export interface UserEnemScore {
 export interface UserFavorite {
     id: string;
     user_id: string;
-    course_id: string | null;
-    partner_id: string | null;
+    course_id?: string | null;
+    partner_id?: string | null;
+    partner_opportunities_id?: string | null;
     created_at: string;
-    // We might want to fetch related course/partner names, but for now raw IDs or simple join if possible
     courses?: { name: string } | null;
     partners?: { name: string } | null;
+    partner_opportunities?: { id: string; name: string } | null;
 }
 
 export interface StudentDetails {
