@@ -51,58 +51,95 @@ export function StudentExportButton({ filters }: StudentExportButtonProps) {
                 ["Aluno Nubo", filters.isNuboStudent === true ? "Sim" : filters.isNuboStudent === false ? "Não" : "-"]
             ];
 
-            // 4. Prepare "Estudantes" (Students) Sheet Data
-            const estudantesHeader = [
-                "ID",
+            // 4. Prepare "Perfil Geral" Sheet Data
+            const perfilHeader = [
                 "Nome Completo",
+                "ID",
+                "Whatsapp",
                 "Idade",
+                "Raça / Etnia",
                 "Cidade",
                 "Estado",
                 "Escolaridade",
-                "Whatsapp",
+                "Renda Per Capita",
+                "Cotas",
+                "Candidaturas em Andamento (DRAFT)",
+                "Candidaturas Concluídas",
                 "Aluno Nubo",
                 "Data de Cadastro"
             ];
 
-            const estudantesData = students.map(s => [
+            const perfilData = students.map(s => [
+                s.full_name || "-",
                 s.id,
-                s.full_name,
-                s.age,
-                s.city,
-                s.state,
-                s.education,
                 s.whatsapp || "-",
+                s.age || "-",
+                s.race || "-",
+                s.city || "-",
+                s.state || "-",
+                s.education || "-",
+                s.family_income_per_capita ? `R$ ${s.family_income_per_capita.toFixed(2)}` : "-",
+                s.quota_types?.join(", ") || "-",
+                s.applications_list?.filter(a => a.includes("DRAFT")).join(", ") || "-",
+                s.applications_list?.filter(a => !a.includes("DRAFT")).join(", ") || "-",
                 s.is_nubo_student ? "Sim" : "Não",
                 new Date(s.created_at).toLocaleDateString("pt-BR")
             ]);
 
-            // 5. Create Workbook and Sheets
+            // 5. Prepare "Matchs" Sheet Data
+            const matchsHeader = [
+                "Nome Completo",
+                "ID",
+                "Whatsapp",
+                "Total de Matchs",
+                "Lista de Matchs (Oportunidades)"
+            ];
+
+            const matchsData = students.map(s => [
+                s.full_name || "-",
+                s.id,
+                s.whatsapp || "-",
+                s.matches_count || 0,
+                s.matches_list?.join(", ") || "-"
+            ]);
+
+            // 6. Prepare "Favoritos" Sheet Data
+            const favoritosHeader = [
+                "Nome Completo",
+                "ID",
+                "Whatsapp",
+                "Cursos / Parceiros Favoritados"
+            ];
+
+            const favoritosData = students.map(s => [
+                s.full_name || "-",
+                s.id,
+                s.whatsapp || "-",
+                s.applications_list?.join(", ") || "-"
+            ]);
+
+            // 7. Create Workbook and Sheets
             const wb = XLSX.utils.book_new();
 
             const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
-            const wsEstudantes = XLSX.utils.aoa_to_sheet([estudantesHeader, ...estudantesData]);
+            const wsPerfil = XLSX.utils.aoa_to_sheet([perfilHeader, ...perfilData]);
+            const wsMatchs = XLSX.utils.aoa_to_sheet([matchsHeader, ...matchsData]);
+            const wsFavoritos = XLSX.utils.aoa_to_sheet([favoritosHeader, ...favoritosData]);
 
-            // Adjust column widths for better readability
             wsResumo["!cols"] = [{ wch: 25 }, { wch: 35 }];
-            wsEstudantes["!cols"] = [
-                { wch: 36 }, // ID
-                { wch: 30 }, // Name
-                { wch: 10 }, // Age
-                { wch: 20 }, // City
-                { wch: 10 }, // State
-                { wch: 25 }, // Education
-                { wch: 15 }, // Whatsapp
-                { wch: 12 }, // Is Nubo
-                { wch: 15 }  // Date
-            ];
+            wsPerfil["!cols"] = [{ wch: 30 }, { wch: 36 }, { wch: 15 }, { wch: 8 }, { wch: 15 }, { wch: 20 }, { wch: 8 }, { wch: 25 }, { wch: 18 }, { wch: 20 }, { wch: 30 }, { wch: 30 }, { wch: 12 }, { wch: 15 }];
+            wsMatchs["!cols"] = [{ wch: 30 }, { wch: 36 }, { wch: 15 }, { wch: 15 }, { wch: 40 }];
+            wsFavoritos["!cols"] = [{ wch: 30 }, { wch: 36 }, { wch: 15 }, { wch: 40 }];
 
             XLSX.utils.book_append_sheet(wb, wsResumo, "Resumo");
-            XLSX.utils.book_append_sheet(wb, wsEstudantes, "Estudantes");
+            XLSX.utils.book_append_sheet(wb, wsPerfil, "Perfil Geral");
+            XLSX.utils.book_append_sheet(wb, wsMatchs, "Matchs");
+            XLSX.utils.book_append_sheet(wb, wsFavoritos, "Favoritos");
 
-            // 6. Generate File
-            XLSX.writeFile(wb, "Relatorio_Estudantes.xlsx");
+            // 8. Generate File
+            XLSX.writeFile(wb, "Relatorio_Estudantes_Nubo.xlsx");
 
-            toast.success("Relatório gerado com sucesso!", { id: "export-students" });
+            toast.success("Relatório multi-abas gerado com sucesso!", { id: "export-students" });
 
         } catch (error) {
             console.error("Export failed:", error);
