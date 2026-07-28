@@ -46,7 +46,7 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                 <User className="h-4 w-4" /> Perfil Geral
                             </TabsTrigger>
                             <TabsTrigger value="matchs" className="flex items-center justify-center gap-2 py-2.5">
-                                <Sparkles className="h-4 w-4 text-amber-500" /> Matchs
+                                <Sparkles className="h-4 w-4 text-amber-500" /> Matchs ({details.total_matches || details.matches?.length || 0})
                             </TabsTrigger>
                             <TabsTrigger value="favoritos" className="flex items-center justify-center gap-2 py-2.5">
                                 <Heart className="h-4 w-4 text-rose-500" /> Favoritos ({details.favorites?.length || 0})
@@ -185,13 +185,21 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                 <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">Matchs Calculados</h3>
                                 <p className="text-sm text-muted-foreground">Oportunidades elegíveis calculadas pelo motor de recomendação.</p>
                                 <div className="p-5 border rounded-xl bg-slate-50/60 dark:bg-slate-900/40 text-sm">
-                                    {details.profile?.total_matches ? (
+                                    {details.matches && details.matches.length > 0 ? (
                                         <div className="space-y-3">
-                                            <p className="font-semibold text-emerald-600 dark:text-emerald-400">{details.profile.total_matches} matchs encontrados</p>
-                                            <div className="grid grid-cols-1 gap-2">
-                                                {details.profile.matches_list?.split("; ").map((m, i) => (
-                                                    <div key={i} className="p-3 border rounded-lg bg-white dark:bg-slate-800 shadow-sm font-medium text-slate-800 dark:text-slate-200">
-                                                        {m}
+                                            <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                                {details.total_matches || details.matches.length} matchs encontrados
+                                            </p>
+                                            <div className="grid grid-cols-1 gap-2.5">
+                                                {details.matches.map((m, i) => (
+                                                    <div key={i} className="p-3.5 border rounded-xl bg-white dark:bg-slate-800 shadow-sm flex items-center justify-between">
+                                                        <div>
+                                                            <h4 className="font-semibold text-slate-900 dark:text-slate-100">{m.title}</h4>
+                                                            <p className="text-xs text-muted-foreground">{m.provider_name}</p>
+                                                        </div>
+                                                        <span className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-xs rounded-lg border border-emerald-200 dark:border-emerald-800">
+                                                            {Math.round(m.match_score)}% Match
+                                                        </span>
                                                     </div>
                                                 ))}
                                             </div>

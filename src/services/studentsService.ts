@@ -154,6 +154,22 @@ export const getStudents = async ({
     }
 };
 
+export interface UserMatch {
+    unified_opportunity_id: string;
+    match_score: number;
+    title: string;
+    provider_name: string;
+}
+
+export interface StudentDetails {
+    profile: StudentProfile | null;
+    preferences: UserPreference | null;
+    enem_scores: UserEnemScore[];
+    favorites: UserFavorite[];
+    matches: UserMatch[];
+    total_matches: number;
+}
+
 export const getStudentDetails = async (userId: string): Promise<StudentDetails> => {
     const { data: profile, error: profileError } = await supabase
         .from("user_profiles")
@@ -191,15 +207,59 @@ export const getStudentDetails = async (userId: string): Promise<StudentDetails>
 
     if (favError) throw favError;
 
+    // Fetch Matches & Total Count
+    const { count: totalMatchesCount } = await supabase
+        .from("user_opportunity_matches")
+        .select("*", { count: "exact", head: true })
+        .eq("profile_id", userId);
+
+    const { data: matchesData } = await supabase
+        .from("user_opportunity_matches")
+        .select("unified_opportunity_id, match_score")
+        .eq("profile_id", userId)
+        .order("match_score", { ascending: false })
+        .limit(20);
+
+    let matches: UserMatch[] = [];
+    if (matchesData && matchesData.length > 0) {
+        const oppIds = matchesData.map(m => m.unified_opportunity_id);
+        const { data: opps } = await supabase
+            .from("v_unified_opportunities")
+            .select("unified_id, title, provider_name")
+            .in("unified_id", oppIds);
+
+        const oppMap = new Map(opps?.map(o => [o.unified_id, o]) || []);
+
+        matches = matchesData.map(m => {
+            const opp = oppMap.get(m.unified_opportunity_id);
+            return {
+                unified_opportunity_id: m.unified_opportunity_id,
+                match_score: Number(m.match_score) || 0,
+                title: opp?.title || "Oportunidade",
+                provider_name: opp?.provider_name || "-"
+            };
+        });
+    }
+
+    const matchesListStr = matches
+        .map(m => `${m.title} (${m.provider_name}) - ${Math.round(m.match_score)}%`)
+        .join("; ");
+
     return {
-        profile: profile as any as StudentProfile,
+        profile: {
+            ...profile,
+            total_matches: totalMatchesCount || 0,
+            matches_list: matchesListStr
+        } as any as StudentProfile,
         preferences,
         enem_scores: enem_scores || [],
         favorites: favorites?.map((f: any) => ({
             ...f,
             courses: f.courses ? { name: f.courses.course_name } : null,
             partners: f.partner_opportunities ? { name: f.partner_opportunities.name } : f.institutions ? { name: f.institutions.name } : null
-        })) || []
+        })) || [],
+        matches,
+        total_matches: totalMatchesCount || 0
     };
 };
 
