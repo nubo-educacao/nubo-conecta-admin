@@ -113,23 +113,42 @@ export const getStudents = async (
 
     if (students.length > 0) {
         const studentIds = students.map(s => s.id);
+        const useInFilter = studentIds.length <= 100;
+
+        let incomeQuery = supabase.from("user_income").select("user_id, per_capita_income");
+        let prefQuery = supabase.from("user_preferences").select("user_id, family_income_per_capita, quota_types");
+        let appQuery = supabase.from("student_applications").select("user_id, status, partner_id, partner_opportunities(name)");
+        let matchQuery = supabase.from("user_opportunity_matches").select("profile_id, match_score, unified_opportunity_id");
+        let favQuery = supabase.from("user_favorites").select("user_id, course_id, partner_opportunities_id, institution_id, courses(course_name), partners(name), institutions(name)");
+        let vOppQuery = supabase.from("v_unified_opportunities").select("unified_id, title, provider_name");
+
+        if (useInFilter) {
+            incomeQuery = incomeQuery.in("user_id", studentIds);
+            prefQuery = prefQuery.in("user_id", studentIds);
+            appQuery = appQuery.in("user_id", studentIds);
+            matchQuery = matchQuery.in("profile_id", studentIds);
+            favQuery = favQuery.in("user_id", studentIds);
+        }
 
         const [
             { data: incomes },
             { data: preferences },
             { data: applications },
             { data: matches },
-            { data: favorites }
+            { data: favorites },
+            { data: vOpps }
         ] = await Promise.all([
-            supabase.from("user_income").select("user_id, per_capita_income").in("user_id", studentIds),
-            supabase.from("user_preferences").select("user_id, family_income_per_capita, quota_types").in("user_id", studentIds),
-            supabase.from("student_applications").select("user_id, status, partner_id, partner_opportunities(name)").in("user_id", studentIds),
-            supabase.from("user_opportunity_matches").select("profile_id, match_score, unified_opportunity_id").in("profile_id", studentIds),
-            supabase.from("user_favorites").select("user_id, course_id, partner_opportunities_id, institution_id, courses(course_name), partners(name)").in("user_id", studentIds)
+            incomeQuery,
+            prefQuery,
+            appQuery,
+            matchQuery,
+            favQuery,
+            vOppQuery
         ]);
 
         const incomeMap = new Map((incomes || []).map((i: any) => [i.user_id, i.per_capita_income]));
         const prefMap = new Map((preferences || []).map((p: any) => [p.user_id, p]));
+        const vOppMap = new Map((vOpps || []).map((o: any) => [o.unified_id, `${o.title} (${o.provider_name})`]));
 
         // Group applications
         const draftCountMap = new Map<string, number>();
@@ -152,16 +171,23 @@ export const getStudents = async (
             }
         });
 
-        // Group matches count
+        // Group matches
         const matchCountMap = new Map<string, number>();
+        const matchItemsMap = new Map<string, any[]>();
+
         (matches || []).forEach((m: any) => {
             matchCountMap.set(m.profile_id, (matchCountMap.get(m.profile_id) || 0) + 1);
+            const current = matchItemsMap.get(m.profile_id) || [];
+            current.push(m);
+            matchItemsMap.set(m.profile_id, current);
         });
 
         // Group favorites list
         const favListMap = new Map<string, string[]>();
         (favorites || []).forEach((f: any) => {
-            const name = f.courses?.course_name || f.partners?.name || f.course_id || f.partner_opportunities_id;
+            let name = f.courses?.course_name || f.partners?.name || f.institutions?.name;
+            if (!name && f.course_id) name = vOppMap.get(`mec_${f.course_id}`);
+            if (!name && f.partner_opportunities_id) name = vOppMap.get(`partner_${f.partner_opportunities_id}`);
             if (name) {
                 const current = favListMap.get(f.user_id) || [];
                 current.push(name);
@@ -171,6 +197,17 @@ export const getStudents = async (
 
         students = students.map(s => {
             const pref = prefMap.get(s.id);
+            const userM = matchItemsMap.get(s.id) || [];
+            userM.sort((a, b) => (Number(b.match_score) || 0) - (Number(a.match_score) || 0));
+            const topM = userM.slice(0, 10);
+            const matchListStr = topM.length > 0
+                ? topM.map((m: any) => {
+                    const title = vOppMap.get(m.unified_opportunity_id) || m.unified_opportunity_id;
+                    const score = Math.round(Number(m.match_score));
+                    return `${title} - ${score}%`;
+                }).join("; ")
+                : null;
+
             return {
                 ...s,
                 per_capita_income: s.per_capita_income ?? incomeMap.get(s.id) ?? pref?.family_income_per_capita ?? null,
@@ -180,7 +217,8 @@ export const getStudents = async (
                 completed_applications_count: s.completed_applications_count ?? completedCountMap.get(s.id) ?? 0,
                 completed_applications_list: s.completed_applications_list ?? (completedListMap.get(s.id)?.join(", ") || null),
                 total_matches: s.total_matches ?? matchCountMap.get(s.id) ?? 0,
-                favorites_list: s.favorites_list ?? (favListMap.get(s.id)?.join(", ") || null)
+                matches_list: s.matches_list ?? matchListStr,
+                favorites_list: s.favorites_list ?? (favListMap.get(s.id)?.join("; ") || null)
             };
         });
     }
