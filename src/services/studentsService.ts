@@ -184,7 +184,8 @@ export const getStudentDetails = async (userId: string): Promise<StudentDetails>
         .select(`
             *,
             courses ( course_name ),
-            partners ( name )
+            partner_opportunities ( name ),
+            institutions ( name )
         `)
         .eq("user_id", userId);
 
@@ -197,7 +198,7 @@ export const getStudentDetails = async (userId: string): Promise<StudentDetails>
         favorites: favorites?.map((f: any) => ({
             ...f,
             courses: f.courses ? { name: f.courses.course_name } : null,
-            partners: f.partners ? { name: f.partners.name } : null
+            partners: f.partner_opportunities ? { name: f.partner_opportunities.name } : f.institutions ? { name: f.institutions.name } : null
         })) || []
     };
 };
