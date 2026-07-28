@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface StudentProfile {
@@ -12,13 +11,15 @@ export interface StudentProfile {
     created_at: string;
     whatsapp?: string | null;
     race?: string | null;
-    family_income_per_capita?: number | null;
+    per_capita_income?: number | string | null;
     quota_types?: string[] | null;
-    enem_score?: number | null;
-    applications_count?: number;
-    matches_count?: number;
-    applications_list?: string[];
-    matches_list?: string[];
+    draft_applications_count?: number | string | null;
+    draft_applications_list?: string | null;
+    completed_applications_count?: number | string | null;
+    completed_applications_list?: string | null;
+    total_matches?: number | string | null;
+    matches_list?: string | null;
+    favorites_list?: string | null;
 }
 
 export interface UserPreference {
@@ -49,13 +50,11 @@ export interface UserEnemScore {
 export interface UserFavorite {
     id: string;
     user_id: string;
-    course_id?: string | null;
-    partner_id?: string | null;
-    partner_opportunities_id?: string | null;
+    course_id: string | null;
+    partner_id: string | null;
     created_at: string;
     courses?: { name: string } | null;
     partners?: { name: string } | null;
-    partner_opportunities?: { id: string; name: string } | null;
 }
 
 export interface StudentDetails {
@@ -108,18 +107,91 @@ export const getStudents = async (
         throw error;
     }
 
-    // The RPC returns a JSON object { data: [...], count: number }
-    // Supabase RPC returns the scalar result directly if it's a single JSON
     const result = data as any;
+    let students = (result?.data || []) as StudentProfile[];
+    const count = result?.count || 0;
+
+    if (students.length > 0) {
+        const studentIds = students.map(s => s.id);
+
+        const [
+            { data: incomes },
+            { data: preferences },
+            { data: applications },
+            { data: matches },
+            { data: favorites }
+        ] = await Promise.all([
+            supabase.from("user_income").select("user_id, per_capita_income").in("user_id", studentIds),
+            supabase.from("user_preferences").select("user_id, family_income_per_capita, quota_types").in("user_id", studentIds),
+            supabase.from("student_applications").select("user_id, status, partner_id, partner_opportunities(name)").in("user_id", studentIds),
+            supabase.from("user_opportunity_matches").select("profile_id, match_score, unified_opportunity_id").in("profile_id", studentIds),
+            supabase.from("user_favorites").select("user_id, course_id, partner_opportunities_id, institution_id, courses(course_name), partners(name)").in("user_id", studentIds)
+        ]);
+
+        const incomeMap = new Map((incomes || []).map((i: any) => [i.user_id, i.per_capita_income]));
+        const prefMap = new Map((preferences || []).map((p: any) => [p.user_id, p]));
+
+        // Group applications
+        const draftCountMap = new Map<string, number>();
+        const draftListMap = new Map<string, string[]>();
+        const completedCountMap = new Map<string, number>();
+        const completedListMap = new Map<string, string[]>();
+
+        (applications || []).forEach((app: any) => {
+            const partnerName = app.partner_opportunities?.name || "Parceiro";
+            if (app.status === "DRAFT") {
+                draftCountMap.set(app.user_id, (draftCountMap.get(app.user_id) || 0) + 1);
+                const current = draftListMap.get(app.user_id) || [];
+                current.push(partnerName);
+                draftListMap.set(app.user_id, current);
+            } else {
+                completedCountMap.set(app.user_id, (completedCountMap.get(app.user_id) || 0) + 1);
+                const current = completedListMap.get(app.user_id) || [];
+                current.push(partnerName);
+                completedListMap.set(app.user_id, current);
+            }
+        });
+
+        // Group matches count
+        const matchCountMap = new Map<string, number>();
+        (matches || []).forEach((m: any) => {
+            matchCountMap.set(m.profile_id, (matchCountMap.get(m.profile_id) || 0) + 1);
+        });
+
+        // Group favorites list
+        const favListMap = new Map<string, string[]>();
+        (favorites || []).forEach((f: any) => {
+            const name = f.courses?.course_name || f.partners?.name || f.course_id || f.partner_opportunities_id;
+            if (name) {
+                const current = favListMap.get(f.user_id) || [];
+                current.push(name);
+                favListMap.set(f.user_id, current);
+            }
+        });
+
+        students = students.map(s => {
+            const pref = prefMap.get(s.id);
+            return {
+                ...s,
+                per_capita_income: s.per_capita_income ?? incomeMap.get(s.id) ?? pref?.family_income_per_capita ?? null,
+                quota_types: s.quota_types ?? pref?.quota_types ?? null,
+                draft_applications_count: s.draft_applications_count ?? draftCountMap.get(s.id) ?? 0,
+                draft_applications_list: s.draft_applications_list ?? (draftListMap.get(s.id)?.join(", ") || null),
+                completed_applications_count: s.completed_applications_count ?? completedCountMap.get(s.id) ?? 0,
+                completed_applications_list: s.completed_applications_list ?? (completedListMap.get(s.id)?.join(", ") || null),
+                total_matches: s.total_matches ?? matchCountMap.get(s.id) ?? 0,
+                favorites_list: s.favorites_list ?? (favListMap.get(s.id)?.join(", ") || null)
+            };
+        });
+    }
 
     return {
-        data: (result?.data || []) as StudentProfile[],
-        count: result?.count || 0
+        data: students,
+        count
     };
 };
 
 export const getStudentDetails = async (userId: string): Promise<StudentDetails> => {
-    // 1. Get Profile
     const { data: profile, error: profileError } = await supabase
         .from("user_profiles")
         .select("*")
@@ -128,16 +200,14 @@ export const getStudentDetails = async (userId: string): Promise<StudentDetails>
 
     if (profileError) throw profileError;
 
-    // 2. Get Preferences
     const { data: preferences, error: prefError } = await supabase
         .from("user_preferences")
         .select("*")
         .eq("user_id", userId)
-        .maybeSingle(); // Use maybeSingle as it might not exist yet
+        .maybeSingle();
 
     if (prefError) throw prefError;
 
-    // 3. Get ENEM Scores
     const { data: enem_scores, error: enemError } = await supabase
         .from("user_enem_scores")
         .select("*")
@@ -146,24 +216,26 @@ export const getStudentDetails = async (userId: string): Promise<StudentDetails>
 
     if (enemError) throw enemError;
 
-    // 4. Get Favorites
     const { data: favorites, error: favError } = await supabase
         .from("user_favorites")
         .select(`
             *,
-            partner_opportunities ( id, name )
+            courses ( course_name ),
+            partners ( name )
         `)
         .eq("user_id", userId);
 
-    if (favError && favError.code !== 'PGRST116') {
-        console.warn("Could not fetch favorites:", favError);
-    }
+    if (favError) throw favError;
 
     return {
         profile: profile as any as StudentProfile,
         preferences,
         enem_scores: enem_scores || [],
-        favorites: favorites || []
+        favorites: favorites?.map((f: any) => ({
+            ...f,
+            courses: f.courses ? { name: f.courses.course_name } : null,
+            partners: f.partners ? { name: f.partners.name } : null
+        })) || []
     };
 };
 
