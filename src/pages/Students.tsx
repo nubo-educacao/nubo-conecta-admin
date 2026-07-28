@@ -31,8 +31,9 @@ export default function Students() {
     const pageSize = 20;
 
     const { data, isLoading } = useQuery({
-        queryKey: ["students", page, filters, sortBy, sortOrder],
-        queryFn: () => getStudents(page, pageSize, filters, sortBy, sortOrder),
+        queryKey: ["students", page, pageSize, filters, sortBy, sortOrder],
+        queryFn: () => getStudents({ page, pageSize, filters, sortBy, sortOrder }),
+        placeholderData: (previousData) => previousData,
     });
 
     const { data: stats, isLoading: isLoadingStats } = useQuery({

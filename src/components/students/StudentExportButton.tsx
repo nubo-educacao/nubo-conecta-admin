@@ -21,7 +21,7 @@ export function StudentExportButton({ filters }: StudentExportButtonProps) {
             const stats = await getStudentStats(filters);
 
             // 2. Fetch All Students
-            const { data: students } = await getStudents(0, 10000, filters);
+            const { data: students } = await getStudents({ page: 0, pageSize: 10000, filters });
 
             if (!students || students.length === 0) {
                 toast.error("Nenhum estudante encontrado para exportar.", { id: "export-students" });

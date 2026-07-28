@@ -77,156 +77,81 @@ export interface StudentFilters {
     ageMax?: number;
 }
 
-export const getStudents = async (
-    page: number = 0,
-    pageSize: number = 20,
-    filters?: StudentFilters,
-    sortBy: string = 'created_at',
-    sortOrder: string = 'desc'
-): Promise<{ data: StudentProfile[], count: number }> => {
-    const paramFilters = {
-        p_page: page,
-        p_page_size: pageSize,
-        p_filter_name: filters?.fullName || null,
-        p_filter_city: filters?.city || null,
-        p_filter_education: filters?.education || null,
-        p_filter_is_nubo_student: filters?.isNuboStudent ?? null,
-        p_filter_income_min: filters?.incomeMin || null,
-        p_filter_income_max: filters?.incomeMax || null,
-        p_filter_quota_types: (filters?.quotaTypes && filters.quotaTypes.length > 0) ? filters.quotaTypes : null,
-        p_sort_by: sortBy,
-        p_sort_order: sortOrder,
-        p_filter_state: filters?.state || null,
-        p_filter_age_min: filters?.ageMin || null,
-        p_filter_age_max: filters?.ageMax || null
+export interface GetStudentsOptions {
+    page?: number;
+    pageSize?: number;
+    filters?: {
+        name?: string;
+        city?: string;
+        education?: string;
+        isNuboStudent?: boolean | null;
+        incomeRange?: [number | null, number | null];
+        quotaTypes?: string[];
+        state?: string;
+        ageRange?: [number | null, number | null];
     };
+    sortBy?: string;
+    sortOrder?: string;
+}
 
-    const { data, error } = await supabase.rpc('get_students_paginated' as any, paramFilters);
-
-    if (error) {
-        throw error;
-    }
-
-    const result = data as any;
-    let students = (result?.data || []) as StudentProfile[];
-    const count = result?.count || 0;
-
-    if (students.length > 0) {
-        const studentIds = students.map(s => s.id);
-        const useInFilter = studentIds.length <= 100;
-
-        let incomeQuery = supabase.from("user_income").select("user_id, per_capita_income");
-        let prefQuery = supabase.from("user_preferences").select("user_id, family_income_per_capita, quota_types");
-        let appQuery = supabase.from("student_applications").select("user_id, status, partner_id, partner_opportunities(name)");
-        let matchQuery = supabase.from("user_opportunity_matches").select("profile_id, match_score, unified_opportunity_id");
-        let favQuery = supabase.from("user_favorites").select("user_id, course_id, partner_opportunities_id, institution_id, courses(course_name), partners(name), institutions(name)");
-        let vOppQuery = supabase.from("v_unified_opportunities").select("unified_id, title, provider_name");
-
-        if (useInFilter) {
-            incomeQuery = incomeQuery.in("user_id", studentIds);
-            prefQuery = prefQuery.in("user_id", studentIds);
-            appQuery = appQuery.in("user_id", studentIds);
-            matchQuery = matchQuery.in("profile_id", studentIds);
-            favQuery = favQuery.in("user_id", studentIds);
+export const getStudents = async ({
+    page = 0,
+    pageSize = 20,
+    filters,
+    sortBy = "created_at",
+    sortOrder = "desc",
+}: GetStudentsOptions) => {
+    try {
+        const rpcParams = {
+            p_page: page,
+            p_page_size: pageSize,
+            p_filter_name: filters?.name || null,
+            p_filter_city: filters?.city || null,
+            p_filter_education: filters?.education || null,
+            p_filter_is_nubo_student: filters?.isNuboStudent ?? null,
+            p_filter_income_min: filters?.incomeRange?.[0] || null,
+            p_filter_income_max: filters?.incomeRange?.[1] || null,
+            p_filter_quota_types: (filters?.quotaTypes && filters.quotaTypes.length > 0) ? filters.quotaTypes : null,
+            p_sort_by: sortBy,
+            p_sort_order: sortOrder,
+            p_filter_state: filters?.state || null,
+            p_filter_age_min: filters?.ageRange?.[0] || null,
+            p_filter_age_max: filters?.ageRange?.[1] || null,
         }
 
-        const [
-            { data: incomes },
-            { data: preferences },
-            { data: applications },
-            { data: matches },
-            { data: favorites },
-            { data: vOpps }
-        ] = await Promise.all([
-            incomeQuery,
-            prefQuery,
-            appQuery,
-            matchQuery,
-            favQuery,
-            vOppQuery
-        ]);
+        const { data, error } = await supabase.rpc("get_students_paginated", rpcParams as any);
 
-        const incomeMap = new Map((incomes || []).map((i: any) => [i.user_id, i.per_capita_income]));
-        const prefMap = new Map((preferences || []).map((p: any) => [p.user_id, p]));
-        const vOppMap = new Map((vOpps || []).map((o: any) => [o.unified_id, `${o.title} (${o.provider_name})`]));
+        if (error) {
+            console.error("RPC Error:", error);
+            throw error;
+        }
 
-        // Group applications
-        const draftCountMap = new Map<string, number>();
-        const draftListMap = new Map<string, string[]>();
-        const completedCountMap = new Map<string, number>();
-        const completedListMap = new Map<string, string[]>();
+        const response = data as { data: any[]; count: number };
+        const students = response.data || [];
 
-        (applications || []).forEach((app: any) => {
-            const partnerName = app.partner_opportunities?.name || "Parceiro";
-            if (app.status === "DRAFT") {
-                draftCountMap.set(app.user_id, (draftCountMap.get(app.user_id) || 0) + 1);
-                const current = draftListMap.get(app.user_id) || [];
-                current.push(partnerName);
-                draftListMap.set(app.user_id, current);
-            } else {
-                completedCountMap.set(app.user_id, (completedCountMap.get(app.user_id) || 0) + 1);
-                const current = completedListMap.get(app.user_id) || [];
-                current.push(partnerName);
-                completedListMap.set(app.user_id, current);
+        const enrichedStudents = students.map((s: any) => ({
+            ...s,
+            per_capita_income: s.per_capita_income ?? 0,
+            quota_types: s.quota_types ?? [],
+            _computed: {
+                draftApplicationsCount: s.draft_applications_count ?? 0,
+                draftApplicationsList: s.draft_applications_list ?? "",
+                completedApplicationsCount: s.completed_applications_count ?? 0,
+                completedApplicationsList: s.completed_applications_list ?? "",
+                totalMatches: s.total_matches ?? 0,
+                matchesList: s.matches_list ?? "",
+                favoritesList: s.favorites_list ?? ""
             }
-        });
+        }));
 
-        // Group matches
-        const matchCountMap = new Map<string, number>();
-        const matchItemsMap = new Map<string, any[]>();
-
-        (matches || []).forEach((m: any) => {
-            matchCountMap.set(m.profile_id, (matchCountMap.get(m.profile_id) || 0) + 1);
-            const current = matchItemsMap.get(m.profile_id) || [];
-            current.push(m);
-            matchItemsMap.set(m.profile_id, current);
-        });
-
-        // Group favorites list
-        const favListMap = new Map<string, string[]>();
-        (favorites || []).forEach((f: any) => {
-            let name = f.courses?.course_name || f.partners?.name || f.institutions?.name;
-            if (!name && f.course_id) name = vOppMap.get(`mec_${f.course_id}`);
-            if (!name && f.partner_opportunities_id) name = vOppMap.get(`partner_${f.partner_opportunities_id}`);
-            if (name) {
-                const current = favListMap.get(f.user_id) || [];
-                current.push(name);
-                favListMap.set(f.user_id, current);
-            }
-        });
-
-        students = students.map(s => {
-            const pref = prefMap.get(s.id);
-            const userM = matchItemsMap.get(s.id) || [];
-            userM.sort((a, b) => (Number(b.match_score) || 0) - (Number(a.match_score) || 0));
-            const topM = userM.slice(0, 10);
-            const matchListStr = topM.length > 0
-                ? topM.map((m: any) => {
-                    const title = vOppMap.get(m.unified_opportunity_id) || m.unified_opportunity_id;
-                    const score = Math.round(Number(m.match_score));
-                    return `${title} - ${score}%`;
-                }).join("; ")
-                : null;
-
-            return {
-                ...s,
-                per_capita_income: s.per_capita_income ?? incomeMap.get(s.id) ?? pref?.family_income_per_capita ?? null,
-                quota_types: s.quota_types ?? pref?.quota_types ?? null,
-                draft_applications_count: s.draft_applications_count ?? draftCountMap.get(s.id) ?? 0,
-                draft_applications_list: s.draft_applications_list ?? (draftListMap.get(s.id)?.join(", ") || null),
-                completed_applications_count: s.completed_applications_count ?? completedCountMap.get(s.id) ?? 0,
-                completed_applications_list: s.completed_applications_list ?? (completedListMap.get(s.id)?.join(", ") || null),
-                total_matches: s.total_matches ?? matchCountMap.get(s.id) ?? 0,
-                matches_list: s.matches_list ?? matchListStr,
-                favorites_list: s.favorites_list ?? (favListMap.get(s.id)?.join("; ") || null)
-            };
-        });
-    }
-
-    return {
-        data: students,
-        count
+        return {
+        data: enrichedStudents,
+        count: response.count || 0
     };
+    } catch (error) {
+        console.error("Error fetching students:", error);
+        throw error;
+    }
 };
 
 export const getStudentDetails = async (userId: string): Promise<StudentDetails> => {

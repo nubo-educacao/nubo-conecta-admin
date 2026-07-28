@@ -171,10 +171,10 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                 <h3 className="text-lg font-semibold">Matchs Calculados</h3>
                                 <p className="text-sm text-muted-foreground">Oportunidades elegíveis calculadas pelo motor de recomendação.</p>
                                 <div className="p-4 border rounded-lg bg-slate-50 dark:bg-slate-900 text-sm">
-                                    {details.profile?.matches_count ? (
+                                    {details.profile?.total_matches ? (
                                         <div className="space-y-2">
-                                            <p className="font-semibold text-emerald-600">{details.profile.matches_count} matchs encontrados</p>
-                                            {details.profile.matches_list?.map((m, i) => (
+                                            <p className="font-semibold text-emerald-600">{details.profile.total_matches} matchs encontrados</p>
+                                            {details.profile.matches_list?.split("; ").map((m, i) => (
                                                 <div key={i} className="p-2 border rounded bg-white dark:bg-slate-800">
                                                     {m}
                                                 </div>
@@ -197,7 +197,7 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                             <li key={fav.id} className="p-3 border rounded-md flex justify-between items-center bg-white dark:bg-slate-900">
                                                 <div>
                                                     <span className="font-medium text-primary">
-                                                        {fav.partner_opportunities?.name || `Oportunidade #${fav.partner_opportunities_id || fav.id}`}
+                                                        {fav.courses?.name || fav.partners?.name || `Oportunidade #${fav.course_id || fav.partner_id || fav.id}`}
                                                     </span>
                                                 </div>
                                                 <span className="text-xs text-muted-foreground">
