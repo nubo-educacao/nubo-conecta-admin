@@ -76,7 +76,15 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                             <span className="text-xs text-muted-foreground block mb-1">Cidade / UF</span>
                                             <span className="font-medium text-slate-900 dark:text-slate-100">{details.profile?.city ? `${details.profile.city} - ${details.profile.state || ''}` : "-"}</span>
                                         </div>
-                                        <div className="sm:col-span-2 md:col-span-2">
+                                        <div>
+                                            <span className="text-xs text-muted-foreground block mb-1">WhatsApp</span>
+                                            <span className="font-medium text-slate-900 dark:text-slate-100">{details.profile?.whatsapp || "-"}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-muted-foreground block mb-1">Estudante Nubo</span>
+                                            <span className="font-medium text-slate-900 dark:text-slate-100">{details.profile?.is_nubo_student ? "Sim" : "Não"}</span>
+                                        </div>
+                                        <div className="sm:col-span-2 md:col-span-3">
                                             <span className="text-xs text-muted-foreground block mb-1">Escolaridade</span>
                                             <span className="font-medium text-slate-900 dark:text-slate-100">{details.profile?.education || "-"}</span>
                                         </div>
@@ -138,6 +146,14 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                                     <span className="text-sm text-slate-600 dark:text-slate-400">-</span>
                                                 )}
                                             </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-muted-foreground block mb-1">Local de Estudo Preferido</span>
+                                            <span className="font-medium capitalize text-slate-900 dark:text-slate-100">{details.preferences?.location_preference || "-"}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-muted-foreground block mb-1">Estado Preferido</span>
+                                            <span className="font-medium uppercase text-slate-900 dark:text-slate-100">{details.preferences?.state_preference || "-"}</span>
                                         </div>
                                     </div>
                                 </section>

@@ -228,6 +228,7 @@ export const getStudentDetails = async (userId: string): Promise<StudentDetails>
     return {
         profile: {
             ...profile,
+            whatsapp: profile.phone || profile.whatsapp || null,
             total_matches: totalMatchesCount || 0,
             matches_list: matchesListStr
         } as any as StudentProfile,
