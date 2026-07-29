@@ -207,39 +207,19 @@ export const getStudentDetails = async (userId: string): Promise<StudentDetails>
 
     if (favError) throw favError;
 
-    // Fetch Matches & Total Count
-    const { count: totalMatchesCount } = await supabase
-        .from("user_opportunity_matches")
-        .select("*", { count: "exact", head: true })
-        .eq("profile_id", userId);
+    // Fetch Matches & Total Count using RPC to bypass RLS for admin
+    const { data: matchesResponse, error: matchesError } = await supabase
+        .rpc("get_student_matches_admin", { p_profile_id: userId });
 
-    const { data: matchesData } = await supabase
-        .from("user_opportunity_matches")
-        .select("unified_opportunity_id, match_score")
-        .eq("profile_id", userId)
-        .order("match_score", { ascending: false })
-        .limit(20);
+    if (matchesError) throw matchesError;
 
-    let matches: UserMatch[] = [];
-    if (matchesData && matchesData.length > 0) {
-        const oppIds = matchesData.map(m => m.unified_opportunity_id);
-        const { data: opps } = await supabase
-            .from("v_unified_opportunities")
-            .select("unified_id, title, provider_name")
-            .in("unified_id", oppIds);
-
-        const oppMap = new Map(opps?.map(o => [o.unified_id, o]) || []);
-
-        matches = matchesData.map(m => {
-            const opp = oppMap.get(m.unified_opportunity_id);
-            return {
-                unified_opportunity_id: m.unified_opportunity_id,
-                match_score: Number(m.match_score) || 0,
-                title: opp?.title || "Oportunidade",
-                provider_name: opp?.provider_name || "-"
-            };
-        });
-    }
+    const totalMatchesCount = matchesResponse?.count || 0;
+    const matches: UserMatch[] = matchesResponse?.matches?.map((m: any) => ({
+        unified_opportunity_id: m.unified_opportunity_id,
+        match_score: Number(m.match_score) || 0,
+        title: m.title || "Oportunidade",
+        provider_name: m.provider_name || "-"
+    })) || [];
 
     const matchesListStr = matches
         .map(m => `${m.title} (${m.provider_name}) - ${Math.round(m.match_score)}%`)
