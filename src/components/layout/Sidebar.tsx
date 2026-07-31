@@ -28,6 +28,8 @@ import {
   Sliders,
   Bug,
   Map,
+  ShieldCheck,
+  ScrollText,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -82,6 +84,7 @@ export default function Sidebar() {
     "Dados Educacionais": false,
     "Parceiros & B2B": false,
     "Atendimento e App": false,
+    "Governança": false,
   });
   const { permissions, signOut } = useAuth();
   const location = useLocation();
@@ -160,8 +163,18 @@ export default function Sidebar() {
     },
     // ── Configurações ──────────────────────────────────────────────────────────
     { to: "/users", icon: UserCog, label: "Usuários", permission: "Controle de usuários" },
-    { to: "/support", icon: Bug, label: "Suporte e Bugs", permission: "Dashboard" },
-    { to: "/roadmap", icon: Map, label: "Roadmap", permission: "Dashboard" },
+    // ── Governança ──────────────────────────────────────────────────────────
+    {
+      label: "Governança",
+      icon: ShieldCheck,
+      permission: "Dashboard",
+      isGroup: true,
+      items: [
+        { to: "/governance/support", icon: Bug, label: "Suporte & Bugs", permission: "Dashboard" },
+        { to: "/governance/roadmap", icon: Map, label: "Roadmap", permission: "Dashboard" },
+        { to: "/governance/docs", icon: ScrollText, label: "Docs de Governança", permission: "Dashboard" },
+      ],
+    },
   ];
 
   const toggleGroup = (label: string) => {
