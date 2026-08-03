@@ -47,8 +47,11 @@ import SeanEllis from "./pages/SeanEllis";
 
 // Pages — Configurações
 import Users from "./pages/Users";
+
+// Pages — Governança (Snaps Client)
 import Support from "./pages/Support";
 import Roadmap from "./pages/Roadmap";
+import Docs from "./pages/Docs";
 
 // Pages — Partner Portal Sandbox
 import PartnerPortalForms from "./pages/PartnerPortalForms";
@@ -107,6 +110,12 @@ const App = () => (
 
               {/* Configurações */}
               <Route path="/users" element={<Users />} />
+
+              {/* Governança — Snaps Client Web Components */}
+              <Route path="/governance/support" element={<Support />} />
+              <Route path="/governance/roadmap" element={<Roadmap />} />
+              <Route path="/governance/docs" element={<Docs />} />
+              {/* Legacy redirects */}
               <Route path="/support" element={<Support />} />
               <Route path="/roadmap" element={<Roadmap />} />
             </Route>
