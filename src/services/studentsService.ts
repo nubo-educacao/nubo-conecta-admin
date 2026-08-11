@@ -77,6 +77,27 @@ export interface StudentFilters {
     ageMax?: number;
 }
 
+/**
+ * Colunas que a RPC `get_students_paginated` sabe ordenar.
+ *
+ * Espelha o CASE da migration 20260811140000_fix_students_sort_and_harden_get_students_paginated.
+ * Se a tabela oferecer uma coluna que não esteja aqui (e no CASE da RPC), a função
+ * cai no ELSE e ordena por created_at **sem sinalizar erro** — foi exatamente o
+ * bug do card 1a658f84, em que `age` e `whatsapp` eram clicáveis mas não ordenavam.
+ * O teste `src/test/students-sort-contract.test.tsx` trava esse acoplamento.
+ */
+export const SORTABLE_STUDENT_FIELDS = [
+    "full_name",
+    "age",
+    "city",
+    "education",
+    "whatsapp",
+    "is_nubo_student",
+    "created_at",
+] as const;
+
+export type SortableStudentField = (typeof SORTABLE_STUDENT_FIELDS)[number];
+
 export interface GetStudentsOptions {
     page?: number;
     pageSize?: number;
