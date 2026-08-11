@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as ToasterSonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import AdminLayout from "./components/layout/AdminLayout";
 import PartnerLayout from "./components/layout/PartnerLayout";
@@ -23,11 +23,9 @@ import AgentTelemetry from "./pages/AgentTelemetry";
 
 // Pages — Dados Educacionais
 import Calendar from "./pages/Calendar";
-import Institutions from "./pages/educational-data/Institutions";
-import Campus from "./pages/educational-data/Campus";
-import Courses from "./pages/educational-data/Courses";
-import Opportunities from "./pages/educational-data/Opportunities";
-import DataPipeline from "./pages/educational-data/DataPipeline";
+import ProgramsImport from "./pages/educational-data/ProgramsImport";
+import InstitutionsCampus from "./pages/educational-data/InstitutionsCampus";
+import OpportunitiesCourses from "./pages/educational-data/OpportunitiesCourses";
 
 // Pages — Parceiros & B2B
 import PassportDashboard from "./pages/PassportDashboard";
@@ -37,7 +35,6 @@ import PartnerForms from "./pages/PartnerForms";
 import PartnerUsers from "./pages/PartnerUsers";
 import PartnerApplications from "./pages/PartnerApplications";
 import PartnerOpportunities from "./pages/PartnerOpportunities";
-import Programs from "./pages/Programs";
 import FunnelUsers from "./pages/FunnelUsers";
 
 // Pages — Atendimento e App
@@ -84,18 +81,21 @@ const App = () => (
               <Route path="/agent-config" element={<AgentConfig />} />
 
               {/* Dados Educacionais */}
-              <Route path="/institutions" element={<Institutions />} />
-              <Route path="/educational/campus" element={<Campus />} />
-              <Route path="/educational/courses" element={<Courses />} />
-              <Route path="/educational/opportunities" element={<Opportunities />} />
-              <Route path="/educational/data-pipeline" element={<DataPipeline />} />
+              <Route path="/educational/programs-import" element={<ProgramsImport />} />
+              <Route path="/educational/institutions-campus" element={<InstitutionsCampus />} />
+              <Route path="/educational/opportunities-courses" element={<OpportunitiesCourses />} />
+              <Route path="/programs" element={<Navigate replace to="/educational/programs-import" />} />
+              <Route path="/educational/data-pipeline" element={<Navigate replace to="/educational/programs-import?tab=import" />} />
+              <Route path="/institutions" element={<Navigate replace to="/educational/institutions-campus" />} />
+              <Route path="/educational/campus" element={<Navigate replace to="/educational/institutions-campus" />} />
+              <Route path="/educational/courses" element={<Navigate replace to="/educational/opportunities-courses" />} />
+              <Route path="/educational/opportunities" element={<Navigate replace to="/educational/opportunities-courses" />} />
               <Route path="/calendar" element={<Calendar />} />
 
               {/* Parceiros & B2B */}
               <Route path="/b2b-dashboard" element={<PassportDashboard />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/partner-opportunities" element={<PartnerOpportunities />} />
-              <Route path="/programs" element={<Programs />} />
               <Route path="/forms" element={<PartnerForms />} />
               <Route path="/applications" element={<PartnerApplications />} />
               <Route path="/solicitations" element={<PartnerSolicitations />} />
