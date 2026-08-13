@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
+  Link as LinkIcon,
   LayoutDashboard,
   ChevronLeft,
   ChevronRight,
@@ -158,6 +159,10 @@ export default function Sidebar() {
         { to: "/students", icon: GraduationCap, label: "Estudantes & Famílias", permission: "Estudantes" },
         { to: "/app-cms", icon: Layers, label: "Vitrine & Destaques", permission: "Dashboard" },
         { to: "/influencers", icon: UsersRound, label: "Influencers", permission: "Influencers" },
+        // Links de Divulgação fica ao lado de Influencers de propósito: e o
+        // sucessor dele. O TrackableLinkModal da tela de Influencers gera
+        // ?ref= sem campanha nem plataforma; esta gera link governado.
+        { to: "/channel-links", icon: LinkIcon, label: "Links de Divulgação", permission: "Influencers" },
         { to: "/sean-ellis", icon: PieChart, label: "Sean Ellis Score", permission: "Sean Ellis Score" },
       ],
     },
