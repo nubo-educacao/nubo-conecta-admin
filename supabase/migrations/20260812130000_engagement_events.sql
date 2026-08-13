@@ -7,27 +7,37 @@
 -- jeito nenhum — `trackAndRedirect` pula o insert quando partnerId é null.
 --
 -- ══ O QUE A AUDITORIA DE PRODUÇÃO MOSTROU (12/08/2026) ══════════════════════
--- O TP-2 descreve `partners_click` como "agregado legado" da mesma métrica que
--- `external_redirect_clicks`, e manda migrar os dois como se fossem a mesma
--- coisa. Rastreando os call sites, NÃO SÃO:
+-- O TP-2 2a task 3 JÁ definia a unificação numa entidade só, com as duas
+-- origens contadas SEPARADAMENTE: `source` distinto, `event_count=clicks` para
+-- o agregado, `SUM(event_count)` e nunca `COUNT(*)` nas métricas históricas, e
+-- relatório de reconciliação por fonte. Tudo isso vem do plano.
+--
+-- O que o plano deixa em aberto é qual `event_type` o `partners_click` recebe:
+-- ele nomeia `redirect` para `external_redirect_clicks` e não nomeia o outro.
+-- Rastreando os call sites:
 --
 --   partners_click          <- registerPartnerClick()
 --                              chamado de MatchResults.tsx e OpportunityCard.tsx
---                              => é CLIQUE NO CARD
+--                              => é CLIQUE NO CARD  (card_click)
 --
 --   external_redirect_clicks <- trackAndRedirect()
 --                              chamado do detalhe da oportunidade e do
 --                              formulário de parceiro
 --                              => é REDIRECT para o destino
 --
--- São dois estágios do funil, não duas cópias do mesmo evento. Os 119 pares
--- (user, partner) presentes nas duas tabelas são pessoas que clicaram no card e
--- depois foram redirecionadas — o funil funcionando. Somar tudo como "clique"
--- teria inflado a métrica; tratar um como duplicata do outro teria destruído o
--- único funil histórico que existe.
+-- São dois estágios do funil. Uma leitura literal do plano poderia ter posto
+-- `redirect` nos dois, e aí as duas etapas colapsariam numa só.
+--
+-- Os 119 pares (user, partner) presentes nas duas tabelas são pessoas que
+-- clicaram no card e depois foram redirecionadas — o funil funcionando.
 --
 -- Volumes em prod: 249 linhas agregadas somando 418 cliques de card (30/06 a
 -- 12/08) e 456 eventos de redirect (14/06 a 12/08).
+--
+-- DESVIO DO PLANO, deliberado: o plano usa `source='legacy_aggregate'`; aqui é
+-- `legacy_partners_click_aggregate`. A reconciliação exigida é POR FONTE, e um
+-- nome genérico deixa de identificar a origem se outra tabela agregada for
+-- migrada depois.
 --
 -- ⚠️ O funil histórico é NÃO-MONOTÔNICO (456 redirects > 418 card_clicks) e isso
 --    não é erro de dados: dá para chegar ao detalhe da oportunidade sem passar
