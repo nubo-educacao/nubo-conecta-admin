@@ -32,6 +32,7 @@ import DataPipeline from "./pages/educational-data/DataPipeline";
 // Pages — Parceiros & B2B
 import PassportDashboard from "./pages/PassportDashboard";
 import ChannelLinks from "./pages/ChannelLinks";
+import Channels from "./pages/Channels";
 import Partners from "./pages/Partners";
 import PartnerSolicitations from "./pages/PartnerSolicitations";
 import PartnerForms from "./pages/PartnerForms";
@@ -95,6 +96,7 @@ const App = () => (
               {/* Parceiros & B2B */}
               <Route path="/b2b-dashboard" element={<PassportDashboard />} />
               <Route path="/channel-links" element={<ChannelLinks />} />
+              <Route path="/channels" element={<Channels />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/partner-opportunities" element={<PartnerOpportunities />} />
               <Route path="/programs" element={<Programs />} />

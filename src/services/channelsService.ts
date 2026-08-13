@@ -292,3 +292,64 @@ export async function archiveChannelLink(id: string): Promise<void> {
         .eq("id", id);
     if (error) throw error;
 }
+
+// ─── Desempenho (TP-7 7E / ADR-0028) ─────────────────────────────────────────
+
+export interface LinkPerformance {
+    link_id: string;
+    code: string;
+    nickname: string | null;
+    archived: boolean;
+    campaign_name: string | null;
+    channel_name: string;
+    medium: string;
+    platform_name: string | null;
+    platform_category: string | null;
+    clicks: number;
+    signups: number;
+    matched: number;
+    applied: number;
+    /** NULL quando não há clique no período — nunca 0. Ver ADR-0028. */
+    conversion_rate: number | null;
+    has_click_data: boolean;
+}
+
+export interface GroupPerformance {
+    name: string;
+    category?: string;
+    links: number;
+    clicks: number;
+    signups: number;
+    matched?: number;
+    applied?: number;
+    conversion_rate: number | null;
+}
+
+export interface ChannelPerformance {
+    links: LinkPerformance[];
+    by_campaign: GroupPerformance[];
+    by_medium: GroupPerformance[];
+    by_platform: GroupPerformance[];
+    totals: {
+        links: number;
+        clicks: number;
+        signups: number;
+        matched: number;
+        applied: number;
+        /** Distingue "ninguém clicou" de "ainda não medíamos". */
+        has_any_click_data: boolean;
+        first_click_at: string | null;
+    };
+}
+
+export async function getChannelPerformance(
+    since?: string | null,
+    until?: string | null,
+): Promise<ChannelPerformance> {
+    const { data, error } = await (supabase.rpc as any)("get_channel_performance", {
+        p_since: since ?? null,
+        p_until: until ?? null,
+    });
+    if (error) throw error;
+    return data as ChannelPerformance;
+}
