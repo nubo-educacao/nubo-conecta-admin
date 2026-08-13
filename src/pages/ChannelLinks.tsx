@@ -24,6 +24,7 @@ import {
     getCampaigns,
     getChannelLinks,
     getChannels,
+    getMediums,
     getPlatforms,
 } from "@/services/channelsService";
 
@@ -46,6 +47,7 @@ export default function ChannelLinks() {
     const { data: campaigns } = useQuery({ queryKey: ["campaigns"], queryFn: getCampaigns });
     const { data: channels } = useQuery({ queryKey: ["channels"], queryFn: () => getChannels(false) });
     const { data: platforms } = useQuery({ queryKey: ["platforms"], queryFn: getPlatforms });
+    const { data: mediums } = useQuery({ queryKey: ["channel-mediums"], queryFn: getMediums });
 
     const filtered = useMemo(() => {
         const term = search.trim().toLowerCase();
@@ -220,7 +222,12 @@ export default function ChannelLinks() {
                 campaigns={campaigns ?? []}
                 channels={channels ?? []}
                 platforms={platforms ?? []}
-                onCreated={() => queryClient.invalidateQueries({ queryKey: ["channel-links"] })}
+                mediums={mediums ?? []}
+                onCreated={() => {
+                    queryClient.invalidateQueries({ queryKey: ["channel-links"] });
+                    queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+                    queryClient.invalidateQueries({ queryKey: ["channels"] });
+                }}
             />
         </div>
     );

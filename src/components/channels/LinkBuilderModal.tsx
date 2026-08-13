@@ -28,7 +28,9 @@ import {
     type Campaign,
     type Channel,
     type Platform,
+    type ChannelMedium,
 } from "@/services/channelsService";
+import { QuickCreateCampaign, QuickCreateChannel } from "./QuickCreate";
 
 // Construtor de links — TP-7 7D task 12.
 //
@@ -47,6 +49,7 @@ interface LinkBuilderModalProps {
     campaigns: Campaign[];
     channels: Channel[];
     platforms: Platform[];
+    mediums: ChannelMedium[];
     onCreated: () => void;
 }
 
@@ -56,6 +59,7 @@ export default function LinkBuilderModal({
     campaigns,
     channels,
     platforms,
+    mediums,
     onCreated,
 }: LinkBuilderModalProps) {
     const [campaignId, setCampaignId] = useState<string>("none");
@@ -165,6 +169,15 @@ export default function LinkBuilderModal({
                             O objetivo que agrupa os links. Sem ela, o link não some — só
                             não entra em nenhum total.
                         </p>
+                        {/* Criar sem sair do fluxo: mandar a pessoa para outra tela
+                            no meio da criação de um link é como o cadastro de
+                            divulgador acabou espalhado em dois lugares. */}
+                        <QuickCreateCampaign
+                            onCreated={(c) => {
+                                onCreated();
+                                setCampaignId(c.id);
+                            }}
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -186,6 +199,14 @@ export default function LinkBuilderModal({
                                 ))}
                             </SelectContent>
                         </Select>
+
+                        <QuickCreateChannel
+                            mediums={mediums}
+                            onCreated={(c) => {
+                                onCreated();
+                                setChannelId(c.id);
+                            }}
+                        />
                     </div>
 
                     <div className="grid gap-2">
