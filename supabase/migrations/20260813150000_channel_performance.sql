@@ -63,6 +63,7 @@ BEGIN
     SELECT ua.first_touch_link_id AS link_id, count(DISTINCT ua.user_id)::bigint AS matched
     FROM public.user_attribution ua
     WHERE ua.first_touch_link_id IS NOT NULL
+      AND ua.first_touch_at >= v_from AND ua.first_touch_at < v_to
       AND EXISTS (SELECT 1 FROM public.user_opportunity_matches m WHERE m.profile_id = ua.user_id)
     GROUP BY 1
   ),
@@ -73,6 +74,7 @@ BEGIN
     SELECT ua.first_touch_link_id AS link_id, count(DISTINCT ua.user_id)::bigint AS applied
     FROM public.user_attribution ua
     WHERE ua.first_touch_link_id IS NOT NULL
+      AND ua.first_touch_at >= v_from AND ua.first_touch_at < v_to
       AND EXISTS (
         SELECT 1 FROM public.student_applications sa
         WHERE sa.user_id = ua.user_id AND sa.status <> 'DRAFT'
