@@ -342,7 +342,7 @@ export default function Institutions({
                                                                         <Button
                                                                             variant="outline"
                                                                             size="sm"
-                                                                            disabled={log.etl_type === 'emec' || log.etl_type.startsWith('refresh_') || (isRollingBack && rollbackVars?.logId === log.id)}
+                                                                            disabled={log.status === 'running' || log.etl_type === 'emec' || log.etl_type.startsWith('refresh_') || (isRollingBack && rollbackVars?.logId === log.id)}
                                                                             title="Limpar dados do ciclo associado a esta importação"
                                                                         >
                                                                             {isRollingBack && rollbackVars?.logId === log.id ? (
