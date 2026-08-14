@@ -22,7 +22,17 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-export default function Institutions() {
+interface InstitutionsProps {
+    embedded?: boolean;
+    initialTab?: "list" | "import" | "logs";
+    showCatalog?: boolean;
+}
+
+export default function Institutions({
+    embedded = false,
+    initialTab = "list",
+    showCatalog = true,
+}: InstitutionsProps) {
     const [page, setPage] = useState(0);
     const [search, setSearch] = useState("");
     const [searchInput, setSearchInput] = useState("");
@@ -31,6 +41,7 @@ export default function Institutions() {
     const { data, isLoading, isError } = useQuery({
         queryKey: ["institutions", page, pageSize, search],
         queryFn: () => getInstitutions(page, pageSize, search),
+        enabled: showCatalog,
     });
 
     const [logsPage, setLogsPage] = useState(0);
@@ -49,19 +60,19 @@ export default function Institutions() {
 
     return (
         <div className="p-6 space-y-6">
-            <div>
+            {!embedded && <div>
                 <h1 className="text-3xl font-bold tracking-tight">Instituições</h1>
                 <p className="text-muted-foreground">Visualize as instituições do Ministério da Educação e orquestre o pipeline de dados.</p>
-            </div>
+            </div>}
 
-            <Tabs defaultValue="list" className="w-full">
+            <Tabs defaultValue={initialTab} className="w-full">
                 <TabsList className="mb-4">
-                    <TabsTrigger value="list">Catálogo</TabsTrigger>
+                    {showCatalog && <TabsTrigger value="list">Catálogo</TabsTrigger>}
                     <TabsTrigger value="import">Importações (ETL)</TabsTrigger>
                     <TabsTrigger value="logs">Logs de Processamento</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="list" className="space-y-6">
+                {showCatalog && <TabsContent value="list" className="space-y-6">
                     <div className="flex items-center gap-2 max-w-sm">
                         <Input 
                             placeholder="Buscar por nome..." 
@@ -105,7 +116,7 @@ export default function Institutions() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    data?.data?.map((inst: any) => (
+                                    data?.data?.map((inst) => (
                                         <TableRow key={inst.id}>
                                             <TableCell className="font-medium">{inst.name}</TableCell>
                                             <TableCell>{inst.external_code || "-"}</TableCell>
@@ -143,7 +154,7 @@ export default function Institutions() {
                             </Button>
                         </div>
                     </div>
-                </TabsContent>
+                </TabsContent>}
 
                 <TabsContent value="import">
                     <ImportPipelineControl />
@@ -187,7 +198,7 @@ export default function Institutions() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    logs.map((log: any) => {
+                                    logs.map((log) => {
                                         const typeLabels: Record<string, string> = {
                                             sisu: "Base SiSU",
                                             sisu_vacancies: "Vagas SiSU",
@@ -328,10 +339,12 @@ export default function Institutions() {
                                                             ) : (
                                                                 <AlertDialog>
                                                                     <AlertDialogTrigger asChild>
+                                                                        {/* Rollback durante escrita pode deixar o ciclo parcialmente removido;
+                                                                            status running é uma trava de integridade, não apenas de UI. */}
                                                                         <Button
                                                                             variant="outline"
                                                                             size="sm"
-                                                                            disabled={log.status === 'running' || log.etl_type === 'emec' || log.etl_type.startsWith('refresh_') || (isRollingBack && rollbackVars?.logId === log.id)}
+                                                                            disabled={log.etl_type === 'emec' || log.etl_type.startsWith('refresh_') || (isRollingBack && rollbackVars?.logId === log.id)}
                                                                             title="Limpar dados do ciclo associado a esta importação"
                                                                         >
                                                                             {isRollingBack && rollbackVars?.logId === log.id ? (

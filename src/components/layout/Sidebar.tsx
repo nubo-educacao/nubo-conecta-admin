@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { EDUCATIONAL_NAV_ITEMS } from "./educationalNavigation";
 
 interface NavItemProps {
   to: string;
@@ -125,12 +126,9 @@ export default function Sidebar() {
       permission: "Dashboard",
       isGroup: true,
       items: [
-        { to: "/institutions", icon: GraduationCap, label: "Instituições & Importação", permission: "Dashboard" },
-        { to: "/educational/campus", icon: LayoutDashboard, label: "Campus", permission: "Dashboard" },
-        { to: "/educational/courses", icon: BookOpen, label: "Cursos", permission: "Dashboard" },
-        { to: "/educational/opportunities", icon: ClipboardList, label: "Oportunidades MEC", permission: "Dashboard" },
-        { to: "/programs", icon: GraduationCap, label: "Programas MEC", permission: "Dashboard" },
-        { to: "/calendar", icon: CalendarDays, label: "Calendário", permission: "Calendário" },
+        { ...EDUCATIONAL_NAV_ITEMS[0], icon: GraduationCap, permission: "Dashboard" },
+        { ...EDUCATIONAL_NAV_ITEMS[1], icon: Library, permission: "Dashboard" },
+        { ...EDUCATIONAL_NAV_ITEMS[2], icon: BookOpen, permission: "Dashboard" },
       ],
     },
     // ── Parceiros & B2B ────────────────────────────────────────────────────────
@@ -158,6 +156,7 @@ export default function Sidebar() {
       isGroup: true,
       items: [
         { to: "/students", icon: GraduationCap, label: "Estudantes & Famílias", permission: "Estudantes" },
+        { to: "/calendar", icon: CalendarDays, label: "Calendário Educacional", permission: "Calendário" },
         { to: "/app-cms", icon: Layers, label: "Vitrine & Destaques", permission: "Dashboard" },
         { to: "/influencers", icon: UsersRound, label: "Influencers", permission: "Influencers" },
         // Links de Divulgação fica ao lado de Influencers de propósito: e o
