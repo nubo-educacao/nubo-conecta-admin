@@ -18,13 +18,18 @@ interface TrackableLinkModalProps {
     influencerCode: string | null;
 }
 
+const DEFAULT_CONSUMER_APP_URL = "https://conecta.nuboeducacao.org.br";
+const CONSUMER_APP_URL = (
+    import.meta.env.VITE_CONSUMER_APP_URL || DEFAULT_CONSUMER_APP_URL
+).replace(/\/+$/, "");
+
 export default function TrackableLinkModal({
     open,
     onOpenChange,
     influencerCode,
 }: TrackableLinkModalProps) {
     const [copied, setCopied] = useState(false);
-    const link = `https://conecta.nuboeducacao.com.br/?ref=${influencerCode || ""}`;
+    const link = `${CONSUMER_APP_URL}/?ref=${encodeURIComponent(influencerCode || "")}`;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(link);
