@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -7,13 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/analytics/StatCard";
-import { Info, MousePointerClick, UserPlus, Sparkles, FileCheck } from "lucide-react";
+import { Info, MousePointerClick, UserPlus, Sparkles, FileCheck, Settings2 } from "lucide-react";
 import {
+    getCampaigns,
+    getChannels,
     getChannelPerformance,
     type GroupPerformance,
     type LinkPerformance,
 } from "@/services/channelsService";
+import ChannelEntityManager from "@/components/channels/ChannelEntityManager";
 
 // Canais & Campanhas — TP-7 7E task 16 / ADR-0028.
 //
@@ -94,12 +98,16 @@ export default function Channels() {
         since: null,
         until: null,
     });
+    const [tab, setTab] = useState("campaign");
+    const queryClient = useQueryClient();
 
     const { data, isLoading, error } = useQuery({
         queryKey: ["channel-performance", range],
         queryFn: () => getChannelPerformance(range.since, range.until),
         staleTime: 1000 * 60 * 5,
     });
+    const { data: campaigns = [] } = useQuery({ queryKey: ["campaigns"], queryFn: getCampaigns });
+    const { data: channels = [] } = useQuery({ queryKey: ["channels"], queryFn: () => getChannels(false) });
 
     if (isLoading) {
         return (
@@ -133,11 +141,17 @@ export default function Channels() {
 
     return (
         <div className="container space-y-6 py-6 px-3 sm:px-4 lg:px-8">
-            <div>
-                <h1 className="font-display text-2xl font-bold">Canais &amp; Campanhas</h1>
-                <p className="text-sm text-muted-foreground">
-                    Desempenho por campanha, divulgador e plataforma.
-                </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h1 className="font-display text-2xl font-bold">Canais &amp; Campanhas</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Desempenho por campanha, divulgador e plataforma.
+                    </p>
+                </div>
+                <Button variant="outline" onClick={() => setTab("manage")}>
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Gerenciar cadastros
+                </Button>
             </div>
 
             {/*
@@ -178,12 +192,13 @@ export default function Channels() {
                 <StatCard title="Candidaturas" value={totals.applied.toLocaleString("pt-BR")} icon={FileCheck} variant="default" />
             </section>
 
-            <Tabs defaultValue="campaign">
+            <Tabs value={tab} onValueChange={setTab}>
                 <TabsList>
                     <TabsTrigger value="campaign">Por campanha</TabsTrigger>
                     <TabsTrigger value="medium">Por tipo de canal</TabsTrigger>
                     <TabsTrigger value="platform">Por plataforma</TabsTrigger>
                     <TabsTrigger value="link">Por link</TabsTrigger>
+                    <TabsTrigger value="manage">Gerenciar cadastros</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="campaign" className="rounded-md border">
@@ -259,6 +274,19 @@ export default function Channels() {
                             )}
                         </TableBody>
                     </Table>
+                </TabsContent>
+
+                <TabsContent value="manage" className="rounded-md border p-4">
+                    <ChannelEntityManager
+                        campaigns={campaigns}
+                        channels={channels}
+                        onChanged={() => {
+                            queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+                            queryClient.invalidateQueries({ queryKey: ["channels"] });
+                            queryClient.invalidateQueries({ queryKey: ["channel-links"] });
+                            queryClient.invalidateQueries({ queryKey: ["channel-performance"] });
+                        }}
+                    />
                 </TabsContent>
             </Tabs>
         </div>

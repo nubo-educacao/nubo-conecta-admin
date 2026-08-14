@@ -31,7 +31,6 @@ import {
     type ChannelMedium,
 } from "@/services/channelsService";
 import { QuickCreateCampaign, QuickCreateChannel } from "./QuickCreate";
-import ChannelEntityManager from "./ChannelEntityManager";
 
 // Construtor de links — TP-7 7D task 12.
 //
@@ -69,7 +68,6 @@ export default function LinkBuilderModal({
     const [nickname, setNickname] = useState("");
     const [destination, setDestination] = useState("/");
     const [saving, setSaving] = useState(false);
-    const [managingEntities, setManagingEntities] = useState(false);
 
     const campaign = campaigns.find((c) => c.id === campaignId) ?? null;
     const channel = channels.find((c) => c.id === channelId) ?? null;
@@ -209,29 +207,6 @@ export default function LinkBuilderModal({
                                 setChannelId(c.id);
                             }}
                         />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-auto justify-start p-0 text-xs"
-                            onClick={() => setManagingEntities((current) => !current)}
-                        >
-                            {managingEntities ? "Fechar gestão de campanhas e divulgadores" : "Gerenciar campanhas e divulgadores"}
-                        </Button>
-                        {managingEntities && (
-                            <ChannelEntityManager
-                                campaigns={campaigns}
-                                channels={channels}
-                                onChanged={(kind, id) => {
-                                    if (kind === "campaign" && campaignId === id) setCampaignId("none");
-                                    if (kind === "channel" && channelId === id) setChannelId("");
-                                    onCreated();
-                                }}
-                            />
-                        )}
                     </div>
 
                     <div className="grid gap-2">
