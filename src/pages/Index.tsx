@@ -7,6 +7,8 @@ import { PowerUsersCard } from "@/components/analytics/PowerUsersCard";
 import { TotalUsersCard } from "@/components/analytics/TotalUsersCard";
 import { ActivityChart } from "@/components/analytics/ActivityChart";
 import { TopCoursesChart } from "@/components/analytics/TopCoursesChart";
+import { MatchHealthChart } from "@/components/analytics/MatchHealthChart";
+import { DemographicsCharts } from "@/components/analytics/DemographicsCharts";
 import { LocationPreferenceChart } from "@/components/analytics/LocationPreferenceChart";
 import { TopUsersChart } from "@/components/analytics/TopUsersChart";
 import { LocationChart } from "@/components/analytics/LocationChart";
@@ -96,7 +98,7 @@ const Index = () => {
         {/* Charts Row 1 */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           <ActivityChart />
-          <FlowFunnelChart />
+          <MatchHealthChart />
         </section>
 
         {/* Charts Row 2 - Rankings */}
@@ -111,6 +113,9 @@ const Index = () => {
           <LocationPreferenceChart />
         </section>
 
+
+        {/* Demografia (TP-1 1B) */}
+        <DemographicsCharts />
         {/* Quick Insights */}
         <section className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="stat-card">
