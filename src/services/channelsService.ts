@@ -140,6 +140,7 @@ export async function getCampaigns(): Promise<Campaign[]> {
     const { data, error } = await supabase
         .from("campaigns")
         .select("*")
+        .eq("active", true)
         .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []) as Campaign[];
@@ -147,7 +148,7 @@ export async function getCampaigns(): Promise<Campaign[]> {
 
 export async function getChannels(includeArchived = false): Promise<Channel[]> {
     let query = supabase.from("channels").select("*").order("name");
-    if (!includeArchived) query = query.is("archived_at", null);
+    if (!includeArchived) query = query.eq("active", true).is("archived_at", null);
     const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as Channel[];
@@ -291,6 +292,67 @@ export async function archiveChannelLink(id: string): Promise<void> {
         .update({ archived_at: new Date().toISOString() })
         .eq("id", id);
     if (error) throw error;
+}
+
+export interface ChannelEntityUsage {
+    campaignLinks: Record<string, number>;
+    channelLinks: Record<string, number>;
+}
+
+/** Uma leitura única mantém a decisão de apagar/arquivar visível sem N+1 requests. */
+export async function getChannelEntityUsage(): Promise<ChannelEntityUsage> {
+    const { data, error } = await supabase
+        .from("channel_links")
+        .select("campaign_id, channel_id");
+    if (error) throw error;
+
+    return (data ?? []).reduce<ChannelEntityUsage>((usage, link: any) => {
+        if (link.campaign_id) {
+            usage.campaignLinks[link.campaign_id] = (usage.campaignLinks[link.campaign_id] ?? 0) + 1;
+        }
+        usage.channelLinks[link.channel_id] = (usage.channelLinks[link.channel_id] ?? 0) + 1;
+        return usage;
+    }, { campaignLinks: {}, channelLinks: {} });
+}
+
+/**
+ * Sem links, a entidade pode desaparecer de vez. Com histórico, ela só deixa
+ * de ser oferecida para novos links — a referência e a atribuição ficam íntegras.
+ *
+ * A FK é a segunda barreira contra corrida: se um link nascer após a contagem,
+ * o DELETE falha com 23503 e fazemos o arquivamento seguro.
+ */
+export async function removeCampaign(id: string, hasLinks: boolean): Promise<"deleted" | "archived"> {
+    const archive = async () => {
+        const { error } = await supabase.from("campaigns").update({ active: false }).eq("id", id);
+        if (error) throw error;
+        return "archived" as const;
+    };
+
+    if (hasLinks) return archive();
+
+    const { error } = await supabase.from("campaigns").delete().eq("id", id);
+    if (!error) return "deleted";
+    if (error.code === "23503") return archive();
+    throw error;
+}
+
+export async function removeChannel(id: string, hasLinks: boolean): Promise<"deleted" | "archived"> {
+    const archive = async () => {
+        const { error } = await supabase
+            .from("channels")
+            .update({ active: false, archived_at: new Date().toISOString() })
+            .eq("id", id);
+        if (error) throw error;
+        return "archived" as const;
+    };
+
+    if (hasLinks) return archive();
+
+    const { error } = await supabase.from("channels").delete().eq("id", id);
+    if (!error) return "deleted";
+    if (error.code === "23503") return archive();
+    throw error;
 }
 
 // ─── Desempenho (TP-7 7E / ADR-0028) ─────────────────────────────────────────
