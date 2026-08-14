@@ -7,7 +7,6 @@ import { PowerUsersCard } from "@/components/analytics/PowerUsersCard";
 import { TotalUsersCard } from "@/components/analytics/TotalUsersCard";
 import { ActivityChart } from "@/components/analytics/ActivityChart";
 import { TopCoursesChart } from "@/components/analytics/TopCoursesChart";
-import { OpportunityTypesChart } from "@/components/analytics/OpportunityTypesChart";
 import { MatchHealthChart } from "@/components/analytics/MatchHealthChart";
 import { DemographicsCharts } from "@/components/analytics/DemographicsCharts";
 import { LocationPreferenceChart } from "@/components/analytics/LocationPreferenceChart";
@@ -108,12 +107,7 @@ const Index = () => {
           <TopCoursesChart />
         </section>
 
-        {/* Charts Row 3 - Opportunities */}
-        <section>
-          <OpportunityTypesChart />
-        </section>
-
-        {/* Charts Row 4 - Location */}
+        {/* Charts Row 3 - Location */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           <LocationChart />
           <LocationPreferenceChart />
