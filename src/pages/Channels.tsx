@@ -141,17 +141,11 @@ export default function Channels() {
 
     return (
         <div className="container space-y-6 py-6 px-3 sm:px-4 lg:px-8">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h1 className="font-display text-2xl font-bold">Canais &amp; Campanhas</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Desempenho por campanha, divulgador e plataforma.
-                    </p>
-                </div>
-                <Button variant="outline" onClick={() => setTab("manage")}>
-                    <Settings2 className="mr-2 h-4 w-4" />
-                    Gerenciar cadastros
-                </Button>
+            <div>
+                <h1 className="font-display text-2xl font-bold">Canais &amp; Campanhas</h1>
+                <p className="text-sm text-muted-foreground">
+                    Desempenho por campanha, divulgador e plataforma.
+                </p>
             </div>
 
             {/*
@@ -193,13 +187,23 @@ export default function Channels() {
             </section>
 
             <Tabs value={tab} onValueChange={setTab}>
-                <TabsList>
-                    <TabsTrigger value="campaign">Por campanha</TabsTrigger>
-                    <TabsTrigger value="medium">Por tipo de canal</TabsTrigger>
-                    <TabsTrigger value="platform">Por plataforma</TabsTrigger>
-                    <TabsTrigger value="link">Por link</TabsTrigger>
-                    <TabsTrigger value="manage">Gerenciar cadastros</TabsTrigger>
-                </TabsList>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <TabsList>
+                        <TabsTrigger value="campaign">Por campanha</TabsTrigger>
+                        <TabsTrigger value="medium">Por tipo de canal</TabsTrigger>
+                        <TabsTrigger value="platform">Por plataforma</TabsTrigger>
+                        <TabsTrigger value="link">Por link</TabsTrigger>
+                    </TabsList>
+                    <Button
+                        type="button"
+                        variant={tab === "manage" ? "secondary" : "outline"}
+                        onClick={() => setTab("manage")}
+                        aria-pressed={tab === "manage"}
+                    >
+                        <Settings2 className="mr-2 h-4 w-4" />
+                        Gerenciar cadastros
+                    </Button>
+                </div>
 
                 <TabsContent value="campaign" className="rounded-md border">
                     <GroupTable rows={data.by_campaign} label="Campanha" />
