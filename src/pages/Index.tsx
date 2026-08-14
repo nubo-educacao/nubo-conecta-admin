@@ -7,7 +7,6 @@ import { PowerUsersCard } from "@/components/analytics/PowerUsersCard";
 import { TotalUsersCard } from "@/components/analytics/TotalUsersCard";
 import { ActivityChart } from "@/components/analytics/ActivityChart";
 import { TopCoursesChart } from "@/components/analytics/TopCoursesChart";
-import { FlowFunnelChart } from "@/components/analytics/FlowFunnelChart";
 import { LocationPreferenceChart } from "@/components/analytics/LocationPreferenceChart";
 import { TopUsersChart } from "@/components/analytics/TopUsersChart";
 import { LocationChart } from "@/components/analytics/LocationChart";
