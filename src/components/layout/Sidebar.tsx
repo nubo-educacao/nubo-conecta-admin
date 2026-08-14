@@ -22,7 +22,6 @@ import {
   PieChart,
   Users,
   UserCog,
-  UsersRound,
   Smartphone,
   Layers,
   Settings,
@@ -129,6 +128,7 @@ export default function Sidebar() {
         { ...EDUCATIONAL_NAV_ITEMS[0], icon: GraduationCap, permission: "Dashboard" },
         { ...EDUCATIONAL_NAV_ITEMS[1], icon: Library, permission: "Dashboard" },
         { ...EDUCATIONAL_NAV_ITEMS[2], icon: BookOpen, permission: "Dashboard" },
+        { to: "/calendar", icon: CalendarDays, label: "Calendário Educacional", permission: "Calendário" },
       ],
     },
     // ── Parceiros & B2B ────────────────────────────────────────────────────────
@@ -156,14 +156,9 @@ export default function Sidebar() {
       isGroup: true,
       items: [
         { to: "/students", icon: GraduationCap, label: "Estudantes & Famílias", permission: "Estudantes" },
-        { to: "/calendar", icon: CalendarDays, label: "Calendário Educacional", permission: "Calendário" },
         { to: "/app-cms", icon: Layers, label: "Vitrine & Destaques", permission: "Dashboard" },
-        { to: "/influencers", icon: UsersRound, label: "Influencers", permission: "Influencers" },
-        // Links de Divulgação fica ao lado de Influencers de propósito: e o
-        // sucessor dele. O TrackableLinkModal da tela de Influencers gera
-        // ?ref= sem campanha nem plataforma; esta gera link governado.
-        { to: "/channel-links", icon: LinkIcon, label: "Links de Divulgação", permission: "Influencers" },
         { to: "/channels", icon: Radio, label: "Canais & Campanhas", permission: "Influencers" },
+        { to: "/channel-links", icon: LinkIcon, label: "Links de Divulgação", permission: "Influencers" },
         { to: "/sean-ellis", icon: PieChart, label: "Sean Ellis Score", permission: "Sean Ellis Score" },
       ],
     },
