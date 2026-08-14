@@ -339,6 +339,8 @@ export default function Institutions({
                                                             ) : (
                                                                 <AlertDialog>
                                                                     <AlertDialogTrigger asChild>
+                                                                        {/* Rollback durante escrita pode deixar o ciclo parcialmente removido;
+                                                                            status running é uma trava de integridade, não apenas de UI. */}
                                                                         <Button
                                                                             variant="outline"
                                                                             size="sm"
