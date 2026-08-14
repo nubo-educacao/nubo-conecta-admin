@@ -128,7 +128,7 @@ export function QuickCreateCampaign({ onCreated }: { onCreated: (c: Campaign) =>
             setName(""); setObjective(""); setOpen(false);
         } catch (err: any) {
             if (err?.code === "23505") {
-                toast.error("Já existe uma campanha com esse nome.");
+                toast.error("Já existe uma campanha com este identificador. Altere o nome da campanha.");
             } else {
                 toast.error("Não foi possível criar a campanha.");
                 console.error(err);
@@ -155,18 +155,26 @@ export function QuickCreateCampaign({ onCreated }: { onCreated: (c: Campaign) =>
                 </Button>
             </div>
             <div className="grid gap-2">
-                <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Bolsa Insper 2026"
-                    className="h-8 text-sm"
-                />
-                <Input
-                    value={objective}
-                    onChange={(e) => setObjective(e.target.value)}
-                    placeholder="Objetivo (opcional)"
-                    className="h-8 text-sm"
-                />
+                <div className="grid gap-1">
+                    <Label htmlFor="campaign-name" className="text-xs">Nome da campanha</Label>
+                    <Input
+                        id="campaign-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Bolsa Insper 2026"
+                        className="h-8 text-sm"
+                    />
+                </div>
+                <div className="grid gap-1">
+                    <Label htmlFor="campaign-objective" className="text-xs">Objetivo (opcional)</Label>
+                    <Input
+                        id="campaign-objective"
+                        value={objective}
+                        onChange={(e) => setObjective(e.target.value)}
+                        placeholder="Ex.: inscrições no processo seletivo"
+                        className="h-8 text-sm"
+                    />
+                </div>
             </div>
             {name.trim() && (
                 <p className="mt-2 text-[11px] text-muted-foreground">
