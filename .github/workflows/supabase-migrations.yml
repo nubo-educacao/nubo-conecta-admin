@@ -47,6 +47,7 @@ jobs:
           replay_root="$RUNNER_TEMP/nubo-supabase-replay"
           mkdir -p "$replay_root/supabase/migrations"
           cp supabase/config.toml "$replay_root/supabase/config.toml"
+          cp supabase/roles.sql "$replay_root/supabase/roles.sql"
           cp backup_prod_schema.sql "$replay_root/supabase/migrations/20260614170000_production_baseline.sql"
 
           for migration in supabase/migrations/*.sql; do
