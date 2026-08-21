@@ -41,12 +41,31 @@ jobs:
         with:
           version: 2.98.2
 
-      - name: Start a clean local database and apply all migrations
-        run: supabase db start
+      - name: Prepare the legacy production baseline
+        shell: bash
+        run: |
+          replay_root="$RUNNER_TEMP/nubo-supabase-replay"
+          mkdir -p "$replay_root/supabase/migrations"
+          cp supabase/config.toml "$replay_root/supabase/config.toml"
+          cp backup_prod_schema.sql "$replay_root/supabase/migrations/20260614170000_production_baseline.sql"
+
+          for migration in supabase/migrations/*.sql; do
+            name="$(basename "$migration")"
+            if [[ "$name" > "20260614170000_" ]]; then
+              cp "$migration" "$replay_root/supabase/migrations/$name"
+            fi
+          done
+
+          echo "REPLAY_ROOT=$replay_root" >> "$GITHUB_ENV"
+
+      - name: Start a clean local database and apply baseline plus forward migrations
+        shell: bash
+        run: cd "$REPLAY_ROOT" && supabase db start
 
       - name: Stop local database
         if: always()
-        run: supabase stop --no-backup
+        shell: bash
+        run: cd "$REPLAY_ROOT" && supabase stop --no-backup
 
   migrate-production:
     name: Supabase production migrations

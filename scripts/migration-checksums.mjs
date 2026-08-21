@@ -6,6 +6,7 @@ import process from "node:process";
 const root = process.cwd();
 const migrationsDirectory = path.join(root, "supabase", "migrations");
 const manifestPath = path.join(root, "supabase", "migrations.sha256");
+const baselinePath = path.join(root, "backup_prod_schema.sql");
 const migrationNamePattern = /^(\d{14})_[a-z0-9][a-z0-9_]*\.sql$/;
 
 const migrationFiles = (await readdir(migrationsDirectory, { withFileTypes: true }))
@@ -35,14 +36,22 @@ for (const fileName of migrationFiles) {
   timestamps.set(timestamp, fileName);
 }
 
+const schemaFiles = [
+  { absolutePath: baselinePath, relativePath: "backup_prod_schema.sql" },
+  ...migrationFiles.map((fileName) => ({
+    absolutePath: path.join(migrationsDirectory, fileName),
+    relativePath: `supabase/migrations/${fileName}`,
+  })),
+];
+
 const entries = await Promise.all(
-  migrationFiles.map(async (fileName) => {
-    const contents = await readFile(path.join(migrationsDirectory, fileName), "utf8");
+  schemaFiles.map(async ({ absolutePath, relativePath }) => {
+    const contents = await readFile(absolutePath, "utf8");
     const normalizedContents = contents.replace(/\r\n/g, "\n");
     const checksum = createHash("sha256")
       .update(normalizedContents, "utf8")
       .digest("hex");
-    return `${checksum}  supabase/migrations/${fileName}`;
+    return `${checksum}  ${relativePath}`;
   }),
 );
 
@@ -50,7 +59,9 @@ const expectedManifest = `${entries.join("\n")}\n`;
 
 if (process.argv.includes("--write")) {
   await writeFile(manifestPath, expectedManifest, "utf8");
-  console.log(`Updated ${path.relative(root, manifestPath)} (${entries.length} migrations).`);
+  console.log(
+    `Updated ${path.relative(root, manifestPath)} (${migrationFiles.length} migrations and one baseline).`,
+  );
   process.exit(0);
 }
 
@@ -74,4 +85,6 @@ if (currentManifest !== expectedManifest) {
   );
 }
 
-console.log(`Verified ${entries.length} immutable migrations.`);
+console.log(
+  `Verified ${migrationFiles.length} immutable migrations and the production baseline.`,
+);
