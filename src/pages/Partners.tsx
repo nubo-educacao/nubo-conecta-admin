@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { PartnerStats } from "@/components/partners/PartnerStats";
 import { PartnerTable } from "@/components/partners/PartnerTable";
 import { PartnerDialog } from "@/components/partners/PartnerDialog";
+import { CatalogSyncButton } from "@/components/partners/CatalogSyncButton";
 import {
     getPartners,
     getPartnerStatistics,
@@ -114,10 +115,13 @@ export default function Partners() {
                         Gerencie as instituições parceiras e suas informações de branding.
                     </p>
                 </div>
-                <Button onClick={handleAddPartner} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Novo Parceiro
-                </Button>
+                <div className="flex items-center gap-2">
+                    <CatalogSyncButton />
+                    <Button onClick={handleAddPartner} className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Novo Parceiro
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-4">

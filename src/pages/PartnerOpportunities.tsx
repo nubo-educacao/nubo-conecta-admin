@@ -17,6 +17,7 @@ import {
 } from '@/services/partnerOpportunitiesService';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
+import { CatalogSyncButton } from '@/components/partners/CatalogSyncButton';
 
 const STATUS_LABELS: Record<OpportunityStatus, string> = {
   inactive: 'Inativo',
@@ -216,13 +217,16 @@ export default function PartnerOpportunitiesPage() {
             {data?.count ?? 0} oportunidade{data?.count !== 1 ? 's' : ''}
           </span>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Nova Oportunidade
-        </button>
+        <div className="flex items-center gap-2">
+          <CatalogSyncButton />
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Nova Oportunidade
+          </button>
+        </div>
       </div>
 
       {/* Status filter */}

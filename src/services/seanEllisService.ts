@@ -27,31 +27,43 @@ export interface SeanEllisStats {
     disappointment_distribution: Record<string, number>;
 }
 
-export const importSeanEllisData = async (data: any[]): Promise<{ success: boolean; count: number }> => {
-    // Map CSV columns to JSON expected by RPC
-    // CSV headers: Carimbo de data/hora,Qual seu nome completo?,Qual seu Whatsapp?, ...
-    // We need to map these to: submitted_at, full_name, whatsapp_raw, etc.
+type CsvRow = Record<string, unknown>;
 
-    const mappedData = data.map((row: any) => ({
-        submitted_at: row["Carimbo de data/hora"],
-        full_name: row["Qual seu nome completo?"],
-        whatsapp_raw: row["Qual seu Whatsapp?"],
-        sisu_subscribed: row["Você se inscreveu no SISU 2026?"],
-        sisu_courses: row["Se sim, em quais cursos e universidades você se inscreveu no SISU?"],
-        sisu_status: row["E agora, olhando para o SISU, como está sua situação neste momento? ☁️"],
-        sisu_cloudinha_influence: row["A Cloudinha influenciou de alguma forma o curso em que você se inscreveu no SISU?"],
-        prouni_subscribed: row["Você se inscreveu no Prouni 2026?"],
-        prouni_courses: row["Em quais cursos e universidades você se inscreveu no Prouni?"],
-        prouni_cloudinha_influence: row["A Cloudinha influenciou de alguma forma o curso em que você se inscreveu no Prouni?"],
-        prouni_status: row["E agora, como está sua situação no Prouni nesse momento?"],
-        disappointment_level: row["Se a Cloudinha deixasse de existir, como você se sentiria?"],
-        feedback: row["Deixe seus comentários, feedbacks ou que achar relevante 💙☁️"]
-    }));
+function csvValue(row: CsvRow, ...headers: string[]) {
+    for (const header of headers) {
+        const value = row[header] ?? row[`\uFEFF${header}`];
+        if (value !== undefined && value !== null) return String(value).trim();
+    }
+    return "";
+}
+
+export const mapSeanEllisCsvRows = (rows: unknown[]) => rows.map((rawRow) => {
+    const row = rawRow && typeof rawRow === "object" ? rawRow as CsvRow : {};
+
+    return {
+    submitted_at: csvValue(row, "Carimbo de data/hora"),
+    full_name: csvValue(row, "Qual seu nome completo?"),
+    whatsapp_raw: csvValue(row, "Qual seu Whatsapp?", "Qual seu WhatsApp?"),
+    sisu_subscribed: csvValue(row, "Você se inscreveu no SISU 2026?"),
+    sisu_courses: csvValue(row, "Se sim, em quais cursos e universidades você se inscreveu no SISU?"),
+    sisu_status: csvValue(row, "E agora, olhando para o SISU, como está sua situação neste momento? ☁️"),
+    sisu_cloudinha_influence: csvValue(row, "A Cloudinha influenciou de alguma forma o curso em que você se inscreveu no SISU?"),
+    prouni_subscribed: csvValue(row, "Você se inscreveu no Prouni 2026?", "Você se inscreveu no PROUNI 2026?"),
+    prouni_courses: csvValue(row, "Em quais cursos e universidades você se inscreveu no Prouni?"),
+    prouni_cloudinha_influence: csvValue(row, "A Cloudinha influenciou de alguma forma o curso em que você se inscreveu no Prouni?"),
+    prouni_status: csvValue(row, "E agora, como está sua situação no Prouni nesse momento?"),
+    disappointment_level: csvValue(row, "Se a Cloudinha deixasse de existir, como você se sentiria?"),
+    feedback: csvValue(row, "Deixe seus comentários, feedbacks ou que achar relevante 💙☁️"),
+    };
+});
+
+export const importSeanEllisData = async (data: unknown[]): Promise<{ success: boolean; count: number }> => {
+    const mappedData = mapSeanEllisCsvRows(data);
 
     const { data: result, error } = await supabase.rpc('import_sean_ellis_data', { data: mappedData });
 
     if (error) throw error;
-    return result as any;
+    return result as { success: boolean; count: number };
 };
 
 export const getSeanEllisData = async (
@@ -79,7 +91,7 @@ export const getSeanEllisData = async (
 
     if (error) throw error;
 
-    const result = data as any;
+    const result = data as { data?: SeanEllisScore[]; count?: number } | null;
     return {
         data: (result?.data || []) as SeanEllisScore[],
         count: result?.count || 0
@@ -100,5 +112,5 @@ export const getSeanEllisStats = async (filters?: StudentFilters): Promise<SeanE
     const { data, error } = await supabase.rpc('get_sean_ellis_stats', paramFilters);
 
     if (error) throw error;
-    return data as any as SeanEllisStats;
+    return data as SeanEllisStats;
 };

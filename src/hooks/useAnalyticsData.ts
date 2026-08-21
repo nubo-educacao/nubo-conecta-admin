@@ -3,12 +3,11 @@ import {
   fetchDashboardStats,
   fetchActivityData,
   fetchTopCourses,
-  fetchFunnelData,
+  fetchCommandCenterDemographics,
   fetchUserPreferences,
   fetchErrorLogs,
   fetchTopUsers,
   fetchLocationData,
-  fetchOpportunityTypes,
   type DateRange,
   type ErrorLog,
 } from "@/lib/analytics-queries";
@@ -38,12 +37,16 @@ export function useTopCourses() {
   });
 }
 
-export function useFunnelData() {
+/**
+ * Saúde do match + demografia num único round-trip (TP-1 1B).
+ * Substituiu useFunnelData: o funil linear saiu do Command Center por decisão
+ * da ADR-0027 — funis viraram por domínio (MEC e parceiro), em telas próprias.
+ */
+export function useCommandCenterDemographics() {
   return useQuery({
-    queryKey: ["funnel-data"],
-    queryFn: fetchFunnelData,
-    staleTime: 1000 * 30, // 30 seconds for fresher data
-    refetchOnWindowFocus: true,
+    queryKey: ["command-center-demographics"],
+    queryFn: fetchCommandCenterDemographics,
+    staleTime: 1000 * 60 * 10,
   });
 }
 
@@ -77,13 +80,5 @@ export function useLocationData() {
     queryKey: ["location-data"],
     queryFn: fetchLocationData,
     staleTime: 1000 * 60 * 30,
-  });
-}
-
-export function useOpportunityTypes() {
-  return useQuery({
-    queryKey: ["opportunity-types"],
-    queryFn: fetchOpportunityTypes,
-    staleTime: 1000 * 60 * 15,
   });
 }

@@ -137,16 +137,45 @@ export async function fetchTopCourses(): Promise<CourseInterest[]> {
   return response.data as CourseInterest[];
 }
 
-// Fetch funnel data
-export async function fetchFunnelData(): Promise<FunnelStep[]> {
-  const { data, error } = await supabase.functions.invoke('analytics-funnel');
+// ── Saúde do Match & Demografia (TP-1 1B / ADR-0027) ────────────────────────
+//
+// Substitui o funil linear, removido daqui. A ADR-0023 foi deprecada e a
+// ADR-0027 move funil para os dashboards de domínio (MEC e parceiro), que são
+// separados. Match não é etapa de funil — é saúde do motor, e vira pizza.
+
+export interface DistributionSlice {
+  label: string;
+  value: number;
+}
+
+export interface MatchHealth {
+  with_match: number;
+  without_match: number;
+  total: number;
+}
+
+export interface CommandCenterDemographics {
+  match_health: MatchHealth;
+  education: DistributionSlice[];
+  income: DistributionSlice[];
+  race: DistributionSlice[];
+  school_type: DistributionSlice[];
+}
+
+/**
+ * Uma RPC, um round-trip, cinco distribuições — em vez de 4 varreduras da mesma
+ * tabela com os mesmos joins. Devolve apenas contagens agregadas e exige
+ * is_backoffice_admin() no banco.
+ */
+export async function fetchCommandCenterDemographics(): Promise<CommandCenterDemographics> {
+  const { data, error } = await (supabase.rpc as any)('get_command_center_demographics');
 
   if (error) {
-    console.error('Error fetching funnel data:', error);
+    console.error('Error fetching command center demographics:', error);
     throw error;
   }
 
-  return data as FunnelStep[];
+  return data as CommandCenterDemographics;
 }
 
 // Fetch user preferences distribution
@@ -207,55 +236,4 @@ export async function fetchLocationData(): Promise<LocationData[]> {
   }
 
   return response.data as LocationData[];
-}
-
-// Opportunity Types interfaces - Updated for user behavior focus
-export interface SavedOpportunity {
-  type: string;
-  count: number;
-  uniqueUsers: number;
-}
-
-export interface ProgramPreference {
-  name: string;
-  count: number;
-  percentage: number;
-}
-
-export interface ModalityBreakdown {
-  name: string;
-  count: number;
-}
-
-export interface ConversionInsight {
-  interestedInSisu: number;
-  savedSisu: number;
-  interestedInProuni: number;
-  savedProuni: number;
-}
-
-export interface OpportunityTypesData {
-  savedOpportunities: {
-    byType: SavedOpportunity[];
-    withVagasOciosas: number;
-    total: number;
-  };
-  programPreferences: ProgramPreference[];
-  vagasOciosas: {
-    total: number;
-    byModality: ModalityBreakdown[];
-  };
-  conversionInsight: ConversionInsight;
-}
-
-// Fetch opportunity types data
-export async function fetchOpportunityTypes(): Promise<OpportunityTypesData> {
-  const { data, error } = await supabase.functions.invoke('analytics-opportunities');
-
-  if (error) {
-    console.error('Error fetching opportunity types:', error);
-    throw error;
-  }
-
-  return data as OpportunityTypesData;
 }
