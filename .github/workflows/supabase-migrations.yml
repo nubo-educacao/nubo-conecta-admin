@@ -17,10 +17,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
@@ -51,7 +51,8 @@ jobs:
 
           for migration in supabase/migrations/*.sql; do
             name="$(basename "$migration")"
-            if [[ "$name" > "20260614170000_" ]]; then
+            timestamp="${name:0:14}"
+            if [[ "$timestamp" > "20260614170000" ]]; then
               cp "$migration" "$replay_root/supabase/migrations/$name"
             fi
           done
@@ -93,7 +94,7 @@ jobs:
           fi
 
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
