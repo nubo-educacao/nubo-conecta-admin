@@ -144,13 +144,13 @@ CREATE OR REPLACE FUNCTION "public"."_eligib_to_num"("p_text" "text") RETURNS nu
     LANGUAGE "sql" IMMUTABLE
     AS $$
     SELECT NULLIF(
-        CASE 
-            WHEN p_text LIKE '%,%' THEN 
+        CASE
+            WHEN p_text LIKE '%,%' THEN
                 regexp_replace(
                     replace(replace(btrim(p_text), '.', ''), ',', '.'),
                     '[^0-9.-]', '', 'g'
                 )
-            ELSE 
+            ELSE
                 regexp_replace(btrim(p_text), '[^0-9.-]', '', 'g')
         END,
         ''
@@ -493,9 +493,9 @@ BEGIN
     v_profile_id := COALESCE(v_app_record.target_id, v_app_record.user_id);
 
     -- 2. Get target profile for fallback (age, etc) - also get current eligibility_results
-    SELECT to_jsonb(p.*), COALESCE(p.eligibility_results, '[]'::jsonb) 
-    INTO v_profile_json, v_existing_results 
-    FROM public.user_profiles p 
+    SELECT to_jsonb(p.*), COALESCE(p.eligibility_results, '[]'::jsonb)
+    INTO v_profile_json, v_existing_results
+    FROM public.user_profiles p
     WHERE p.id = v_profile_id;
 
     -- 3. Initialize results for this specific partner
@@ -508,9 +508,9 @@ BEGIN
     );
 
     -- 4. Evaluate each criterion from partner_forms
-    FOR v_form_record IN 
-        SELECT field_name, mapping_source, criterion_rule 
-        FROM public.partner_forms 
+    FOR v_form_record IN
+        SELECT field_name, mapping_source, criterion_rule
+        FROM public.partner_forms
         WHERE partner_id = v_partner_id AND is_criterion = true
     LOOP
         BEGIN
@@ -531,7 +531,7 @@ BEGIN
             -- Only count if value exists
             IF v_value IS NOT NULL AND v_value::text <> 'null' AND v_value::text <> '""' THEN
                 -- Increment total criteria
-                v_partner_results := jsonb_set(v_partner_results, '{total_criteria}', 
+                v_partner_results := jsonb_set(v_partner_results, '{total_criteria}',
                     to_jsonb((v_partner_results->>'total_criteria')::int + 1));
 
                 -- Evaluation: Real logic evaluation in SQL
@@ -548,7 +548,7 @@ BEGIN
                             IF jsonb_typeof(v_args) = 'array' THEN
                                 v_val1 := v_value;
                                 v_val2 := v_args -> 1;
-                                
+
                                 CASE v_op
                                     WHEN '==' THEN
                                         v_met := (v_val1 = v_val2 OR v_val1::text = v_val2::text);
@@ -575,12 +575,12 @@ BEGIN
                 END IF;
 
                 IF v_met THEN
-                    v_partner_results := jsonb_set(v_partner_results, '{met_criteria}', 
+                    v_partner_results := jsonb_set(v_partner_results, '{met_criteria}',
                         to_jsonb((v_partner_results->>'met_criteria')::int + 1));
                 END IF;
 
                 -- Add detail
-                v_partner_results := jsonb_set(v_partner_results, '{details}', 
+                v_partner_results := jsonb_set(v_partner_results, '{details}',
                     (v_partner_results->'details') || jsonb_build_object('field', v_form_record.field_name, 'met', v_met));
             END IF;
         EXCEPTION WHEN OTHERS THEN
@@ -590,7 +590,7 @@ BEGIN
 
     -- 5. Prepare results array (MERGE with existing instead of overwriting)
     v_results := jsonb_build_array(v_partner_results);
-    
+
     -- Loop through existing results to construct the new merged array
     IF jsonb_typeof(v_existing_results) = 'array' THEN
         FOR v_existing_partner IN SELECT * FROM jsonb_array_elements(v_existing_results)
@@ -604,7 +604,7 @@ BEGIN
                 v_merged_results := v_merged_results || v_existing_partner;
             END IF;
         END LOOP;
-        
+
         -- If partner wasn't in existing results, append it
         IF NOT v_found THEN
             v_merged_results := v_merged_results || v_partner_results;
@@ -1206,7 +1206,7 @@ CREATE OR REPLACE FUNCTION "public"."calculate_match_async_worker"("p_profile_id
     AS $$
 BEGIN
     -- Marcar como processando
-    UPDATE public.user_preferences 
+    UPDATE public.user_preferences
     SET match_status = 'processing', last_match_at = now()
     WHERE user_id = p_profile_id;
 
@@ -1215,12 +1215,12 @@ BEGIN
     PERFORM public.calculate_match(p_profile_id);
 
     -- Marcar como concluído
-    UPDATE public.user_preferences 
+    UPDATE public.user_preferences
     SET match_status = 'ready'
     WHERE user_id = p_profile_id;
 EXCEPTION WHEN OTHERS THEN
     -- Marcar erro em caso de falha
-    UPDATE public.user_preferences 
+    UPDATE public.user_preferences
     SET match_status = 'error'
     WHERE user_id = p_profile_id;
     RAISE;
@@ -1389,11 +1389,11 @@ DECLARE
     user_phone TEXT;
     clean_user_phone TEXT;
 BEGIN
-    -- Get phone from auth.users (Requires SECURITY DEFINER to access auth schema if not admin, 
+    -- Get phone from auth.users (Requires SECURITY DEFINER to access auth schema if not admin,
     -- but usually triggers run with privileges of table owner or we can force it)
     -- However, accessing auth.users directly in a trigger for public table can be tricky with permissions.
     -- We'll SELECT into a variable.
-    
+
     SELECT phone INTO user_phone
     FROM auth.users
     WHERE id = NEW.id;
@@ -1404,15 +1404,15 @@ BEGIN
         clean_user_phone := public.clean_phone_number(user_phone);
 
         -- Check whitelist. We assume whitelist stores numbers without country code if CSV doesn't have it,
-        -- OR we need robust matching. 
+        -- OR we need robust matching.
         -- The CSV shows "(11) 95408-1455". Cleaning gives "11954081455".
         -- auth.users usually has E.164: "5511954081455".
         -- MATCHING STRATEGY: Check if clean_user_phone ENDS WITH the whitelisted number.
-        
-        PERFORM 1 
+
+        PERFORM 1
         FROM public.nubo_student_whitelist
         WHERE clean_user_phone LIKE '%' || phone_number;
-        
+
         IF FOUND THEN
             NEW.is_nubo_student := TRUE;
         END IF;
@@ -2283,7 +2283,7 @@ DECLARE
   v_errors TEXT;
   v_processed INTEGER := 0;
   v_cycles TEXT;
-  
+
   v_opps_count INTEGER := 0;
   v_inst_count INTEGER := 0;
   v_campus_count INTEGER := 0;
@@ -2295,46 +2295,46 @@ BEGIN
 
   BEGIN
     REFRESH MATERIALIZED VIEW CONCURRENTLY public.v_unified_opportunities;
-    
+
     -- Contar registros pós-refresh
     SELECT count(*) INTO v_processed FROM public.v_unified_opportunities;
     v_opps_count := v_processed;
-    
+
     SELECT count(*) INTO v_inst_count FROM public.v_unified_institutions;
-    
+
     SELECT count(DISTINCT c.campus_id) INTO v_campus_count
     FROM public.opportunities o
     JOIN public.programs p ON p.cycle_year = o.year AND p.cycle_semester = o.semester AND p.type = o.opportunity_type
     JOIN public.courses c ON c.id = o.course_id
     WHERE p.status IN ('incoming', 'opened', 'closed');
-    
+
     -- Listar ciclos ativos sincronizados
     SELECT string_agg(title || ' (' || status || ')', ', ')
     INTO v_cycles
-    FROM public.programs 
+    FROM public.programs
     WHERE status != 'inactive';
-    
+
     v_details := 'Ciclos Sincronizados: ' || COALESCE(v_cycles, 'Nenhum') || E'\n' ||
                  'Oportunidades (Cursos): ' || v_opps_count || E'\n' ||
                  'Câmpus: ' || COALESCE(v_campus_count, 0) || E'\n' ||
                  'Instituições: ' || v_inst_count;
-                 
+
   EXCEPTION WHEN OTHERS THEN
     v_errors := SQLERRM;
   END;
 
   IF v_errors IS NULL THEN
-    UPDATE public.etl_run_logs 
-    SET status = 'success', 
-        records_processed = v_processed, 
+    UPDATE public.etl_run_logs
+    SET status = 'success',
+        records_processed = v_processed,
         errors = v_details,
-        finished_at = now() 
+        finished_at = now()
     WHERE id = v_log_id;
   ELSE
-    UPDATE public.etl_run_logs 
-    SET status = 'error', 
-        errors = v_errors, 
-        finished_at = now() 
+    UPDATE public.etl_run_logs
+    SET status = 'error',
+        errors = v_errors,
+        finished_at = now()
     WHERE id = v_log_id;
   END IF;
 
@@ -2662,14 +2662,14 @@ BEGIN
   BEGIN
     -- 1. Insert institutions using CO_IES (clean dots if any)
     INSERT INTO public.institutions (external_code, name)
-    SELECT DISTINCT replace(r."CO_IES", '.', '') as external_code, r."NO_IES" 
+    SELECT DISTINCT replace(r."CO_IES", '.', '') as external_code, r."NO_IES"
     FROM (SELECT * FROM public.rawsisu ORDER BY "CO_IES", "NO_CAMPUS", "CO_IES_CURSO", "DS_TURNO", "DS_MOD_CONCORRENCIA" LIMIT p_limit OFFSET p_offset) r
     WHERE r."CO_IES" IS NOT NULL AND replace(r."CO_IES", '.', '') <> ''
     ON CONFLICT (external_code) DO UPDATE SET name = EXCLUDED.name;
 
     -- 2. Insert campus using unique constraint (institution_id, name, city)
     INSERT INTO public.campus (institution_id, name, city, state, region)
-    SELECT DISTINCT i.id, r."NO_CAMPUS", 
+    SELECT DISTINCT i.id, r."NO_CAMPUS",
       COALESCE(
         (SELECT c.name FROM public.cities c
          WHERE public.f_unaccent(lower(c.name)) = public.f_unaccent(lower(r."NO_MUNICIPIO_CAMPUS"))
@@ -2694,22 +2694,22 @@ BEGIN
 
     -- 4. Bulk Upsert Opportunities & update Vacancies records
     WITH batched_raw AS (
-      SELECT * FROM public.rawsisu 
-      ORDER BY "CO_IES", "NO_CAMPUS", "CO_IES_CURSO", "DS_TURNO", "DS_MOD_CONCORRENCIA" 
+      SELECT * FROM public.rawsisu
+      ORDER BY "CO_IES", "NO_CAMPUS", "CO_IES_CURSO", "DS_TURNO", "DS_MOD_CONCORRENCIA"
       LIMIT p_limit OFFSET p_offset
     ),
     mapped_raw AS (
-      SELECT 
-        c.id AS course_id, 
-        v_semester AS semester, 
-        r."DS_TURNO" AS shift, 
+      SELECT
+        c.id AS course_id,
+        v_semester AS semester,
+        r."DS_TURNO" AS shift,
         r."DS_MOD_CONCORRENCIA" AS concurrency_type,
         (SELECT tags FROM public.concurrency_tag_rules WHERE type_name = r."DS_MOD_CONCORRENCIA" LIMIT 1) AS concurrency_tags,
-        v_year AS year, 
+        v_year AS year,
         'sisu'::text AS opportunity_type,
-        CASE 
-          WHEN r."NU_NOTACORTE" IS NULL OR TRIM(r."NU_NOTACORTE") = '' THEN NULL 
-          ELSE REPLACE(REPLACE(TRIM(r."NU_NOTACORTE"), '.', ''), ',', '.')::numeric 
+        CASE
+          WHEN r."NU_NOTACORTE" IS NULL OR TRIM(r."NU_NOTACORTE") = '' THEN NULL
+          ELSE REPLACE(REPLACE(TRIM(r."NU_NOTACORTE"), '.', ''), ',', '.')::numeric
         END AS cutoff_score,
         replace(r."QT_INSCRICAO", '.', '') AS qt_inscricao,
         to_jsonb(r) AS raw_data
@@ -2719,8 +2719,8 @@ BEGIN
       JOIN public.courses c ON c.campus_id = ca.id AND c.course_code = replace(r."CO_IES_CURSO", '.', '')
     ),
     mapped AS (
-      SELECT DISTINCT ON (course_id, opportunity_type, year, semester, shift, concurrency_type) * 
-      FROM mapped_raw 
+      SELECT DISTINCT ON (course_id, opportunity_type, year, semester, shift, concurrency_type) *
+      FROM mapped_raw
       ORDER BY course_id, opportunity_type, year, semester, shift, concurrency_type, cutoff_score DESC
     ),
     upserted AS (
@@ -2729,7 +2729,7 @@ BEGIN
       )
       SELECT course_id, semester, shift, concurrency_type, concurrency_tags, year, opportunity_type, cutoff_score, raw_data
       FROM mapped
-      ON CONFLICT (course_id, opportunity_type, year, semester, shift, concurrency_type) 
+      ON CONFLICT (course_id, opportunity_type, year, semester, shift, concurrency_type)
       WHERE concurrency_type IS NOT NULL
       DO UPDATE SET
         cutoff_score = EXCLUDED.cutoff_score,
@@ -2773,7 +2773,7 @@ BEGIN
       v_detail_msg := 'Sisu importado com sucesso.' || chr(10) || '• Linhas no arquivo raw:          ' || v_raw_count || chr(10) || '• IES distintas no arquivo:       ' || v_inst_count || chr(10) || '• Campus distintos:               ' || v_campus_count || chr(10) || '• Cursos distintos:               ' || v_course_count || chr(10) || '• Oportunidades no ciclo:         ' || v_opp_count;
       UPDATE public.etl_run_logs SET status = 'success', errors = v_detail_msg, finished_at = now() WHERE id = v_log_id;
       TRUNCATE TABLE public.rawsisu;
-      
+
       -- Mark program as fully imported
       UPDATE public.programs SET is_fully_imported = true WHERE id = p_program_id;
     ELSE
@@ -2922,8 +2922,8 @@ BEGIN
       "NO_CURSO" AS course_name,
       "DS_GRAU" AS degree_type
     FROM public.rawsisuvacancies
-    WHERE "CO_IES" IS NOT NULL AND replace("CO_IES", '.', '') <> '' 
-      AND "NO_CAMPUS" IS NOT NULL 
+    WHERE "CO_IES" IS NOT NULL AND replace("CO_IES", '.', '') <> ''
+      AND "NO_CAMPUS" IS NOT NULL
       AND "CO_IES_CURSO" IS NOT NULL AND replace("CO_IES_CURSO", '.', '') <> ''
   LOOP
     BEGIN
@@ -2958,8 +2958,8 @@ BEGIN
       "DS_MOD_CONCORRENCIA"     AS concurrency_type,
       *
     FROM public.rawsisuvacancies
-    WHERE "CO_IES" IS NOT NULL AND replace("CO_IES", '.', '') <> '' 
-      AND "NO_CAMPUS" IS NOT NULL 
+    WHERE "CO_IES" IS NOT NULL AND replace("CO_IES", '.', '') <> ''
+      AND "NO_CAMPUS" IS NOT NULL
       AND "CO_IES_CURSO" IS NOT NULL AND replace("CO_IES_CURSO", '.', '') <> ''
   LOOP
     BEGIN
@@ -2973,7 +2973,7 @@ BEGIN
       LIMIT 1;
 
       IF v_course_id IS NOT NULL THEN
-        
+
         -- Create or update Opportunity (Without cutoff_score, as it comes from Base)
         INSERT INTO public.opportunities (
           course_id,
@@ -3376,20 +3376,20 @@ BEGIN
   IF NOT v_has_more THEN
     BEGIN
       -- Propagate cutoff_score from previous cycle (handling MEC data inconsistencies)
-      UPDATE public.opportunities op_curr 
-      SET cutoff_score = op_prev.cutoff_score 
+      UPDATE public.opportunities op_curr
+      SET cutoff_score = op_prev.cutoff_score
       FROM public.opportunities op_prev
       JOIN public.courses c_prev ON c_prev.id = op_prev.course_id
       JOIN public.campus ca_prev ON ca_prev.id = c_prev.campus_id
       JOIN public.campus ca_curr ON ca_curr.institution_id = ca_prev.institution_id AND lower(public.f_unaccent(ca_curr.name)) = lower(public.f_unaccent(ca_prev.name))
       JOIN public.courses c_curr ON c_curr.campus_id = ca_curr.id AND lower(public.f_unaccent(c_curr.course_name)) = lower(public.f_unaccent(c_prev.course_name))
-      WHERE op_curr.course_id = c_curr.id 
-      AND op_curr.opportunity_type = 'sisu' AND op_curr.year = v_year AND op_curr.semester = v_semester 
-      AND op_prev.opportunity_type = 'sisu' AND op_prev.year = v_prev_year AND op_prev.semester = v_prev_semester 
-      AND op_curr.shift = op_prev.shift 
+      WHERE op_curr.course_id = c_curr.id
+      AND op_curr.opportunity_type = 'sisu' AND op_curr.year = v_year AND op_curr.semester = v_semester
+      AND op_prev.opportunity_type = 'sisu' AND op_prev.year = v_prev_year AND op_prev.semester = v_prev_semester
+      AND op_curr.shift = op_prev.shift
       AND (
           op_curr.concurrency_type = op_prev.concurrency_type OR
-          (op_curr.concurrency_tags IS NOT NULL AND op_prev.concurrency_tags IS NOT NULL AND 
+          (op_curr.concurrency_tags IS NOT NULL AND op_prev.concurrency_tags IS NOT NULL AND
            op_curr.concurrency_tags::text = op_prev.concurrency_tags::text)
       )
       AND op_prev.cutoff_score IS NOT NULL AND op_curr.cutoff_score IS NULL;
@@ -3891,7 +3891,7 @@ CREATE OR REPLACE FUNCTION "public"."get_admin_applications_over_time"() RETURNS
     AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         to_char(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS date,
         COUNT(*) AS count
     FROM public.student_applications
@@ -4331,15 +4331,15 @@ CREATE OR REPLACE FUNCTION "public"."get_backoffice_users"() RETURNS TABLE("id" 
     AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         u.id,
         u.email::TEXT,
         ARRAY_AGG(up.permission ORDER BY up.permission) as permissions
-    FROM 
+    FROM
         auth.users u
-    JOIN 
+    JOIN
         public.user_permissions up ON u.id = up.user_id
-    GROUP BY 
+    GROUP BY
         u.id, u.email;
 END;
 $$;
@@ -4512,7 +4512,7 @@ CREATE OR REPLACE FUNCTION "public"."get_chat_analytics_summary"("p_date_from" t
 BEGIN
     RETURN QUERY
     WITH msg_stats AS (
-        SELECT 
+        SELECT
             cm.user_id,
             count(*) as total_msgs,
             max(cm.created_at) as last_act,
@@ -4522,24 +4522,24 @@ BEGIN
             -- Simple dominant workflow approximation: most recent non-null workflow
             (array_agg(cm.workflow ORDER BY cm.created_at DESC) FILTER (WHERE cm.workflow IS NOT NULL))[1] as last_workflow
         FROM chat_messages cm
-        WHERE cm.created_at >= p_date_from 
+        WHERE cm.created_at >= p_date_from
           AND cm.created_at <= p_date_to
           AND cm.user_id IS NOT NULL -- filter out system/null user messages if any
         GROUP BY cm.user_id
     ),
     fav_stats AS (
-        SELECT 
-            uf.user_id 
+        SELECT
+            uf.user_id
         FROM user_favorites uf
         GROUP BY uf.user_id
     )
-    SELECT 
+    SELECT
         ms.user_id,
         COALESCE(p.full_name, 'Usuário Anônimo') as user_name,
         p.city,
         p.age,
         -- Funnel Stage Logic (Priority Order matches TS code)
-        CASE 
+        CASE
             WHEN ms.has_specific_flow THEN 'Fluxo Específico'
             WHEN fs.user_id IS NOT NULL THEN 'Salvaram Favoritos'
             WHEN (pref.workflow_data IS NOT NULL AND pref.workflow_data != '{}'::jsonb) THEN 'Match Realizado'
@@ -4684,7 +4684,7 @@ CREATE OR REPLACE FUNCTION "public"."get_courses_with_opportunities"("page_numbe
     LANGUAGE "sql"
     AS $$
   WITH filtered_courses AS (
-    SELECT 
+    SELECT
       mv.course_id as id,
       mv.course_name,
       mv.institution_name,
@@ -4696,11 +4696,11 @@ CREATE OR REPLACE FUNCTION "public"."get_courses_with_opportunities"("page_numbe
       mv.min_cutoff,
       mv.igc_value,
       -- Check if we can calculate distance
-      CASE 
+      CASE
         WHEN user_lat IS NOT NULL AND user_long IS NOT NULL AND mv.latitude IS NOT NULL AND mv.longitude IS NOT NULL THEN
             (point(mv.longitude, mv.latitude) <@> point(user_long, user_lat)) * 1.60934
-        ELSE 
-            NULL 
+        ELSE
+            NULL
       END as distance_km
     FROM mv_course_catalog mv
     WHERE
@@ -4723,40 +4723,40 @@ CREATE OR REPLACE FUNCTION "public"."get_courses_with_opportunities"("page_numbe
   sorted_courses AS (
     SELECT * FROM filtered_courses
     ORDER BY
-      CASE 
+      CASE
         WHEN sort_by = 'proximas' AND user_lat IS NOT NULL THEN
            distance_km
         ELSE NULL
       END ASC NULLS LAST,
-      
+
       -- Fallback for 'proximas' when distance is NULL (missing coords) or user_lat is NULL
-      CASE 
+      CASE
         WHEN sort_by = 'proximas' THEN
-           CASE 
-             WHEN user_city IS NOT NULL AND f_unaccent(city) ILIKE f_unaccent(user_city) THEN 0 
-             ELSE 1 
-           END
-        ELSE 0
-      END ASC,
-      
-      CASE 
-        WHEN sort_by = 'proximas' THEN
-           CASE 
-             WHEN user_state IS NOT NULL AND state ILIKE user_state THEN 0 
-             ELSE 1 
+           CASE
+             WHEN user_city IS NOT NULL AND f_unaccent(city) ILIKE f_unaccent(user_city) THEN 0
+             ELSE 1
            END
         ELSE 0
       END ASC,
 
-      CASE 
+      CASE
+        WHEN sort_by = 'proximas' THEN
+           CASE
+             WHEN user_state IS NOT NULL AND state ILIKE user_state THEN 0
+             ELSE 1
+           END
+        ELSE 0
+      END ASC,
+
+      CASE
         WHEN sort_by = 'melhores' THEN igc_value
-        ELSE 0 
+        ELSE 0
       END DESC,
-      CASE 
+      CASE
         WHEN sort_by = 'maior_nota' THEN max_cutoff
         ELSE NULL
       END DESC NULLS LAST,
-      CASE 
+      CASE
         WHEN sort_by = 'menor_nota' THEN min_cutoff
         ELSE NULL
       END ASC NULLS LAST,
@@ -4850,26 +4850,26 @@ DECLARE
     result JSON;
 BEGIN
     -- Total affiliates
-    SELECT COUNT(*) INTO total_affiliates 
-    FROM public.user_profiles 
+    SELECT COUNT(*) INTO total_affiliates
+    FROM public.user_profiles
     WHERE referral_source IS NOT NULL;
 
     -- Best influencer
-    SELECT 
+    SELECT
         i.name, COUNT(up.id) as cnt INTO best_influencer_name, best_influencer_count
-    FROM 
+    FROM
         public.influencers i
-    JOIN 
+    JOIN
         public.user_profiles up ON i.code = up.referral_source
-    GROUP BY 
+    GROUP BY
         i.name
-    ORDER BY 
+    ORDER BY
         cnt DESC
     LIMIT 1;
 
     -- Total active influencers
-    SELECT COUNT(*) INTO influencer_count 
-    FROM public.influencers 
+    SELECT COUNT(*) INTO influencer_count
+    FROM public.influencers
     WHERE active = TRUE;
 
     result := json_build_object(
@@ -5036,7 +5036,7 @@ BEGIN
     VALUES (v_user_id, 'INTRO')
     ON CONFLICT (id) DO NOTHING
     RETURNING * INTO v_profile;
-    
+
     -- If conflict happened (e.g. race condition) and RETURNING didn't work, select again
     IF v_profile IS NULL THEN
        SELECT * INTO v_profile FROM public.user_profiles WHERE id = v_user_id;
@@ -5145,18 +5145,18 @@ CREATE OR REPLACE FUNCTION "public"."get_partner_users"("p_partner_id" "text") R
     AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         pu.id,
         pu.user_id,
         u.email::TEXT,
         pu.created_at
-    FROM 
+    FROM
         public.partners_users pu
-    JOIN 
+    JOIN
         auth.users u ON pu.user_id = u.id
-    WHERE 
+    WHERE
         pu.partner_id = p_partner_id::UUID
-    ORDER BY 
+    ORDER BY
         pu.created_at DESC;
 END;
 $$;
@@ -5195,12 +5195,12 @@ CREATE OR REPLACE FUNCTION "public"."get_partners"("p_sort_by" "text" DEFAULT 'n
     AS $$
 BEGIN
   RETURN QUERY EXECUTE format('
-    SELECT * 
+    SELECT *
     FROM public.partners
     ORDER BY %I %s',
-    CASE 
-      WHEN p_sort_by IN ('name', 'location', 'type') THEN p_sort_by 
-      ELSE 'name' 
+    CASE
+      WHEN p_sort_by IN ('name', 'location', 'type') THEN p_sort_by
+      ELSE 'name'
     END,
     CASE WHEN lower(p_sort_order) = 'desc' THEN 'DESC' ELSE 'ASC' END
   );
@@ -5351,14 +5351,14 @@ BEGIN
     ) t',
     v_order_clause,
     CASE WHEN lower(p_sort_order) = 'asc' THEN 'ASC' ELSE 'DESC' END
-  ) 
-  USING 
-    p_filter_name, 
-    p_filter_city, 
-    p_filter_education, 
-    p_filter_is_nubo_student, 
-    p_filter_income_min, 
-    p_filter_income_max, 
+  )
+  USING
+    p_filter_name,
+    p_filter_city,
+    p_filter_education,
+    p_filter_is_nubo_student,
+    p_filter_income_min,
+    p_filter_income_max,
     p_filter_quota_types,
     p_page_size,
     v_offset
@@ -5385,10 +5385,10 @@ DECLARE
     disappointment_distribution JSONB;
 BEGIN
     -- Simplification: count totals first
-    SELECT 
+    SELECT
         COUNT(s.id),
         COUNT(s.user_id)
-    INTO 
+    INTO
         total_respondents,
         total_identified_users
     FROM public.sean_ellis_score s
@@ -5543,11 +5543,11 @@ DECLARE
 BEGIN
     -- 1. Check if user is admin or belongs to a partner
     SELECT EXISTS (
-        SELECT 1 FROM public.user_permissions 
-        WHERE user_id = auth.uid() 
+        SELECT 1 FROM public.user_permissions
+        WHERE user_id = auth.uid()
         AND permission IN ('Estudantes', 'Dashboard', 'Parceiros')
     ) OR (auth.jwt() ->> 'role' = 'service_role') INTO v_is_admin;
-    
+
     -- Get partner_id if the user is a partner
     SELECT partner_id INTO v_partner_id FROM public.partners_users WHERE user_id = auth.uid() LIMIT 1;
 
@@ -5646,13 +5646,13 @@ DECLARE
   v_total_count BIGINT;
   v_matches JSON;
 BEGIN
-  SELECT count(*) INTO v_total_count 
-  FROM public.user_opportunity_matches 
+  SELECT count(*) INTO v_total_count
+  FROM public.user_opportunity_matches
   WHERE profile_id = p_profile_id;
 
   SELECT coalesce(json_agg(t.*), '[]'::json) INTO v_matches
   FROM (
-    SELECT 
+    SELECT
       m.unified_opportunity_id,
       m.match_score,
       COALESCE(v.title, 'Oportunidade') as title,
@@ -5677,7 +5677,7 @@ CREATE OR REPLACE FUNCTION "public"."get_student_stats"("filter_full_name" "text
     AS $$
 DECLARE total_count INTEGER; unique_cities INTEGER; unique_states INTEGER; avg_age NUMERIC; v_sql TEXT;
 BEGIN
-    v_sql := format('SELECT COUNT(DISTINCT p.id), COUNT(DISTINCT p.city), COUNT(DISTINCT p.state), COALESCE(AVG(p.age) FILTER (WHERE p.age > 0 AND p.age < 120), 0) FROM public.user_profiles p LEFT JOIN public.user_preferences pref ON p.id = pref.user_id WHERE 1=1 %s %s %s %s %s %s %s %s %s %s', 
+    v_sql := format('SELECT COUNT(DISTINCT p.id), COUNT(DISTINCT p.city), COUNT(DISTINCT p.state), COALESCE(AVG(p.age) FILTER (WHERE p.age > 0 AND p.age < 120), 0) FROM public.user_profiles p LEFT JOIN public.user_preferences pref ON p.id = pref.user_id WHERE 1=1 %s %s %s %s %s %s %s %s %s %s',
     CASE WHEN filter_full_name IS NOT NULL AND filter_full_name <> '' THEN ' AND p.full_name ILIKE ' || quote_literal('%' || filter_full_name || '%') ELSE '' END,
     CASE WHEN filter_city IS NOT NULL AND filter_city <> '' THEN ' AND p.city ILIKE ' || quote_literal('%' || filter_city || '%') ELSE '' END,
     CASE WHEN filter_education IS NOT NULL AND filter_education <> '' THEN ' AND p.education ILIKE ' || quote_literal('%' || filter_education || '%') ELSE '' END,
@@ -5834,9 +5834,9 @@ ALTER FUNCTION "public"."get_students_paginated"("p_page" integer, "p_page_size"
 CREATE OR REPLACE FUNCTION "public"."get_table_columns_for_mapping"("table_names" "text"[]) RETURNS TABLE("t_schema" "text", "t_name" "text", "c_name" "text")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     AS $$
-  SELECT 
-    c.table_schema::text as t_schema, 
-    c.table_name::text as t_name, 
+  SELECT
+    c.table_schema::text as t_schema,
+    c.table_name::text as t_name,
     c.column_name::text as c_name
   FROM information_schema.columns c
   WHERE c.table_name = ANY(table_names)
@@ -6071,18 +6071,18 @@ DECLARE
 BEGIN
     FOR student_record IN SELECT * FROM jsonb_array_elements(students)
     LOOP
-        -- Extract phone. Case sensitive key match depends on CSV JSON conversion. 
+        -- Extract phone. Case sensitive key match depends on CSV JSON conversion.
         -- Assuming "Phone" based on CSV header.
         raw_phone := student_record->>'Phone';
-        
+
         IF raw_phone IS NOT NULL AND raw_phone <> '' THEN
             cleaned_phone := public.clean_phone_number(raw_phone);
-            
+
             -- Insert into whitelist (Upsert)
             INSERT INTO public.nubo_student_whitelist (phone_number)
             VALUES (cleaned_phone)
             ON CONFLICT (phone_number) DO NOTHING;
-            
+
             count_imported := count_imported + 1;
         END IF;
     END LOOP;
@@ -6090,12 +6090,12 @@ BEGIN
     -- Update existing user_profiles
     -- This is a heavy query if many users, but safe for batch op.
     -- We update user_profiles where the linked auth.user phone matches the whitelist.
-    
+
     WITH matched_users AS (
         SELECT up.id
         FROM public.user_profiles up
         JOIN auth.users au ON up.id = au.id
-        JOIN public.nubo_student_whitelist nsw 
+        JOIN public.nubo_student_whitelist nsw
             -- Match: auth phone (cleaned) ends with whitelist number (cleaned)
             ON public.clean_phone_number(au.phone) LIKE '%' || nsw.phone_number
         WHERE up.is_nubo_student IS FALSE
@@ -6103,7 +6103,7 @@ BEGIN
     UPDATE public.user_profiles
     SET is_nubo_student = TRUE
     WHERE id IN (SELECT id FROM matched_users);
-    
+
     GET DIAGNOSTICS count_updated_users = ROW_COUNT;
 
     RETURN jsonb_build_object(
@@ -6135,37 +6135,37 @@ BEGIN
     LOOP
         v_full_name := row_data->>'full_name';
         v_whatsapp_raw := row_data->>'whatsapp_raw';
-        
+
         -- Normalize
         v_whatsapp_normalized := public.normalize_whatsapp(v_whatsapp_raw);
-        
+
         -- Find user: try to match normalized number against auth.users phone
         -- Auth phone usually starts with +, keep that in mind
         -- We'll try a few variations
         v_user_id := NULL;
-        
-        SELECT id INTO v_user_id FROM auth.users 
-        WHERE phone = v_whatsapp_normalized 
+
+        SELECT id INTO v_user_id FROM auth.users
+        WHERE phone = v_whatsapp_normalized
            OR phone = '+' || v_whatsapp_normalized
            OR phone LIKE '%' || v_whatsapp_normalized
         LIMIT 1;
 
         -- Insert
         INSERT INTO public.sean_ellis_score (
-            submitted_at, 
-            full_name, 
-            whatsapp_raw, 
+            submitted_at,
+            full_name,
+            whatsapp_raw,
             whatsapp_normalized,
-            sisu_subscribed, 
-            sisu_courses, 
-            sisu_status, 
+            sisu_subscribed,
+            sisu_courses,
+            sisu_status,
             sisu_cloudinha_influence,
-            prouni_subscribed, 
-            prouni_courses, 
-            prouni_cloudinha_influence, 
+            prouni_subscribed,
+            prouni_courses,
+            prouni_cloudinha_influence,
             prouni_status,
-            disappointment_level, 
-            feedback, 
+            disappointment_level,
+            feedback,
             user_id
         ) VALUES (
             to_timestamp(row_data->>'submitted_at', 'DD/MM/YYYY HH24:MI:SS'),
@@ -6184,10 +6184,10 @@ BEGIN
             row_data->>'feedback',
             v_user_id
         );
-        
+
         v_count := v_count + 1;
     END LOOP;
-    
+
     RETURN jsonb_build_object('success', true, 'count', v_count);
 END;
 $$;
@@ -6202,8 +6202,8 @@ CREATE OR REPLACE FUNCTION "public"."is_backoffice_admin"() RETURNS boolean
     AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM public.user_permissions 
-        WHERE user_id = auth.uid() 
+        SELECT 1 FROM public.user_permissions
+        WHERE user_id = auth.uid()
         AND permission = 'Controle de usuários'
     );
 END;
@@ -6497,8 +6497,8 @@ DECLARE
 BEGIN
     -- Permission check: Only users with 'Dashboard' permission can manage partners
     IF NOT EXISTS (
-        SELECT 1 FROM public.user_permissions 
-        WHERE user_id = auth.uid() 
+        SELECT 1 FROM public.user_permissions
+        WHERE user_id = auth.uid()
         AND permission = 'Dashboard'
     ) THEN
         RAISE EXCEPTION 'Acesso negado. Permissão insuficiente.';
@@ -6509,24 +6509,24 @@ BEGIN
     ELSIF p_id IS NULL THEN
         -- Create new partner
         INSERT INTO public.partners (
-            name, 
-            description, 
-            location, 
-            type, 
-            income, 
-            dates, 
-            link, 
+            name,
+            description,
+            location,
+            type,
+            income,
+            dates,
+            link,
             coverimage,
             applications_open
         )
         VALUES (
-            p_name, 
-            p_description, 
-            p_location, 
-            p_type, 
-            p_income, 
-            p_dates, 
-            p_link, 
+            p_name,
+            p_description,
+            p_location,
+            p_type,
+            p_income,
+            p_dates,
+            p_link,
             p_coverimage,
             COALESCE(p_applications_open, true)
         )
@@ -6534,7 +6534,7 @@ BEGIN
     ELSE
         -- Update existing partner
         UPDATE public.partners
-        SET 
+        SET
             name = COALESCE(p_name, name),
             description = COALESCE(p_description, description),
             location = COALESCE(p_location, location),
@@ -6570,8 +6570,8 @@ DECLARE
 BEGIN
     -- Permission check: Only users with 'Dashboard' permission can manage partners
     IF NOT EXISTS (
-        SELECT 1 FROM public.user_permissions 
-        WHERE user_id = auth.uid() 
+        SELECT 1 FROM public.user_permissions
+        WHERE user_id = auth.uid()
         AND permission = 'Dashboard'
     ) THEN
         RAISE EXCEPTION 'Acesso negado. Permissão insuficiente.';
@@ -6582,25 +6582,25 @@ BEGIN
     ELSIF p_id IS NULL THEN
         -- Create new partner
         INSERT INTO public.partners (
-            name, 
-            description, 
-            location, 
-            type, 
-            income, 
-            dates, 
-            link, 
+            name,
+            description,
+            location,
+            type,
+            income,
+            dates,
+            link,
             coverimage,
             applications_open,
             external_redirect_config
         )
         VALUES (
-            p_name, 
-            p_description, 
-            p_location, 
-            p_type, 
-            p_income, 
-            p_dates, 
-            p_link, 
+            p_name,
+            p_description,
+            p_location,
+            p_type,
+            p_income,
+            p_dates,
+            p_link,
             p_coverimage,
             COALESCE(p_applications_open, true),
             p_external_redirect_config
@@ -6609,7 +6609,7 @@ BEGIN
     ELSE
         -- Update existing partner
         UPDATE public.partners
-        SET 
+        SET
             name = COALESCE(p_name, name),
             description = COALESCE(p_description, description),
             location = COALESCE(p_location, location),
@@ -6668,13 +6668,13 @@ BEGIN
   SET LOCAL enable_seqscan = off;
 
   -- 1. Get base score from preferences
-  SELECT enem_score INTO v_base_enem_score 
-  FROM user_preferences 
+  SELECT enem_score INTO v_base_enem_score
+  FROM user_preferences
   WHERE user_id = p_user_id;
 
   RETURN QUERY
   WITH matching_opportunities AS (
-    SELECT 
+    SELECT
       o.id as opp_id,
       o.course_id,
       o.scholarship_type,
@@ -6687,23 +6687,23 @@ BEGIN
       c.campus_id
     FROM opportunities o
     JOIN courses c ON o.course_id = c.id
-    WHERE 
+    WHERE
       o.semester = '1'
-      
+
       -- Focus on ProUni 2025 (or Sisu 2026 if requested)
       AND (
-        (program_preference ILIKE '%sisu%' AND o.opportunity_type = 'sisu' AND o.year = 2026) 
+        (program_preference ILIKE '%sisu%' AND o.opportunity_type = 'sisu' AND o.year = 2026)
         OR
         ((program_preference ILIKE '%prouni%' OR program_preference IS NULL OR program_preference = 'indiferente') AND o.opportunity_type = 'prouni' AND o.year = 2025)
       )
 
       -- Shift Filter
       AND (
-        preferred_shifts IS NULL 
-        OR cardinality(preferred_shifts) = 0 
+        preferred_shifts IS NULL
+        OR cardinality(preferred_shifts) = 0
         OR o.shift = ANY(preferred_shifts)
       )
-      
+
       -- Income Logic for ProUni
       AND (
          income_per_capita IS NULL OR
@@ -6725,17 +6725,17 @@ BEGIN
         OR o.opportunity_type <> 'prouni'
         OR (
            COALESCE(o.concurrency_tags, '[]'::jsonb)::text ILIKE '%"AMPLA_CONCORRENCIA"%'
-           OR 
+           OR
            EXISTS (
              SELECT 1 FROM unnest(quota_types) q
              WHERE COALESCE(o.concurrency_tags, '[]'::jsonb)::text ILIKE '%"' || q || '"%'
            )
         )
       )
-      
+
       -- Course Filter (ILIKE Search)
       AND (
-        course_interests IS NULL 
+        course_interests IS NULL
         OR cardinality(course_interests) = 0
         OR EXISTS (
             SELECT 1 FROM unnest(course_interests) AS interest
@@ -6745,7 +6745,7 @@ BEGIN
 
       -- Location Filters (City/State)
       AND (
-        state_names IS NULL 
+        state_names IS NULL
         OR cardinality(state_names) = 0
         OR EXISTS (
             SELECT 1 FROM campus cp WHERE cp.id = c.campus_id
@@ -6757,40 +6757,40 @@ BEGIN
         )
       )
       AND (
-        city_names IS NULL 
+        city_names IS NULL
         OR cardinality(city_names) = 0
         OR EXISTS (
             SELECT 1 FROM campus cp WHERE cp.id = c.campus_id
             AND f_unaccent(cp.city) ILIKE ANY(SELECT f_unaccent(unnest(city_names)))
         )
       )
-      
+
       -- SCORE MATCH (Basic ProUni Logic)
-      -- Show if: 
+      -- Show if:
       -- 1. No cutoff score exists (rare)
       -- 2. User has no score (Exploratory mode)
       -- 3. User score >= Cutoff
       AND (
-        o.cutoff_score IS NULL 
-        OR v_base_enem_score IS NULL 
+        o.cutoff_score IS NULL
+        OR v_base_enem_score IS NULL
         OR v_base_enem_score >= o.cutoff_score
       )
   )
-  
+
   SELECT
     c.id as course_id, c.course_name, i.name as institution_name,
     cp.city as campus_city, cp.state as campus_state,
-    CASE 
-        WHEN user_lat IS NOT NULL AND user_long IS NOT NULL 
+    CASE
+        WHEN user_lat IS NOT NULL AND user_long IS NOT NULL
              AND cp.latitude IS NOT NULL AND cp.longitude IS NOT NULL THEN
           (point(cp.longitude, cp.latitude) <@> point(user_long, user_lat)) * 1.60934
-        ELSE NULL 
+        ELSE NULL
     END as distance_km,
-    
+
     mo.opp_id as opportunity_id, mo.scholarship_type, mo.concurrency_type,
     mo.cutoff_score, mo.shift, mo.concurrency_tags, mo.opportunity_type,
     NULLIF(info.igc, '')::numeric as institution_igc,
-    
+
     COALESCE(v_base_enem_score, 0) as nota_ponderada,
     0 as score_year
 
@@ -6803,11 +6803,11 @@ BEGIN
       FROM institutions_info_emec
       ORDER BY institution_id, id DESC
   ) info ON i.id = info.institution_id
-  
+
   ORDER BY
     -- Prioritize results user actually qualifies for (if score exists)
     CASE WHEN v_base_enem_score >= mo.cutoff_score THEN 1 ELSE 0 END DESC,
-    
+
     -- Then standard ordering
     (COALESCE(v_base_enem_score, 0) - COALESCE(mo.cutoff_score, 0)) DESC NULLS LAST,
     distance_km ASC NULLS LAST,
@@ -6831,13 +6831,13 @@ BEGIN
   SET LOCAL enable_seqscan = off;
 
   -- 1. Get base score from preferences
-  SELECT enem_score INTO v_base_enem_score 
-  FROM user_preferences 
+  SELECT enem_score INTO v_base_enem_score
+  FROM user_preferences
   WHERE user_id = p_user_id;
 
   RETURN QUERY
   WITH matching_opportunities AS (
-    SELECT 
+    SELECT
       o.id as opp_id,
       o.course_id,
       o.scholarship_type,
@@ -6850,23 +6850,23 @@ BEGIN
       c.campus_id
     FROM opportunities o
     JOIN courses c ON o.course_id = c.id
-    WHERE 
+    WHERE
       o.semester = '1'
-      
+
       -- Focus on ProUni 2025 (or Sisu 2026 if requested)
       AND (
-        (program_preference ILIKE '%sisu%' AND o.opportunity_type = 'sisu' AND o.year = 2026) 
+        (program_preference ILIKE '%sisu%' AND o.opportunity_type = 'sisu' AND o.year = 2026)
         OR
         ((program_preference ILIKE '%prouni%' OR program_preference IS NULL OR program_preference = 'indiferente') AND o.opportunity_type = 'prouni' AND o.year = 2025)
       )
 
       -- Shift Filter
       AND (
-        preferred_shifts IS NULL 
-        OR cardinality(preferred_shifts) = 0 
+        preferred_shifts IS NULL
+        OR cardinality(preferred_shifts) = 0
         OR o.shift = ANY(preferred_shifts)
       )
-      
+
       -- Income Logic for ProUni
       AND (
          income_per_capita IS NULL OR
@@ -6889,17 +6889,17 @@ BEGIN
         OR o.opportunity_type = 'prouni' -- PROUNI HAS NO TAGS IN PROD DATA
         OR (
            COALESCE(o.concurrency_tags, '[]'::jsonb)::text ILIKE '%"AMPLA_CONCORRENCIA"%'
-           OR 
+           OR
            EXISTS (
              SELECT 1 FROM unnest(quota_types) q
              WHERE COALESCE(o.concurrency_tags, '[]'::jsonb)::text ILIKE '%"' || q || '"%'
            )
         )
       )
-      
+
       -- Course Filter (ILIKE Search)
       AND (
-        course_interests IS NULL 
+        course_interests IS NULL
         OR cardinality(course_interests) = 0
         OR EXISTS (
             SELECT 1 FROM unnest(course_interests) AS interest
@@ -6909,7 +6909,7 @@ BEGIN
 
       -- Location Filters (City/State)
       AND (
-        state_names IS NULL 
+        state_names IS NULL
         OR cardinality(state_names) = 0
         OR EXISTS (
             SELECT 1 FROM campus cp WHERE cp.id = c.campus_id
@@ -6921,31 +6921,31 @@ BEGIN
         )
       )
       AND (
-        city_names IS NULL 
+        city_names IS NULL
         OR cardinality(city_names) = 0
         OR EXISTS (
             SELECT 1 FROM campus cp WHERE cp.id = c.campus_id
             AND f_unaccent(cp.city) ILIKE ANY(SELECT f_unaccent(unnest(city_names)))
         )
       )
-      
+
       -- SCORE MATCH (Basic ProUni Logic)
       AND (
-        o.cutoff_score IS NULL 
-        OR v_base_enem_score IS NULL 
+        o.cutoff_score IS NULL
+        OR v_base_enem_score IS NULL
         OR v_base_enem_score >= o.cutoff_score
       )
   )
-  
+
   SELECT
     c.id as course_id, c.course_name, i.name as institution_name,
     cp.city as campus_city, cp.state as campus_state,
     0.0::double precision as distance_km, -- Fixed: Must match double precision signature
-    
+
     mo.opp_id as opportunity_id, mo.scholarship_type, mo.concurrency_type,
     mo.cutoff_score, mo.shift, mo.concurrency_tags, mo.opportunity_type,
     0.0 as institution_igc, -- Removed brittle numeric conversion
-    
+
     COALESCE(v_base_enem_score, 0) as nota_ponderada,
     0 as score_year
 
@@ -6953,7 +6953,7 @@ BEGIN
   JOIN courses c ON mo.course_id = c.id
   JOIN campus cp ON c.campus_id = cp.id
   JOIN institutions i ON cp.institution_id = i.id
-  
+
   ORDER BY
     CASE WHEN v_base_enem_score >= mo.cutoff_score THEN 1 ELSE 0 END DESC,
     (COALESCE(v_base_enem_score, 0) - COALESCE(mo.cutoff_score, 0)) DESC NULLS LAST,
@@ -6974,13 +6974,13 @@ DECLARE
 BEGIN
     -- Remove non-digits
     clean_phone := regexp_replace(phone, '\D', '', 'g');
-    
+
     -- Basic logic for BR numbers
     -- If 10 or 11 digits, assume BR and add 55
     IF length(clean_phone) BETWEEN 10 AND 11 THEN
         clean_phone := '55' || clean_phone;
     END IF;
-    
+
     RETURN clean_phone;
 END;
 $$;
@@ -7002,24 +7002,24 @@ DECLARE
 BEGIN
     -- Get user profile
     SELECT * INTO v_profile_record FROM public.user_profiles WHERE id = p_user_id;
-    
+
     -- Get user preferences
     SELECT * INTO v_preferences_record FROM public.user_preferences WHERE user_id = p_user_id;
 
     -- Iterate through partner_forms for this specific partner where mapping_source exists
-    FOR v_form_record IN 
-        SELECT field_name, mapping_source 
-        FROM public.partner_forms 
+    FOR v_form_record IN
+        SELECT field_name, mapping_source
+        FROM public.partner_forms
         WHERE partner_id = p_partner_id AND mapping_source IS NOT NULL
     LOOP
         v_value := NULL;
-        
+
         -- Dynamically extract from mapping source
         IF v_form_record.mapping_source LIKE 'user_profiles.%' THEN
-            EXECUTE format('SELECT to_jsonb($1.%I)', split_part(v_form_record.mapping_source, '.', 2)) 
+            EXECUTE format('SELECT to_jsonb($1.%I)', split_part(v_form_record.mapping_source, '.', 2))
             INTO v_value USING v_profile_record;
         ELSIF v_form_record.mapping_source LIKE 'user_preferences.%' THEN
-            EXECUTE format('SELECT to_jsonb($1.%I)', split_part(v_form_record.mapping_source, '.', 2)) 
+            EXECUTE format('SELECT to_jsonb($1.%I)', split_part(v_form_record.mapping_source, '.', 2))
             INTO v_value USING v_preferences_record;
         ELSIF v_form_record.mapping_source LIKE 'auth.users.%' THEN
             -- Special handling for auth.users (restricted schema)
@@ -8241,7 +8241,7 @@ BEGIN
     -- B. Match State Names
     UPDATE public.user_profiles up
     SET state = s.uf, city = NULL
-    FROM public.states s 
+    FROM public.states s
     WHERE (up.state IS NULL OR up.state = '') AND (LOWER(TRIM(up.city)) = LOWER(s.name) OR LOWER(f_unaccent(TRIM(up.city))) = LOWER(f_unaccent(s.name)));
 END;
 $_$;
@@ -8472,18 +8472,18 @@ BEGIN
     NEW.started_at := clock_timestamp();
     v_user_id := auth.uid();
     NEW.user_id := v_user_id;
-    
+
     IF v_user_id IS NOT NULL THEN
       -- Try to get from user_profiles first
       SELECT full_name INTO v_full_name FROM public.user_profiles WHERE id = v_user_id;
-      
+
       -- If not in profiles, try auth.users
       IF v_full_name IS NULL OR v_full_name = '' THEN
-        SELECT email, COALESCE(raw_user_meta_data->>'full_name', email) 
-        INTO v_email, v_full_name 
+        SELECT email, COALESCE(raw_user_meta_data->>'full_name', email)
+        INTO v_email, v_full_name
         FROM auth.users WHERE id = v_user_id;
       END IF;
-      
+
       NEW.user_name := COALESCE(v_full_name, v_email, 'Usuário Desconhecido');
     ELSE
       NEW.user_name := 'Sistema / Automatizado';
@@ -8528,7 +8528,7 @@ BEGIN
     IF public.get_passport_phase_weight(NEW.passport_phase) > public.get_passport_phase_weight(OLD.furthest_passport_phase) THEN
         NEW.furthest_passport_phase := NEW.passport_phase;
     END IF;
-    
+
     -- Ensure furthest_passport_phase never regresses
     IF public.get_passport_phase_weight(NEW.furthest_passport_phase) < public.get_passport_phase_weight(OLD.furthest_passport_phase) THEN
         NEW.furthest_passport_phase := OLD.furthest_passport_phase;
@@ -8606,22 +8606,22 @@ DECLARE
     v_rec RECORD;
 BEGIN
     -- Iterate specifically over years 2024 and 2025
-    FOR v_rec IN 
-        SELECT 
+    FOR v_rec IN
+        SELECT
             year,
             COALESCE(nota_linguagens, 0) as l,
             COALESCE(nota_ciencias_humanas, 0) as ch,
             COALESCE(nota_ciencias_natureza, 0) as cn,
             COALESCE(nota_matematica, 0) as m,
             COALESCE(nota_redacao, 0) as r
-        FROM public.user_enem_scores 
-        WHERE user_id = NEW.user_id 
+        FROM public.user_enem_scores
+        WHERE user_id = NEW.user_id
           AND year IN (2024, 2025) -- Strict filter
-        ORDER BY year DESC 
+        ORDER BY year DESC
     LOOP
         -- Calculate Simple Average
         v_year_avg := (v_rec.l + v_rec.ch + v_rec.cn + v_rec.m + v_rec.r) / 5.0;
-        
+
         -- Keep the Max
         IF v_year_avg > v_best_avg THEN
             v_best_avg := v_year_avg;
@@ -8630,8 +8630,8 @@ BEGIN
 
     -- Update User Preferences with the calculated best average
     IF v_best_avg > 0 THEN
-        UPDATE public.user_preferences 
-        SET 
+        UPDATE public.user_preferences
+        SET
             enem_score = v_best_avg,
             updated_at = now()
         WHERE user_id = NEW.user_id;
@@ -8790,7 +8790,7 @@ BEGIN
     UPDATE student_applications
     -- Merge the existing answers with the new answers using the || operator
     -- Note: COALESCE handles the case where answers might be NULL initially
-    SET 
+    SET
         answers = COALESCE(answers, '{}'::jsonb) || p_answers,
         updated_at = NOW()
     WHERE id = p_application_id;
@@ -15270,34 +15270,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
