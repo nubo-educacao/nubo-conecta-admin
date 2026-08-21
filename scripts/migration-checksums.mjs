@@ -6,7 +6,7 @@ import process from "node:process";
 const root = process.cwd();
 const migrationsDirectory = path.join(root, "supabase", "migrations");
 const manifestPath = path.join(root, "supabase", "migrations.sha256");
-const baselinePath = path.join(root, "backup_prod_schema.sql");
+const baselinePath = path.join(root, "supabase", "production_baseline.sql");
 const rolesPath = path.join(root, "supabase", "roles.sql");
 const migrationNamePattern = /^(\d{14})_[a-z0-9][a-z0-9_]*\.sql$/;
 
@@ -38,7 +38,10 @@ for (const fileName of migrationFiles) {
 }
 
 const schemaFiles = [
-  { absolutePath: baselinePath, relativePath: "backup_prod_schema.sql" },
+  {
+    absolutePath: baselinePath,
+    relativePath: "supabase/production_baseline.sql",
+  },
   { absolutePath: rolesPath, relativePath: "supabase/roles.sql" },
   ...migrationFiles.map((fileName) => ({
     absolutePath: path.join(migrationsDirectory, fileName),

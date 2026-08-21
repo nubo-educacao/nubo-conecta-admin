@@ -48,12 +48,12 @@ jobs:
           mkdir -p "$replay_root/supabase/migrations"
           cp supabase/config.toml "$replay_root/supabase/config.toml"
           cp supabase/roles.sql "$replay_root/supabase/roles.sql"
-          cp backup_prod_schema.sql "$replay_root/supabase/migrations/20260614170000_production_baseline.sql"
+          cp supabase/production_baseline.sql "$replay_root/supabase/migrations/20260814160000_production_baseline.sql"
 
           for migration in supabase/migrations/*.sql; do
             name="$(basename "$migration")"
             timestamp="${name:0:14}"
-            if [[ "$timestamp" > "20260614170000" ]]; then
+            if [[ "$timestamp" > "20260814160000" ]]; then
               cp "$migration" "$replay_root/supabase/migrations/$name"
             fi
           done

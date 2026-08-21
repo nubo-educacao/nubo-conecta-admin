@@ -10,7 +10,7 @@ Configure the `Production` environment with:
 - secret `SUPABASE_DB_PASSWORD`: the production project's database password;
 - variable `SUPABASE_PROJECT_ID`: the production project reference.
 
-The workflow never runs seeds in production. Because the original legacy database predates migration tracking, pull requests load the versioned `backup_prod_schema.sql` baseline (captured through migration `20260614170000`), restore the legacy roles from `supabase/roles.sql`, and replay every forward migration after it on a clean local database. The baseline, roles, and all migration files are protected by the checksum manifest. Production checks the pending plan, applies only pending migration files, and then confirms that the remote database is synchronized.
+The workflow never runs seeds in production. Because the original legacy database predates migration tracking, pull requests load the versioned `supabase/production_baseline.sql` baseline (captured through migration `20260814160000`), restore the legacy roles from `supabase/roles.sql`, and replay every forward migration after it on a clean local database. The baseline, roles, and all migration files are protected by the checksum manifest. Production checks the pending plan, applies only pending migration files, and then confirms that the remote database is synchronized.
 
 ## Vercel gate
 
