@@ -2,7 +2,6 @@ import { useSearchParams } from "react-router-dom";
 import Programs from "@/pages/Programs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DataPipeline from "./DataPipeline";
-import Institutions from "./Institutions";
 
 export default function ProgramsImport() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -31,7 +30,6 @@ export default function ProgramsImport() {
         </TabsContent>
         <TabsContent value="import" className="mt-4 space-y-6">
           <DataPipeline />
-          <Institutions embedded initialTab="import" showCatalog={false} />
         </TabsContent>
       </Tabs>
     </div>
