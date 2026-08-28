@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:dev": "vite build --mode development",
+    "db:migrations:checksum": "node scripts/migration-checksums.mjs --write",
+    "db:migrations:verify": "node scripts/migration-checksums.mjs",
     "lint": "eslint . --fix",
     "preview": "vite preview",
     "test": "vitest run",
