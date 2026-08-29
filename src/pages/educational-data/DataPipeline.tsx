@@ -255,9 +255,10 @@ export default function DataPipeline() {
                 <select
                   value={selectedProuniId || ""}
                   onChange={(e) => setSelectedProuniId(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                  disabled={isLoadingPrograms}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white disabled:bg-slate-50 disabled:text-slate-400"
                 >
-                  <option value="">-- Escolha um ciclo ProUni --</option>
+                  <option value="">{isLoadingPrograms ? "Carregando ciclos..." : "-- Escolha um ciclo ProUni --"}</option>
                   {prouniPrograms.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title} ({p.cycle_year}.{p.cycle_semester}) - {p.status}
@@ -340,9 +341,10 @@ export default function DataPipeline() {
                 <select
                   value={selectedSisuId || ""}
                   onChange={(e) => setSelectedSisuId(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  disabled={isLoadingPrograms}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white disabled:bg-slate-50 disabled:text-slate-400"
                 >
-                  <option value="">-- Escolha um ciclo SiSU --</option>
+                  <option value="">{isLoadingPrograms ? "Carregando ciclos..." : "-- Escolha um ciclo SiSU --"}</option>
                   {sisuPrograms.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title} ({p.cycle_year}.{p.cycle_semester}) - {p.status}
@@ -353,13 +355,13 @@ export default function DataPipeline() {
 
               {selectedSisuId && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Ciclo Anterior (Comparação)</label>
+                  <label className="text-xs font-semibold text-slate-700">Ciclo Anterior (Comparação Opcional)</label>
                   <select
                     value={sisuPrograms.find((p) => p.id === selectedSisuId)?.prev_program_id || ""}
                     onChange={(e) => handlePrevCycleChange(selectedSisuId, e.target.value)}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                   >
-                    <option value="">-- Sem ciclo anterior --</option>
+                    <option value="">-- Sem ciclo anterior (ocultar comparação) --</option>
                     {sisuPrograms
                       .filter((p) => p.id !== selectedSisuId && p.is_fully_imported)
                       .map((p) => (
@@ -368,6 +370,9 @@ export default function DataPipeline() {
                         </option>
                       ))}
                   </select>
+                  <p className="text-[11px] text-slate-500">
+                    O ciclo listado acima deve ter completado toda a importação (is_fully_imported).
+                  </p>
                 </div>
               )}
 
@@ -376,7 +381,7 @@ export default function DataPipeline() {
                   <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
                     <div className="flex justify-between items-start mb-1">
                       <div>
-                        <span className="text-xs font-semibold text-slate-800">1. Vagas Ofertadas</span>
+                        <span className="text-xs font-semibold text-slate-800">1. Vagas Ofertadas (Termo de Adesão)</span>
                         <p className="text-[11px] text-slate-500 font-mono mt-0.5">Tabela: rawsisuvacancies</p>
                       </div>
                       {renderStatusBadge("sisu_vacancies", sisuLogs)}
@@ -387,7 +392,7 @@ export default function DataPipeline() {
                   <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
                     <div className="flex justify-between items-start mb-1">
                       <div>
-                        <span className="text-xs font-semibold text-slate-800">2. Base Consolidada</span>
+                        <span className="text-xs font-semibold text-slate-800">2. Base Consolidada (Notas de Corte)</span>
                         <p className="text-[11px] text-slate-500 font-mono mt-0.5">Tabela: rawsisu</p>
                       </div>
                       {renderStatusBadge("sisu", sisuLogs)}
@@ -429,7 +434,9 @@ export default function DataPipeline() {
                   <RefreshCw className="w-4 h-4 mr-2 text-slate-600" />
                   Sincronização
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Atualização das views materializadas.</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Atualização das views materializadas. Rode ao final das importações.
+                </p>
               </div>
 
               <div className="space-y-3 pt-2">
