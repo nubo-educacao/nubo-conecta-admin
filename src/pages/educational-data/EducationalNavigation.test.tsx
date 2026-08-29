@@ -8,12 +8,15 @@ vi.mock("@/pages/Programs", () => ({
   default: () => <div>Gestão de programas preservada</div>,
 }));
 
+// DataPipeline é o componente unificado: concentra o disparo do ETL e os logs
+// persistentes (etl_run_logs) que antes viviam no bloco <Institutions embedded /> abaixo dele.
 vi.mock("./DataPipeline", () => ({
-  default: () => <div>Pipeline ETL preservado</div>,
-}));
-
-vi.mock("./Institutions", () => ({
-  default: () => <div>Uploads e logs persistentes preservados</div>,
+  default: () => (
+    <div>
+      <div>Pipeline ETL preservado</div>
+      <div>Uploads e logs persistentes preservados</div>
+    </div>
+  ),
 }));
 
 function renderPage() {
