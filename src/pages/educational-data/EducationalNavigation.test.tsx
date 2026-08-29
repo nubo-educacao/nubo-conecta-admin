@@ -8,15 +8,12 @@ vi.mock("@/pages/Programs", () => ({
   default: () => <div>Gestão de programas preservada</div>,
 }));
 
-// DataPipeline é o componente unificado: concentra o disparo do ETL e os logs
-// persistentes (etl_run_logs) que antes viviam no bloco <Institutions embedded /> abaixo dele.
 vi.mock("./DataPipeline", () => ({
-  default: () => (
-    <div>
-      <div>Pipeline ETL preservado</div>
-      <div>Uploads e logs persistentes preservados</div>
-    </div>
-  ),
+  default: () => <div>Pipeline ETL preservado</div>,
+}));
+
+vi.mock("./EtlProcessingLogs", () => ({
+  default: () => <div>Uploads e logs persistentes preservados</div>,
 }));
 
 function renderPage() {
@@ -51,17 +48,29 @@ describe("navegação educacional agrupada", () => {
     ]);
   });
 
-  it("preserva programas, pipeline, uploads e logs dentro de duas abas", () => {
+  it("preserva programas, pipeline e logs em um único nível de abas", () => {
     renderPage();
 
-    expect(screen.getByRole("tab", { name: "Programas" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Importação" })).toBeInTheDocument();
+    // Três abas irmãs — nada de abas dentro de abas.
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Programas",
+      "Importação (ETL)",
+      "Logs de Processamento",
+    ]);
     expect(screen.getByText("Gestão de programas preservada")).toBeVisible();
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Importação" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Importação" }));
-
+    openTab("Importação (ETL)");
     expect(screen.getByText("Pipeline ETL preservado")).toBeVisible();
+    expect(screen.queryAllByRole("tab")).toHaveLength(3);
+
+    openTab("Logs de Processamento");
     expect(screen.getByText("Uploads e logs persistentes preservados")).toBeVisible();
+    expect(screen.queryAllByRole("tab")).toHaveLength(3);
   });
 });
+
+function openTab(name: string) {
+  const tab = screen.getByRole("tab", { name });
+  fireEvent.mouseDown(tab);
+  fireEvent.click(tab);
+}
