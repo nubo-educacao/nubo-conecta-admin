@@ -137,22 +137,55 @@ export async function getPartnerById(id: string): Promise<Partner> {
 // ---------------------------------------------------------------------------
 
 export async function createPartner(input: PartnerInput): Promise<Partner> {
-    // 1. Create institution
-    const { data: inst, error: instError } = await supabase
-        .from("institutions")
-        .insert({ name: input.name, is_partner: true })
-        .select("id, name, created_at, updated_at")
-        .single();
+    const trimmedName = input.name.trim();
 
-    if (instError) {
-        console.error("Error creating institution:", instError);
-        throw instError;
+    // 1. Check if an institution already exists by name
+    const { data: existingInst, error: findError } = await supabase
+        .from("institutions")
+        .select("id, name, created_at, updated_at")
+        .ilike("name", trimmedName)
+        .maybeSingle();
+
+    if (findError) {
+        console.error("Error searching institution by name:", findError);
+        throw findError;
     }
 
-    // 2. Create partner_institutions row
+    let inst = existingInst;
+
+    if (inst) {
+        // If institution exists, mark as partner and refresh name casing
+        const { data: updatedInst, error: updateError } = await supabase
+            .from("institutions")
+            .update({ is_partner: true, name: trimmedName })
+            .eq("id", inst.id)
+            .select("id, name, created_at, updated_at")
+            .single();
+
+        if (updateError) {
+            console.error("Error updating existing institution:", updateError);
+            throw updateError;
+        }
+        inst = updatedInst;
+    } else {
+        // Create new institution
+        const { data: newInst, error: instError } = await supabase
+            .from("institutions")
+            .insert({ name: trimmedName, is_partner: true })
+            .select("id, name, created_at, updated_at")
+            .single();
+
+        if (instError) {
+            console.error("Error creating institution:", instError);
+            throw instError;
+        }
+        inst = newInst;
+    }
+
+    // 2. Upsert partner_institutions row
     const { error: piError } = await supabase
         .from("partner_institutions")
-        .insert({
+        .upsert({
             institution_id: inst.id,
             description:    input.description ?? null,
             location:       input.location ?? null,
@@ -163,9 +196,7 @@ export async function createPartner(input: PartnerInput): Promise<Partner> {
         });
 
     if (piError) {
-        console.error("Error creating partner_institutions:", piError);
-        // Clean up the institution if PI creation fails
-        await supabase.from("institutions").delete().eq("id", inst.id);
+        console.error("Error upserting partner_institutions:", piError);
         throw piError;
     }
 
