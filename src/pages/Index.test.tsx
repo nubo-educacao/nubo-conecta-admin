@@ -16,6 +16,7 @@ vi.mock("@/hooks/useAnalyticsData", () => ({
     },
     isLoading: false,
   }),
+  useCommandCenterDemographics: () => ({ data: undefined, isLoading: false, error: null }),
 }));
 
 vi.mock("@/components/analytics/OpportunityTypesChart", () => ({
