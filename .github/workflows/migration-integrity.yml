@@ -1,0 +1,21 @@
+name: Migration Integrity
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'sprint-*']
+
+permissions:
+  contents: read
+
+jobs:
+  migration-versions:
+    runs-on: ubuntu-latest
+    steps:
+      # For pull_request, checkout tests GitHub's synthetic merge with the target branch.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/check-migration-versions.test.mjs
+      - run: node scripts/check-migration-versions.mjs
