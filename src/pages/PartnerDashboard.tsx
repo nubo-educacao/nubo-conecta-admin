@@ -147,8 +147,9 @@ export default function PartnerDashboard() {
 
     // 7. Fetch partner funnel
     const { data: funnelData } = useQuery({
-        queryKey: ["partnerFunnel"],
-        queryFn: getPartnerFunnel,
+        queryKey: ["partnerFunnel", "portal", partnerId],
+        queryFn: () => getPartnerFunnel(partnerId!),
+        enabled: !!partnerId,
     });
 
     // 8. Fetch external redirect users

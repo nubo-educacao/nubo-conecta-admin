@@ -128,6 +128,7 @@ export default function Sidebar() {
         { ...EDUCATIONAL_NAV_ITEMS[0], icon: GraduationCap, permission: "Dashboard" },
         { ...EDUCATIONAL_NAV_ITEMS[1], icon: Library, permission: "Dashboard" },
         { ...EDUCATIONAL_NAV_ITEMS[2], icon: BookOpen, permission: "Dashboard" },
+        { to: "/educational/mec-dashboard", icon: LayoutDashboard, label: "Dashboard MEC", permission: "Dashboard" },
         { to: "/calendar", icon: CalendarDays, label: "Calendário Educacional", permission: "Calendário" },
       ],
     },
