@@ -16,7 +16,7 @@ conn = psycopg2.connect(url, connect_timeout=10)
 try:
     with conn.cursor() as cur:
         cur.execute("SET LOCAL lock_timeout = '3s'; SET LOCAL statement_timeout = '30s'")
-        migration = Path('supabase/migrations/20261009193000_command_center_opportunity_interest.sql')
+        migration = Path('supabase/migrations/20261009203000_command_center_opportunity_interest.sql')
         cur.execute(migration.read_text(encoding='utf-8-sig'))
         cur.execute("SELECT user_id FROM public.user_permissions WHERE permission = 'Controle de usuários' LIMIT 1")
         admin = cur.fetchone()

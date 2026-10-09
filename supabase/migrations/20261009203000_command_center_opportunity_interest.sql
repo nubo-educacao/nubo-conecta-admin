@@ -1,3 +1,4 @@
+-- Unique version after the TP-2 migrations; the former 193000 version was not applied.
 CREATE OR REPLACE FUNCTION public.get_command_center_opportunity_interest(
   p_from timestamptz DEFAULT NULL,
   p_to timestamptz DEFAULT NULL,

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 let db: PGlite;
-const migration = new URL('../../supabase/migrations/20261009193000_command_center_opportunity_interest.sql', import.meta.url);
+const migration = new URL('../../supabase/migrations/20261009203000_command_center_opportunity_interest.sql', import.meta.url);
 const partner = '11111111-1111-4111-8111-111111111111';
 const mec = '22222222-2222-4222-8222-222222222222';
 const period = ['2026-10-01T00:00:00Z', '2026-10-09T00:00:00Z'];
