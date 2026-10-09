@@ -16,7 +16,8 @@
 --   - expande apelidos/sinônimos da tabela search_synonyms (termos de uma ou mais palavras);
 --   - cada palavra (ou grupo de sinônimos) precisa casar com o documento, em qualquer ordem:
 --     substring (ILIKE) quando a palavra existe no catálogo; senão, similaridade de
---     palavra (pg_trgm <%, limiar 0.5) para tolerar erros de digitação;
+--     palavra (pg_trgm <%, limiar 0.5 ajustado em tempo de execução) para tolerar
+--     erros de digitação;
 --     palavras de 2 letras (UFs, siglas) casam só como palavra inteira;
 --   - palavra que zeraria a busca é ignorada no filtro (continua pesando na relevância),
 --     então a busca só volta vazia quando nenhuma palavra encontra nada;
@@ -138,7 +139,6 @@ LANGUAGE plpgsql
 STABLE
 SECURITY INVOKER
 SET search_path = public, pg_temp
-SET pg_trgm.word_similarity_threshold = 0.5
 AS $$
 DECLARE
   v_q       text;
@@ -160,6 +160,18 @@ DECLARE
   v_select  text;
   v_exists  boolean;
 BEGIN
+  -- Limiar de similaridade 0.5 (padrão do pg_trgm é 0.6, que perde "medcina", "nutrisao").
+  -- Não dá para usar "SET pg_trgm..." na assinatura: em produção o papel das migrations não
+  -- pode fixar parâmetro de extensão ainda não carregada (42501). Em tempo de execução,
+  -- depois de carregar o pg_trgm, o ajuste é permitido; vale só para esta transação.
+  -- Se falhar, a busca segue com o padrão 0.6 em vez de quebrar.
+  BEGIN
+    PERFORM word_similarity('', '');
+    PERFORM set_config('pg_trgm.word_similarity_threshold', '0.5', true);
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
   -- Normaliza: sem acento, minúsculo, pontuação -> espaço, espaços simples
   v_full := btrim(regexp_replace(lower(public.f_unaccent(coalesce(p_q, ''))), '[^a-z0-9]+', ' ', 'g'));
   IF length(v_full) < 2 THEN
