@@ -8,6 +8,7 @@ import SegmentedExportButton from "./SegmentedExportButton";
 interface DashboardHeaderProps {
   selectedRange: DateRangeValue;
   onRangeChange: (range: DateRangeValue) => void;
+  onCustomDateChange?: (date: Date | undefined) => void;
   onRefresh: () => void;
   isRefreshing: boolean;
   lastUpdate: Date;
@@ -16,6 +17,7 @@ interface DashboardHeaderProps {
 export function DashboardHeader({
   selectedRange,
   onRangeChange,
+  onCustomDateChange,
   onRefresh,
   isRefreshing,
   lastUpdate,
@@ -49,7 +51,7 @@ export function DashboardHeader({
             <SegmentedExportButton />
             <DateRangeFilter
               selectedRange={selectedRange}
-              onDateChange={onRangeChange}
+              onDateChange={onRangeChange} onCustomDateChange={onCustomDateChange}
               onRefresh={onRefresh}
               isRefreshing={isRefreshing}
             />
@@ -62,7 +64,7 @@ export function DashboardHeader({
           <div className="flex md:hidden items-center gap-2">
             <DateRangeFilter
               selectedRange={selectedRange}
-              onDateChange={onRangeChange}
+              onDateChange={onRangeChange} onCustomDateChange={onCustomDateChange}
               onRefresh={onRefresh}
               isRefreshing={isRefreshing}
             />

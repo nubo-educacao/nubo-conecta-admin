@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { MessageSquare, Heart, TrendingUp, Clock, MapPin } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
@@ -17,13 +17,19 @@ import { ActionCenter } from "@/components/action-center/ActionCenter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangeValue } from "@/components/analytics/DateRangeFilter";
 
+import { OpportunityInterestChart } from '@/components/analytics/OpportunityInterestChart';
+import { UserPreferencesChart } from '@/components/analytics/UserPreferencesChart';
+import { commandCenterDateRange } from '@/lib/commandCenterDateRange';
+
 const Index = () => {
   const [selectedRange, setSelectedRange] = useState<DateRangeValue>("7d");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const queryClient = useQueryClient();
-  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const [customDate, setCustomDate] = useState<Date>();
+  const dateRange = useMemo(() => commandCenterDateRange(selectedRange, lastUpdate, customDate), [selectedRange, lastUpdate, customDate]);
+  const { data: stats, isLoading: statsLoading } = useDashboardStats(dateRange);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -43,7 +49,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <DashboardHeader
         selectedRange={selectedRange}
-        onRangeChange={handleRangeChange}
+        onRangeChange={handleRangeChange} onCustomDateChange={setCustomDate}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
         lastUpdate={lastUpdate}
@@ -105,6 +111,12 @@ const Index = () => {
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           <TopUsersChart />
           <TopCoursesChart />
+        </section>
+
+        {/* Interesse observado e declarado */}
+        <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
+          <OpportunityInterestChart dateRange={dateRange} />
+          <UserPreferencesChart />
         </section>
 
         {/* Charts Row 3 - Location */}
