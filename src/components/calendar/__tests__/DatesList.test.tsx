@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import DatesList from "../DatesList";
 import type { ImportantDate } from "@/services/calendarService";
+
+// DatesList only consumes constants from the service; no real client is needed.
+vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 
 describe("DatesList (admin)", () => {
   it("exibe datas com intervalo que transborda o mês selecionado (overlap)", () => {

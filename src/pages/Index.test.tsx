@@ -18,6 +18,9 @@ vi.mock("@/hooks/useAnalyticsData", () => ({
   }),
 }));
 
+vi.mock("@/components/analytics/MatchHealthChart", () => ({ MatchHealthChart: () => null }));
+vi.mock("@/components/analytics/DemographicsCharts", () => ({ DemographicsCharts: () => null }));
+
 vi.mock("@/components/analytics/OpportunityTypesChart", () => ({
   OpportunityTypesChart: () => <div>Erro ao carregar dados</div>,
 }));

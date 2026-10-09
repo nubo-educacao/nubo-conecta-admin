@@ -29,6 +29,7 @@ import OpportunitiesCourses from "./pages/educational-data/OpportunitiesCourses"
 
 // Pages — Parceiros & B2B
 import PassportDashboard from "./pages/PassportDashboard";
+import MecDashboard from "./pages/MecDashboard";
 import ChannelLinks from "./pages/ChannelLinks";
 import Channels from "./pages/Channels";
 import Partners from "./pages/Partners";
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="/agent-config" element={<AgentConfig />} />
 
               {/* Dados Educacionais */}
+              <Route path="/educational/mec-dashboard" element={<MecDashboard />} />
               <Route path="/educational/programs-import" element={<ProgramsImport />} />
               <Route path="/educational/institutions-campus" element={<InstitutionsCampus />} />
               <Route path="/educational/opportunities-courses" element={<OpportunitiesCourses />} />
