@@ -103,5 +103,27 @@ SELECT source, event_type, entity_type,
 FROM public.engagement_events
 WHERE event_type IN ('card_click', 'redirect')
 GROUP BY 1, 2, 3, 4, 5 ORDER BY 2, 3, 1, 4, 5;
+-- Global unique-user conservation; do not sum source-specific distinct users.
+WITH old AS (
+ SELECT DISTINCT user_id FROM public.partners_click
+), new AS (
+ SELECT DISTINCT user_id FROM public.engagement_events
+ WHERE event_type = 'card_click' AND entity_type = 'partner_opportunity' AND user_id IS NOT NULL
+), anonymous_origin AS (
+ SELECT DISTINCT user_id FROM public.engagement_events
+ WHERE event_type = 'card_click' AND entity_type = 'partner_opportunity'
+   AND anonymous_id IS NOT NULL AND event_id LIKE 'card_click:' || anonymous_id || ':%'
+)
+SELECT (SELECT COUNT(*) FROM old) AS legacy_users,
+       (SELECT COUNT(*) FROM new) AS new_users,
+       (SELECT COUNT(*) FROM old o WHERE NOT EXISTS (
+         SELECT 1 FROM new n WHERE n.user_id = o.user_id
+       )) AS legacy_only_users,
+       (SELECT COUNT(*) FROM new n WHERE NOT EXISTS (
+         SELECT 1 FROM old o WHERE o.user_id = n.user_id
+       )) AS new_only_users,
+       (SELECT COUNT(*) FROM new n JOIN anonymous_origin a USING (user_id)
+        WHERE NOT EXISTS (SELECT 1 FROM old o WHERE o.user_id = n.user_id)
+       ) AS new_only_users_with_anonymous_origin;
 COMMIT;
 
