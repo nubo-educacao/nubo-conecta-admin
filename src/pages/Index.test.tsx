@@ -16,8 +16,10 @@ vi.mock("@/hooks/useAnalyticsData", () => ({
     },
     isLoading: false,
   }),
-  useCommandCenterDemographics: () => ({ data: undefined, isLoading: false, error: null }),
 }));
+
+vi.mock("@/components/analytics/MatchHealthChart", () => ({ MatchHealthChart: () => null }));
+vi.mock("@/components/analytics/DemographicsCharts", () => ({ DemographicsCharts: () => null }));
 
 vi.mock("@/components/analytics/OpportunityTypesChart", () => ({
   OpportunityTypesChart: () => <div>Erro ao carregar dados</div>,
