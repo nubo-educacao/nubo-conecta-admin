@@ -29,7 +29,7 @@ const Index = () => {
   const queryClient = useQueryClient();
   const [customDate, setCustomDate] = useState<Date>();
   const dateRange = useMemo(() => commandCenterDateRange(selectedRange, lastUpdate, customDate), [selectedRange, lastUpdate, customDate]);
-  const { data: stats, isLoading: statsLoading } = useDashboardStats(dateRange);
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats(dateRange);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -80,11 +80,11 @@ const Index = () => {
               />
               <StatCard
                 title="Total de Mensagens"
-                value={stats?.totalMessages.toLocaleString() || "0"}
-                change={stats?.messagesChange}
+                value={statsError ? "Indisponível" : stats?.totalMessages?.toLocaleString() ?? "Indisponível"}
+                change={statsError ? undefined : stats?.messagesChange}
                 icon={MessageSquare}
                 variant="default"
-                tooltip="Soma de todas as mensagens trocadas no chat (tanto do usuário quanto do assistente)."
+                tooltip="Mensagens enviadas por usuários no período selecionado. Exclui mensagens do sistema e do assistente; a comparação usa o período anterior de mesma duração."
               />
               <StatCard
                 title="Favoritos Salvos"

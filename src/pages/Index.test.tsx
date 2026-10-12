@@ -29,7 +29,7 @@ vi.mock("@/components/analytics/DashboardHeader", () => ({ DashboardHeader: ({ o
 </> }));
 vi.mock("@/components/analytics/PowerUsersCard", () => ({ PowerUsersCard: () => null }));
 vi.mock("@/components/analytics/TotalUsersCard", () => ({ TotalUsersCard: () => null }));
-vi.mock("@/components/analytics/StatCard", () => ({ StatCard: () => null }));
+vi.mock("@/components/analytics/StatCard", () => ({ StatCard: ({ title, value, tooltip, change }: any) => <div aria-label={title}>{value}<span>{tooltip}</span>{change !== undefined && <span>{change}%</span>}</div> }));
 vi.mock("@/components/analytics/ActivityChart", () => ({ ActivityChart: () => null }));
 vi.mock("@/components/analytics/TopCoursesChart", () => ({ TopCoursesChart: () => null }));
 vi.mock("@/components/analytics/FlowFunnelChart", () => ({ FlowFunnelChart: () => null }));
@@ -56,6 +56,20 @@ describe("Command Center", () => {
 
     expect(screen.queryByText("Erro ao carregar dados")).not.toBeInTheDocument();
     expect(screen.queryByText("Oportunidades Buscadas")).not.toBeInTheDocument();
+  });
+  it("explains the user-only metric and keeps a true zero distinct from missing data", () => {
+    renderIndex();
+    expect(screen.getByLabelText('Total de Mensagens')).toHaveTextContent('0');
+    expect(screen.getByLabelText('Total de Mensagens')).toHaveTextContent('Exclui mensagens do sistema e do assistente');
+  });
+  it("does not show stale successful metrics after a request error", () => {
+    vi.mocked(useDashboardStats).mockReturnValueOnce({
+      data: { totalMessages: 99, messagesChange: 100 }, isLoading: false, isError: true,
+    } as any);
+    renderIndex();
+    expect(screen.getByLabelText('Total de Mensagens')).toHaveTextContent('Indisponível');
+    expect(screen.getByLabelText('Total de Mensagens')).not.toHaveTextContent('99');
+    expect(screen.getByLabelText('Total de Mensagens')).not.toHaveTextContent('100%');
   });
 });
 
