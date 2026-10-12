@@ -35,7 +35,7 @@ export function LocationChart() {
         </div>
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <MapPin className="h-12 w-12 mb-4 opacity-50" />
-          <p>Nenhum dado de localização disponível</p>
+          <p role={error ? "alert" : undefined}>{error ? "Não foi possível carregar as localizações." : "Nenhum dado de localização disponível"}</p>
         </div>
       </div>
     );

@@ -54,7 +54,7 @@ export function LocationPreferenceChart() {
         </div>
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <MapPin className="h-12 w-12 mb-4 opacity-50" />
-          <p>Nenhuma preferência registrada</p>
+          <p role={error ? "alert" : undefined}>{error ? "Não foi possível carregar as preferências de localização." : "Nenhuma preferência registrada"}</p>
         </div>
       </div>
     );

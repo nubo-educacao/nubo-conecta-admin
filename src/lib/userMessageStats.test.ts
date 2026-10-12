@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
+import { edgeHarness, testDatabase } from '../test/edgeHarness';
 
 // Execute the real Edge module with an in-memory PostgREST adapter, not a substitute metric.
 function loadStats() {
@@ -44,13 +45,13 @@ describe('analytics-stats user message volume', () => {
     expect(db.calls.every(call => call.table === 'chat_messages' && call.options.count === 'exact' && call.options.head)).toBe(true);
   });
   it('keeps legacy all-time total without a range, but filters user in weekly comparison too', async () => {
-    expect(await loadStats()(database(), undefined, now)).toEqual({ totalMessages: 4, messagesChange: 100 });
+    expect(await loadStats()(database(), undefined, now)).toEqual({ totalMessages: 4, messagesChange: undefined });
   });
   it('uses adjacent equal-length periods rather than a hard-coded week', async () => {
-    expect(await loadStats()(database(), { from: '2026-10-07T00:00:00Z', to: '2026-10-09T00:00:00Z' }, now)).toEqual({ totalMessages: 3, messagesChange: 100 });
+    expect(await loadStats()(database(), { from: '2026-10-07T00:00:00Z', to: '2026-10-09T00:00:00Z' }, now)).toEqual({ totalMessages: 3, messagesChange: undefined });
   });
   it('returns a real zero for an empty user-message period', async () => {
-    expect(await loadStats()(database([]), dateRange, now)).toEqual({ totalMessages: 0, messagesChange: 0 });
+    expect(await loadStats()(database([]), dateRange, now)).toEqual({ totalMessages: 0, messagesChange: undefined });
   });
   it('filters the denominator too, allowing a real decrease instead of counting system traffic', async () => {
     const mixed = [...rows,
@@ -73,15 +74,9 @@ describe('analytics-stats user message volume', () => {
 });
 
 function loadHandler(client: any) {
-  let handler: any;
-  const source = readFileSync('supabase/functions/analytics-stats/index.ts', 'utf8').replace(/^import .*$/gm, '');
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.None } }).outputText;
   const fetchStats = vi.fn(loadStats());
-  const createClient = vi.fn(() => client);
-  new Function('Deno', 'createClient', 'fetchUserMessageStats', compiled)(
-    { serve: (fn: any) => { handler = fn; }, env: { get: () => 'test-only' } }, createClient, fetchStats,
-  );
-  return { handler, createClient, fetchStats };
+  return { ...edgeHarness('supabase/functions/analytics-stats/index.ts', client,
+    { './user-message-stats.ts': { fetchUserMessageStats: fetchStats } }), fetchStats };
 }
 
 describe('analytics-stats access and real handler wiring', () => {
@@ -103,32 +98,14 @@ describe('analytics-stats access and real handler wiring', () => {
     expect(app.fetchStats).not.toHaveBeenCalled();
   });
   it('uses the user-only count helper in the actual authenticated response', async () => {
-    const countDb = database();
-    const client = {
-      auth: { getUser: async () => ({ data: { user: { id: 'test' } }, error: null }),
-        admin: { listUsers: async () => ({ data: { total: 1, users: [] } }) } },
-      rpc: async () => ({ data: true, error: null }),
-      from: (table: string) => {
-        if (table === 'chat_messages') {
-          const query = countDb.from(table);
-          // The preserved session query must not affect message-volume counts.
-          query.range = () => query;
-          return query;
-        }
-        const query: any = {
-          select: () => query, gte: () => query, lt: () => query, eq: () => query,
-          range: () => query,
-          then: (resolve: any) => Promise.resolve({ data: [], count: 0, error: null }).then(resolve),
-        };
-        return query;
-      },
-    };
+    const { client } = testDatabase({ chat_messages: rows, user_favorites: [], user_profiles: [], user_preferences: [] });
+    client.auth.admin.listUsers = async () => ({ data: { total: 1, users: [] }, error: null });
     const app = loadHandler(client);
     const response = await app.handler(new Request('https://example.test', {
       method: 'POST', headers: { Authorization: 'Bearer test-only' }, body: JSON.stringify({ dateRange }),
     }));
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ totalMessages: 2, messagesChange: 100, totalRegistered: 1 });
-    expect(app.fetchStats).toHaveBeenCalledWith(client, dateRange, expect.any(Date));
+    expect(app.fetchStats).toHaveBeenCalledWith(client, dateRange);
   });
 });

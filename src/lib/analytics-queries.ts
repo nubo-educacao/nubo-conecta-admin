@@ -17,21 +17,21 @@ export interface DashboardStats {
   activeUsers: number;
   activeUsersWithMessages: number;
   catalogUsers: number;
-  activeUsersChange: number;
-  catalogUsersChange: number;
+  activeUsersChange?: number;
+  catalogUsersChange?: number;
   totalMessages: number;
-  messagesChange: number;
+  messagesChange?: number;
   totalFavorites: number;
-  favoritesChange: number;
-  errorsToday: number;
-  errorsChange: number;
+  favoritesChange?: number;
+  errorsToday?: number;
+  errorsChange?: number;
   powerUsers: number;
-  powerUsersChange: number;
+  powerUsersChange?: number;
   powerUsersList: PowerUser[];
 }
 
 export interface ActivityData {
-  dia: string;
+  label: string;
   mensagens: number;
   usuarios: number;
 }
@@ -112,8 +112,8 @@ export async function fetchDashboardStats(dateRange?: DateRange): Promise<Dashbo
 }
 
 // Fetch activity data (last 7 days)
-export async function fetchActivityData(): Promise<ActivityData[]> {
-  const { data, error } = await supabase.functions.invoke('analytics-activity');
+export async function fetchActivityData(dateRange?: DateRange): Promise<ActivityData[]> {
+  const { data, error } = await supabase.functions.invoke('analytics-activity', { body: { mode: 'week', dateRange, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } });
 
   if (error) {
     console.error('Error fetching activity data:', error);
@@ -211,9 +211,9 @@ export async function fetchErrorLogs(filters?: {
 }
 
 // Fetch top engaged users
-export async function fetchTopUsers(): Promise<TopUser[]> {
+export async function fetchTopUsers(dateRange?: DateRange): Promise<TopUser[]> {
   const response = await supabase.functions.invoke('analytics-rankings', {
-    body: { type: 'users' },
+    body: { type: 'users', dateRange },
   });
 
   if (response.error) {

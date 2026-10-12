@@ -30,11 +30,11 @@ vi.mock("@/components/analytics/DashboardHeader", () => ({ DashboardHeader: ({ o
 vi.mock("@/components/analytics/PowerUsersCard", () => ({ PowerUsersCard: () => null }));
 vi.mock("@/components/analytics/TotalUsersCard", () => ({ TotalUsersCard: () => null }));
 vi.mock("@/components/analytics/StatCard", () => ({ StatCard: ({ title, value, tooltip, change }: any) => <div aria-label={title}>{value}<span>{tooltip}</span>{change !== undefined && <span>{change}%</span>}</div> }));
-vi.mock("@/components/analytics/ActivityChart", () => ({ ActivityChart: () => null }));
+vi.mock("@/components/analytics/ActivityChart", () => ({ ActivityChart: ({ dateRange }: any) => <div data-testid="activity-period">{dateRange?.from?.toISOString()}</div> }));
 vi.mock("@/components/analytics/TopCoursesChart", () => ({ TopCoursesChart: () => null }));
 vi.mock("@/components/analytics/FlowFunnelChart", () => ({ FlowFunnelChart: () => null }));
 vi.mock("@/components/analytics/LocationPreferenceChart", () => ({ LocationPreferenceChart: () => null }));
-vi.mock("@/components/analytics/TopUsersChart", () => ({ TopUsersChart: () => null }));
+vi.mock("@/components/analytics/TopUsersChart", () => ({ TopUsersChart: ({ dateRange }: any) => <div data-testid="users-period">{dateRange?.from?.toISOString()}</div> }));
 vi.mock("@/components/analytics/LocationChart", () => ({ LocationChart: () => null }));
 vi.mock("@/components/action-center/ActionCenter", () => ({ ActionCenter: () => null }));
 
@@ -70,6 +70,7 @@ describe("Command Center", () => {
     expect(screen.getByLabelText('Total de Mensagens')).toHaveTextContent('Indisponível');
     expect(screen.getByLabelText('Total de Mensagens')).not.toHaveTextContent('99');
     expect(screen.getByLabelText('Total de Mensagens')).not.toHaveTextContent('100%');
+    for (const title of ['Usuários Cadastrados', 'Power Users', 'Favoritos Salvos']) expect(screen.getByLabelText(title)).toHaveTextContent('Indisponível');
   });
 });
 
@@ -86,11 +87,11 @@ describe('Command Center selected period', () => {
     expect(screen.getByText('Preferências de Acesso')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Hoje'));
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    expect(screen.getByTestId('interest-period')).toHaveTextContent(today.toISOString());
+    for (const panel of ['interest-period', 'activity-period', 'users-period']) expect(screen.getByTestId(panel)).toHaveTextContent(today.toISOString());
     expect(vi.mocked(useDashboardStats).mock.calls.at(-1)?.[0]?.from).toEqual(today);
     fireEvent.click(screen.getByText('Data específica'));
     const custom = new Date(2026, 8, 2);
-    expect(screen.getByTestId('interest-period')).toHaveTextContent(custom.toISOString());
+    for (const panel of ['interest-period', 'activity-period', 'users-period']) expect(screen.getByTestId(panel)).toHaveTextContent(custom.toISOString());
     expect(vi.mocked(useDashboardStats).mock.calls.at(-1)?.[0]?.from).toEqual(custom);
   });
 });

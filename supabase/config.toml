@@ -398,3 +398,14 @@ entrypoint = "./functions/test-knowledge/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/analytics-stats/index.ts"
+
+
+[functions.analytics-rankings]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/analytics-rankings/index.ts"
+
+[functions.analytics-activity]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/analytics-activity/index.ts"

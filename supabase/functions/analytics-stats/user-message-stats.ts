@@ -29,7 +29,7 @@ export async function fetchUserMessageStats(supabase: any, range?: MessageDateRa
   }
   return {
     totalMessages: range ? current.count : total.count,
-    messagesChange: previous.count === 0 ? (current.count > 0 ? 100 : 0)
+    messagesChange: previous.count === 0 ? undefined
       : Math.round(((current.count - previous.count) / previous.count) * 100),
   };
 }
