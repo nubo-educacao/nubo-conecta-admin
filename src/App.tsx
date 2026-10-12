@@ -38,7 +38,6 @@ import PartnerForms from "./pages/PartnerForms";
 import PartnerUsers from "./pages/PartnerUsers";
 import PartnerApplications from "./pages/PartnerApplications";
 import PartnerOpportunities from "./pages/PartnerOpportunities";
-import FunnelUsers from "./pages/FunnelUsers";
 
 // Pages — Atendimento e App
 import Students from "./pages/Students";
@@ -105,7 +104,6 @@ const App = () => (
               <Route path="/forms" element={<PartnerForms />} />
               <Route path="/applications" element={<PartnerApplications />} />
               <Route path="/solicitations" element={<PartnerSolicitations />} />
-              <Route path="/funnel-users" element={<FunnelUsers />} />
               <Route path="/partners-users" element={<PartnerUsers />} />
 
               {/* Atendimento e App */}
