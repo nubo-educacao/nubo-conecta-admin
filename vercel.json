@@ -3,6 +3,7 @@
     "deploymentEnabled": false
   },
   "rewrites": [
+    { "source": "/api/snaps/:path*", "destination": "/api/snaps?__snaps_path=:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

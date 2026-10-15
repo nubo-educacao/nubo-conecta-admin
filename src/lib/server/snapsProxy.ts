@@ -86,6 +86,33 @@ async function ehStaff(token: string, env: ProxyEnv, f: typeof fetch): Promise<'
   return Array.isArray(linhas) && linhas.length > 0 ? 'ok' : 403;
 }
 
+/** Parâmetro que o rewrite do vercel.json usa para carregar o caminho original. */
+export const PARAM_DO_REWRITE = '__snaps_path';
+
+/**
+ * O vercel.json reescreve `/api/snaps/:path*` → `/api/snaps?__snaps_path=:path*`
+ * (uma função só, sem depender de rota catch-all fora do Next). Aqui a URL
+ * original é reconstruída; o resto da requisição segue igual. Um `..` no
+ * caminho é normalizado pela URL e cai fora do prefixo, logo em 404.
+ */
+export function requestDoRewrite(req: Request): Request {
+  const url = new URL(req.url);
+  const caminho = url.searchParams.get(PARAM_DO_REWRITE);
+  if (caminho === null) return req;
+  url.searchParams.delete(PARAM_DO_REWRITE);
+  const original = new URL(`${PREFIXO}/${caminho.replace(/^\/+/, '')}`, url.origin);
+  original.search = url.search;
+  // Copia só método, headers e corpo (stream): `new Request(url, req)` também
+  // copiaria o `signal`, que nem todo runtime aceita vindo de outro Request.
+  const temCorpo = req.method !== 'GET' && req.method !== 'HEAD';
+  return new Request(original, {
+    method: req.method,
+    headers: req.headers,
+    body: temCorpo ? req.body : undefined,
+    duplex: 'half',
+  } as RequestInit & { duplex: 'half' });
+}
+
 export async function handleSnapsProxy(
   req: Request,
   env: ProxyEnv | null,

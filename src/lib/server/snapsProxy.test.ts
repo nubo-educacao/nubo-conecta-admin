@@ -8,7 +8,7 @@
  * do servidor, apenas para os caminhos que o admin realmente usa.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { envDoProcesso, handleSnapsProxy, type ProxyEnv } from './snapsProxy';
+import { envDoProcesso, handleSnapsProxy, requestDoRewrite, type ProxyEnv } from './snapsProxy';
 
 const PID = '11111111-2222-3333-4444-555555555555';
 const OUTRO_PID = '99999999-2222-3333-4444-555555555555';
@@ -172,5 +172,37 @@ describe('configuração', () => {
     expect(envDoProcesso(completo)).toEqual({ ...ENV, snapsApiUrl: 'https://snaps.example' });
     expect(envDoProcesso({ ...completo, SNAPS_API_KEY: '' })).toBeNull();
     expect(envDoProcesso({ ...completo, SNAPS_API_KEY: undefined, VITE_SNAPS_API_KEY: CHAVE })).toBeNull();
+  });
+});
+
+describe('rewrite da Vercel (/api/snaps/:path* → /api/snaps?__snaps_path=)', () => {
+  it('reconstrói caminho e query originais, preservando método, headers e corpo', async () => {
+    const r = requestDoRewrite(new Request(
+      `https://admin.example/api/snaps?__snaps_path=public/projects/${PID}/support&status=todo&limit=10`,
+      { method: 'POST', headers: { 'X-API-Key': TOKEN, 'Content-Type': 'text/plain' }, body: 'oi' },
+    ));
+    const url = new URL(r.url);
+    expect(url.pathname).toBe(`/api/snaps/public/projects/${PID}/support`);
+    expect(url.searchParams.get('__snaps_path')).toBeNull();
+    expect(url.searchParams.get('status')).toBe('todo');
+    expect(url.searchParams.get('limit')).toBe('10');
+    expect(r.method).toBe('POST');
+    expect(r.headers.get('X-API-Key')).toBe(TOKEN);
+    expect(await r.text()).toBe('oi');
+  });
+
+  it('sem o parâmetro do rewrite devolve a requisição como veio', () => {
+    const original = new Request(`https://admin.example/api/snaps/public/projects/${PID}/roadmap`);
+    expect(requestDoRewrite(original).url).toBe(original.url);
+  });
+
+  it('um caminho do rewrite com .. não escapa da lista (continua 404)', async () => {
+    const f = fetchFalso();
+    const r = await handleSnapsProxy(
+      requestDoRewrite(new Request(`https://admin.example/api/snaps?__snaps_path=public/projects/${PID}/../../admin`,
+        { headers: { 'X-API-Key': TOKEN } })),
+      ENV, f.impl,
+    );
+    expect(r.status).toBe(404);
   });
 });
