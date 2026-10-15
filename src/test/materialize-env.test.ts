@@ -13,7 +13,7 @@ import {
 
 const ARQUIVO = [
   'VITE_SUPABASE_URL=https://yfgciamhzjvarwgzosto.supabase.co',
-  'SNAPS_API_KEY=chave-do-servidor',
+  'GOVERNANCE_API_KEY=chave-do-servidor',
   "COM_ESPACO='valor com espaco e $VAR # nao e comentario'",
   '',
 ].join('\n');
@@ -22,7 +22,7 @@ describe('parseStackEnv', () => {
   it('lê valor cru e entre aspas simples sem alterar nada', () => {
     expect(parseStackEnv(ARQUIVO)).toEqual({
       VITE_SUPABASE_URL: 'https://yfgciamhzjvarwgzosto.supabase.co',
-      SNAPS_API_KEY: 'chave-do-servidor',
+      GOVERNANCE_API_KEY: 'chave-do-servidor',
       COM_ESPACO: 'valor com espaco e $VAR # nao e comentario',
     });
   });
@@ -41,12 +41,12 @@ describe('chavesSuspeitas', () => {
   it('aponta VITE_* com nome de segredo (iria para o bundle)', () => {
     expect(chavesSuspeitas([
       'VITE_SUPABASE_PUBLISHABLE_KEY', 'VITE_SNAPS_API_KEY', 'VITE_X_SECRET',
-      'VITE_GH_TOKEN', 'VITE_DB_PASSWORD', 'VITE_SERVICE_ROLE', 'SNAPS_API_KEY',
+      'VITE_GH_TOKEN', 'VITE_DB_PASSWORD', 'VITE_SERVICE_ROLE', 'GOVERNANCE_API_KEY',
     ])).toEqual(['VITE_SNAPS_API_KEY', 'VITE_X_SECRET', 'VITE_GH_TOKEN', 'VITE_DB_PASSWORD', 'VITE_SERVICE_ROLE']);
   });
 
   it('chave de servidor (sem VITE_) é permitida: não vai para o bundle', () => {
-    expect(chavesSuspeitas(['SNAPS_API_KEY', 'SNAPS_API_URL'])).toEqual([]);
+    expect(chavesSuspeitas(['GOVERNANCE_API_KEY', 'GOVERNANCE_API_URL'])).toEqual([]);
   });
 });
 
@@ -70,8 +70,8 @@ describe('materializar', () => {
 
   it('devolve nomes, máscaras e o bloco de $GITHUB_ENV', () => {
     const r = materializar(ARQUIVO, 'D_y');
-    expect(r.chaves).toEqual(['COM_ESPACO', 'SNAPS_API_KEY', 'VITE_SUPABASE_URL']);
+    expect(r.chaves).toEqual(['COM_ESPACO', 'GOVERNANCE_API_KEY', 'VITE_SUPABASE_URL']);
     expect(r.mascaras).toHaveLength(3);
-    expect(r.githubEnv).toContain('SNAPS_API_KEY<<D_y\nchave-do-servidor\nD_y\n');
+    expect(r.githubEnv).toContain('GOVERNANCE_API_KEY<<D_y\nchave-do-servidor\nD_y\n');
   });
 });

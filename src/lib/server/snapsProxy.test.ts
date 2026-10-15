@@ -164,14 +164,14 @@ describe('configuração', () => {
     expect(r.status).toBe(503);
   });
 
-  it('envDoProcesso só monta a config com todas as variáveis, e lê a chave de SNAPS_API_KEY (não pública)', () => {
+  it('envDoProcesso só monta a config com todas as variáveis, e lê a chave de GOVERNANCE_API_KEY (não pública)', () => {
     const completo = {
-      SNAPS_API_URL: 'https://snaps.example/', SNAPS_API_KEY: CHAVE, VITE_SNAPS_PROJECT_ID: PID,
+      GOVERNANCE_API_URL: 'https://snaps.example/', GOVERNANCE_API_KEY: CHAVE, VITE_SNAPS_PROJECT_ID: PID,
       VITE_SUPABASE_URL: 'https://sb.example', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_x',
     };
     expect(envDoProcesso(completo)).toEqual({ ...ENV, snapsApiUrl: 'https://snaps.example' });
-    expect(envDoProcesso({ ...completo, SNAPS_API_KEY: '' })).toBeNull();
-    expect(envDoProcesso({ ...completo, SNAPS_API_KEY: undefined, VITE_SNAPS_API_KEY: CHAVE })).toBeNull();
+    expect(envDoProcesso({ ...completo, GOVERNANCE_API_KEY: '' })).toBeNull();
+    expect(envDoProcesso({ ...completo, GOVERNANCE_API_KEY: undefined, VITE_SNAPS_API_KEY: CHAVE })).toBeNull();
   });
 });
 

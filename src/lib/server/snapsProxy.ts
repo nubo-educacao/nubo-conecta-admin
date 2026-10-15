@@ -9,7 +9,7 @@
  *      staff: alunos logam no mesmo Supabase e parceiro não vê estas telas;
  *   3. só repassa os caminhos e métodos que o admin realmente usa, e só para o
  *      projeto do Snaps configurado;
- *   4. troca o token pela chave do servidor (`SNAPS_API_KEY`, sem prefixo VITE_).
+ *   4. troca o token pela chave do servidor (`GOVERNANCE_API_KEY`, sem prefixo VITE_).
  *
  * Nenhuma resposta cita token, chave ou valor de configuração.
  */
@@ -52,8 +52,8 @@ function json(status: number, erro: string): Response {
 /** Lê a configuração do servidor. Qualquer variável ausente → null (503). */
 export function envDoProcesso(e: Record<string, string | undefined>): ProxyEnv | null {
   const cfg = {
-    snapsApiUrl: (e.SNAPS_API_URL ?? '').replace(/\/+$/, ''),
-    snapsApiKey: e.SNAPS_API_KEY ?? '',
+    snapsApiUrl: (e.GOVERNANCE_API_URL ?? '').replace(/\/+$/, ''),
+    snapsApiKey: e.GOVERNANCE_API_KEY ?? '',
     snapsProjectId: e.VITE_SNAPS_PROJECT_ID ?? '',
     supabaseUrl: (e.VITE_SUPABASE_URL ?? '').replace(/\/+$/, ''),
     supabasePublishableKey: e.VITE_SUPABASE_PUBLISHABLE_KEY ?? '',
