@@ -6,7 +6,7 @@
  * caminhos, repasse — está em src/lib/server/snapsProxy.ts, com testes.
  *
  * Variáveis de RUNTIME (passadas no `vercel deploy --env`, nunca no bundle):
- *   SNAPS_API_KEY, SNAPS_API_URL, VITE_SNAPS_PROJECT_ID,
+ *   GOVERNANCE_API_KEY, GOVERNANCE_API_URL, VITE_SNAPS_PROJECT_ID,
  *   VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
  */
 // Projeto ESM ("type": "module"): o import relativo precisa da extensão .js.
