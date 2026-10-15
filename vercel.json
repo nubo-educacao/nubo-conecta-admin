@@ -1,5 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": false
+  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/snaps/:path*", "destination": "/api/snaps?__snaps_path=:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

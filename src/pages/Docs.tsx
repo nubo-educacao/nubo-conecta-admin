@@ -1,10 +1,12 @@
 import React from "react";
-
-const SNAPS_PROJECT_ID = import.meta.env.VITE_SNAPS_PROJECT_ID as string;
-const SNAPS_API_KEY = import.meta.env.VITE_SNAPS_API_KEY as string;
-const SNAPS_API_URL = import.meta.env.VITE_SNAPS_API_URL as string;
+import { useAuth } from "@/context/AuthContext";
+import { SNAPS_PROJECT_ID, SNAPS_PROXY_URL } from "@/lib/snapsProxyClient";
 
 export default function Docs() {
+  // NUB-RD-86 (A4): o componente fala com o proxy do admin e se identifica
+  // com o token da sessão; a chave do Snaps fica só no servidor.
+  const { session } = useAuth();
+
   return (
     <div className="flex-1 space-y-4 p-8 pt-6 animate-in fade-in slide-in-from-bottom-2">
       <div className="flex items-center justify-between">
@@ -18,8 +20,8 @@ export default function Docs() {
 
       <snaps-governance-docs
         project-id={SNAPS_PROJECT_ID}
-        api-key={SNAPS_API_KEY}
-        api-url={SNAPS_API_URL}
+        api-key={session?.access_token ?? ""}
+        api-url={SNAPS_PROXY_URL}
       />
     </div>
   );

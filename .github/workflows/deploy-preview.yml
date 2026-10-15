@@ -1,0 +1,131 @@
+# NUB-RD-86 / ADR-NUBO-DEPLOY-01 — preview do admin com a configuração do Snaps.
+# Mesmo padrão do nubo-conecta-app (deploy-preview.yml): OIDC → bilhete →
+# resgate do environment DEV do Snaps; nada vem das variáveis da Vercel.
+#
+# Variáveis de RUNTIME do proxy /api/snaps (chave do Snaps, só servidor) vão no
+# `vercel deploy --env`, nunca no bundle.
+#
+# GitHub Environment `Preview` (já existe):
+#   vars:    SNAPS_API_URL_MATERIALIZE (snaps-api), SNAPS_PROJECT_ID, SNAPS_ENVIRONMENT_ID,
+#            VERCEL_ORG_ID, VERCEL_PROJECT_ID
+#   secrets: VERCEL_TOKEN
+# Grant no Snaps: repository nubo-educacao/nubo-conecta-admin,
+#   github_environment=Preview, repo_name=nubo-conecta-admin.
+name: deploy-preview
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: deploy-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: Preview
+    timeout-minutes: 25
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_CLI: vercel@63.1.2
+      # Só estas vão para o runtime da Vercel Function (proxy). Nenhuma é VITE_ secreta.
+      RUNTIME_KEYS: SNAPS_API_KEY SNAPS_API_URL VITE_SNAPS_PROJECT_ID VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Materializar configuração do Snaps (DEV)
+        env:
+          MATERIALIZE_URL: ${{ vars.SNAPS_API_URL_MATERIALIZE }}
+          SNAPS_PROJECT_ID: ${{ vars.SNAPS_PROJECT_ID }}
+          SNAPS_ENVIRONMENT_ID: ${{ vars.SNAPS_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for v in MATERIALIZE_URL SNAPS_PROJECT_ID SNAPS_ENVIRONMENT_ID VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            [ -n "${!v:-}" ] || { echo "::error::$v não definido no GitHub Environment 'Preview'"; exit 1; }
+          done
+          oidc=$(curl -sS --fail-with-body \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=snaps-api-materialize" | jq -r .value)
+          echo "::add-mask::$oidc"
+          ticket=$(curl -sS --fail-with-body -X POST "$MATERIALIZE_URL/materialization/tickets" \
+            -H "Authorization: Bearer $oidc" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg p "$SNAPS_PROJECT_ID" --arg e "$SNAPS_ENVIRONMENT_ID" '{project_id: $p, environment_id: $e}')" \
+            | jq -r .ticket)
+          echo "::add-mask::$ticket"
+          curl -sS --fail-with-body -X POST "$MATERIALIZE_URL/materialization/redeem" \
+            -H 'Accept: text/plain' -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg t "$ticket" '{ticket: $t}')" \
+            -D "$RUNNER_TEMP/snaps.headers" -o "$RUNNER_TEMP/snaps.env"
+          grep -i '^x-snaps-' "$RUNNER_TEMP/snaps.headers" || true
+          node scripts/ci/materialize-env.ts "$RUNNER_TEMP/snaps.env"
+          rm -f "$RUNNER_TEMP/snaps.env" "$RUNNER_TEMP/snaps.headers"
+
+      - name: Projeto Vercel, sem as variáveis da Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes "$VERCEL_CLI" pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          rm -f .vercel/.env.*.local
+
+      # `tsc -b` falha em silêncio na Vercel (deploy CANCELED): aqui o erro aparece no log.
+      - name: Build
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes "$VERCEL_CLI" build --token="$VERCEL_TOKEN"
+
+      - name: Verificar a saída do build (preview)
+        run: bash scripts/ci/verify-build-output.sh yfgciamhzjvarwgzosto aifzkybxhmefbirujvdg
+
+      - name: Deploy (preview)
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          args=()
+          for k in $RUNTIME_KEYS; do
+            [ -n "${!k:-}" ] && args+=(--env "$k=${!k}")
+          done
+          url=$(npx --yes "$VERCEL_CLI" deploy --prebuilt "${args[@]}" --token="$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Comentar a URL no PR
+        uses: actions/github-script@v7
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        with:
+          script: |
+            const marca = '<!-- deploy-preview-snaps -->';
+            const corpo = `${marca}\nPreview (config do Snaps DEV): ${process.env.URL}\nCommit: ${context.sha}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comentarios = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existente = comentarios.find((c) => c.body && c.body.startsWith(marca));
+            if (existente) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existente.id, body: corpo });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: corpo });
+            }
+
+      - name: Limpar
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/snaps.env" "$RUNNER_TEMP/snaps.headers" .vercel/.env.*.local

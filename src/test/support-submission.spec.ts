@@ -11,6 +11,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createSupportCard, type CreateCardPayload } from "@/lib/snapsClient";
 
+// NUB-RD-86 (A4): o snapsClient passa pelo proxy do admin e usa o token da
+// sessão Supabase no x-api-key; a sessão é simulada aqui.
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: { auth: { getSession: vi.fn(async () => ({ data: { session: { access_token: "token-da-sessao" } } })) } },
+}));
+
 // ---------------------------------------------------------------------------
 // Fetch mock global
 // ---------------------------------------------------------------------------
@@ -74,7 +80,8 @@ describe("Cenário: Bug — createSupportCard com card_type=bug", () => {
 
     const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
     const headers = options.headers as Record<string, string>;
-    expect(headers["x-api-key"]).toBeDefined();
+    // O x-api-key é o token da sessão (o proxy troca pela chave do servidor).
+    expect(headers["x-api-key"]).toBe("token-da-sessao");
     expect(headers["Content-Type"]).toBe("application/json");
   });
 

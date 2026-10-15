@@ -3,21 +3,11 @@
 // (BugReportForm, FeatureRequestForm) to create cards and by RoadmapBoard
 // to fetch sprints/cards.
 
-const SNAPS_BASE_URL =
-  import.meta.env.VITE_SNAPS_API_URL ?? 'https://snaps.antigravity.dev';
+// NUB-RD-86 (A4): tudo passa pelo proxy do admin (/api/snaps). A chave do
+// Snaps não existe mais no bundle; o X-API-Key leva o token da sessão.
+import { SNAPS_PROJECT_ID, SNAPS_PROXY_URL, snapsSessionToken } from '@/lib/snapsProxyClient';
 
-const SNAPS_PROJECT_ID =
-  import.meta.env.VITE_SNAPS_PROJECT_ID ?? '';
-
-const SNAPS_API_KEY =
-  import.meta.env.VITE_SNAPS_API_KEY ?? '';
-
-// Debug: log env vars on load (remove after CORS issue resolved)
-console.group('[snapsApiService] ENV CHECK');
-console.log('BASE_URL:', SNAPS_BASE_URL);
-console.log('PROJECT_ID:', SNAPS_PROJECT_ID || '⚠️ MISSING');
-console.log('API_KEY set:', SNAPS_API_KEY ? '✅' : '⚠️ MISSING');
-console.groupEnd();
+const SNAPS_BASE_URL = SNAPS_PROXY_URL;
 
 export type CardType = 'bug' | 'feature';
 
@@ -72,10 +62,10 @@ export interface SnapsSprint {
   cards?: SnapsCard[];
 }
 
-function headers() {
+async function headers() {
   return {
     'Content-Type': 'application/json',
-    'X-API-Key': SNAPS_API_KEY,
+    'X-API-Key': await snapsSessionToken(),
   };
 }
 
@@ -94,7 +84,7 @@ export async function createCard(
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: headers(),
+    headers: await headers(),
     body: JSON.stringify(apiPayload),
   });
   if (!response.ok) {
@@ -125,7 +115,7 @@ export async function fetchSupportCards(
   
   const url = `${SNAPS_BASE_URL}/public/projects/${SNAPS_PROJECT_ID}/support?${params.toString()}`;
   console.log('[snapsApiService] fetchSupportCards →', url);
-  const response = await fetch(url, { headers: headers() });
+  const response = await fetch(url, { headers: await headers() });
   if (!response.ok) {
     throw new Error(`snapsApiService.fetchSupportCards: HTTP ${response.status}`);
   }
@@ -135,7 +125,7 @@ export async function fetchSupportCards(
 export async function fetchSingleCard(cardId: string): Promise<SnapsCard> {
   const url = `${SNAPS_BASE_URL}/public/projects/${SNAPS_PROJECT_ID}/support/cards/${cardId}`;
   console.log('[snapsApiService] fetchSingleCard →', url);
-  const response = await fetch(url, { headers: headers() });
+  const response = await fetch(url, { headers: await headers() });
   if (!response.ok) {
     throw new Error(`snapsApiService.fetchSingleCard: HTTP ${response.status}`);
   }
@@ -147,7 +137,7 @@ export async function updateCardStatus(cardId: string, status: string): Promise<
   console.log('[snapsApiService] updateCardStatus →', url, status);
   const response = await fetch(url, {
     method: 'PATCH',
-    headers: headers(),
+    headers: await headers(),
     body: JSON.stringify({ status }),
   });
   if (!response.ok) {
@@ -161,7 +151,7 @@ export async function deleteCard(cardId: string): Promise<{ ok: boolean }> {
   console.log('[snapsApiService] deleteCard →', url);
   const response = await fetch(url, {
     method: 'DELETE',
-    headers: headers(),
+    headers: await headers(),
   });
   if (!response.ok) {
     throw new Error(`snapsApiService.deleteCard: HTTP ${response.status}`);
@@ -172,7 +162,7 @@ export async function deleteCard(cardId: string): Promise<{ ok: boolean }> {
 export async function fetchRoadmapSprints(): Promise<SnapsSprint[]> {
   const url = `${SNAPS_BASE_URL}/public/projects/${SNAPS_PROJECT_ID}/roadmap`;
   console.log('[snapsApiService] fetchRoadmapSprints →', url);
-  const response = await fetch(url, { headers: headers() });
+  const response = await fetch(url, { headers: await headers() });
   if (!response.ok) {
     throw new Error(`snapsApiService.fetchRoadmapSprints: HTTP ${response.status}`);
   }
@@ -192,8 +182,7 @@ export async function uploadSupportAttachment(file: File): Promise<{ url: string
     // We cannot use standard headers() because it includes Content-Type: application/json
     // For FormData, browser sets multipart/form-data with the correct boundary automatically
     headers: {
-      'Authorization': `Bearer ${SNAPS_API_KEY}`,
-      'X-API-Key': SNAPS_API_KEY,
+      'X-API-Key': await snapsSessionToken(),
     },
     body: formData,
   });
