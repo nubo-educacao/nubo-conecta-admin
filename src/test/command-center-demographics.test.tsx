@@ -106,6 +106,41 @@ describe("DemographicsCharts", () => {
         expect(screen.getByText("Tipo de escola")).toBeInTheDocument();
     });
 
+    it("aceita o payload com chaves aditivas e conta a faixa em salários mínimos como resposta", async () => {
+        rpc.mockResolvedValue({
+            data: {
+                ...payload,
+                match_health: {
+                    ...payload.match_health,
+                    attempted_no_result: 1,
+                    never: 2,
+                    with_current_result: 1,
+                    with_current_mec_result: 0,
+                },
+                income: [
+                    { label: "Até R$ 500", value: 1 },
+                    { label: "Faixa declarada em salários mínimos", value: 2 },
+                    { label: "Não respondeu", value: 2 },
+                ],
+                provenance: {
+                    rule_version: "tp1c-2026-10-15.v1",
+                    education: { profile: 3, partner_form: 1, unanswered: 1, conflicts: 0 },
+                    race: { profile: 2, partner_form: 0, unanswered: 3, conflicts: 0, declined: 0 },
+                    school_type: { profile: 1, partner_form: 2, unanswered: 2, conflicts: 0 },
+                    income: { profile: 1, onboarding_v0: 0, partner_form: 0, sm_band: 2, unanswered: 2, conflicts: 0 },
+                },
+            } satisfies CommandCenterDemographics,
+            error: null,
+        } as never);
+
+        renderWithClient(<DemographicsCharts />);
+
+        // Renda: 3 de 5 (1 em R$ + 2 em faixa SM) = 60%, como tipo de escola.
+        // Se a faixa SM fosse tratada como ausência, renda ficaria em 20%.
+        expect(await screen.findAllByText(/60% preencheram/)).toHaveLength(2);
+        expect(screen.queryByText(/20% preencheram/)).not.toBeInTheDocument();
+    });
+
     it("mostra a cobertura de preenchimento por dimensão", async () => {
         renderWithClient(<DemographicsCharts />);
 

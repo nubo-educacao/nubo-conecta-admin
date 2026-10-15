@@ -148,10 +148,33 @@ export interface DistributionSlice {
   value: number;
 }
 
+// with_match = concluiu Match alguma vez (v0 ∪ v1, incluindo elegibilidade de
+// parceiro) desde o complemento do card f245da71. Os campos opcionais são
+// aditivos e ainda não são exibidos.
 export interface MatchHealth {
   with_match: number;
   without_match: number;
   total: number;
+  attempted_no_result?: number;
+  never?: number;
+  with_current_result?: number;
+  with_current_mec_result?: number;
+}
+
+/** Contagem por origem do valor exibido numa dimensão. */
+export interface DimensionProvenance {
+  profile: number;
+  partner_form: number;
+  unanswered: number;
+  conflicts: number;
+}
+
+export interface DemographicsProvenance {
+  rule_version: string;
+  education: DimensionProvenance;
+  race: DimensionProvenance & { declined: number };
+  school_type: DimensionProvenance;
+  income: DimensionProvenance & { onboarding_v0: number; sm_band: number };
 }
 
 export interface CommandCenterDemographics {
@@ -160,6 +183,7 @@ export interface CommandCenterDemographics {
   income: DistributionSlice[];
   race: DistributionSlice[];
   school_type: DistributionSlice[];
+  provenance?: DemographicsProvenance;
 }
 
 /**
