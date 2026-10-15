@@ -146,6 +146,16 @@ export async function getCampaigns(): Promise<Campaign[]> {
     return (data ?? []) as Campaign[];
 }
 
+/** Ativas e inativas — para filtros históricos por first-touch (TP-7 NHB-123b). */
+export async function getAllCampaigns(): Promise<Campaign[]> {
+    const { data, error } = await supabase
+        .from("campaigns")
+        .select("*")
+        .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Campaign[];
+}
+
 export async function getChannels(includeArchived = false): Promise<Channel[]> {
     let query = supabase.from("channels").select("*").order("name");
     if (!includeArchived) query = query.eq("active", true).is("archived_at", null);

@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
     getApplicationsWithDetails,
@@ -24,6 +25,14 @@ import ApplicationAnswersModal from "@/components/applications/ApplicationAnswer
 import { buildMultiSheetApplicationsExport, downloadApplicationsXlsx } from "@/lib/applicationsExport";
 import type { PartnerFormField } from "@/services/partnerPortalService";
 import type { OpportunityPhase } from "@/services/applicationsService";
+import { AttributionFilterFields } from "@/components/filters/AttributionFilterFields";
+import { useAttributionFilterOptions } from "@/hooks/useAttributionFilterOptions";
+import {
+    hasAttributionFilter,
+    readAttributionParams,
+    writeAttributionParams,
+    type AttributionFilter,
+} from "@/lib/attributionFilter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 // ─── Excel Export ────────────────────────────────────────────────────────────
@@ -55,6 +64,22 @@ export default function PartnerApplications() {
     const [partnerFilter, setPartnerFilter] = useState<string>("all");
     const [filteredApps, setFilteredApps] = useState<ApplicationWithDetails[]>([]);
 
+    // Recorte por campanha/divulgador (first-touch do aluno, TP-7). Fica na URL
+    // para o link ser compartilhável; é aplicado na RPC, então tabela, cards,
+    // gráfico e exportação partem do mesmo conjunto.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const attribution = useMemo(() => readAttributionParams(searchParams), [searchParams]);
+    const attributionOptions = useAttributionFilterOptions();
+    const setAttribution = useCallback(
+        (next: AttributionFilter) => {
+            const params = new URLSearchParams(searchParams);
+            ["campaignId", "channelId", "unattributed"].forEach((k) => params.delete(k));
+            writeAttributionParams(params, next);
+            setSearchParams(params, { replace: true });
+        },
+        [searchParams, setSearchParams]
+    );
+
     // 1. Fetch opportunities list for the Oportunidade filter
     const { data: partners = [] } = useQuery({
         queryKey: ["partnersList"],
@@ -77,8 +102,8 @@ export default function PartnerApplications() {
     // Status) is entirely client-side inside ApplicationsTable now, so the
     // dropdown options can cascade against the full dataset.
     const { data: applications = [], isLoading } = useQuery({
-        queryKey: ["applicationsWithDetails", "all"],
-        queryFn: () => getApplicationsWithDetails(),
+        queryKey: ["applicationsWithDetails", "all", attribution],
+        queryFn: () => getApplicationsWithDetails(undefined, attribution),
     });
 
     // Currently selected Oportunidade (notified by ApplicationsTable via
@@ -174,6 +199,23 @@ export default function PartnerApplications() {
                     Exportar Excel
                 </Button>
             </div>
+
+            {/* Campanha / Divulgador (componente compartilhado TP-7) */}
+            <Card>
+                <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <AttributionFilterFields
+                        value={attribution}
+                        onChange={setAttribution}
+                        options={attributionOptions.options}
+                        isLoading={attributionOptions.isLoading}
+                    />
+                    {hasAttributionFilter(attribution) && !isLoading && applications.length === 0 && (
+                        <p className="col-span-full text-sm text-muted-foreground">
+                            Nenhuma inscrição de estudantes com esta atribuição.
+                        </p>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

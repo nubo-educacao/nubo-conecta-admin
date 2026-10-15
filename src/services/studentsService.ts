@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { attributionRpcArgs, type AttributionFilter } from "@/lib/attributionFilter";
 
 export interface StudentProfile {
     id: string;
@@ -64,7 +65,12 @@ export interface StudentDetails {
     favorites: UserFavorite[];
 }
 
-export interface StudentFilters {
+/**
+ * Filtros da tela de Estudantes. É o MESMO objeto que alimenta lista, total,
+ * cards de stats e exportação — ver toStudentFilterParams.
+ * Campanha/divulgador: recorte first-touch (TP-7, artefato Snaps 46d78fd5).
+ */
+export interface StudentFilters extends AttributionFilter {
     fullName?: string;
     city?: string;
     education?: string;
@@ -101,18 +107,31 @@ export type SortableStudentField = (typeof SORTABLE_STUDENT_FIELDS)[number];
 export interface GetStudentsOptions {
     page?: number;
     pageSize?: number;
-    filters?: {
-        name?: string;
-        city?: string;
-        education?: string;
-        isNuboStudent?: boolean | null;
-        incomeRange?: [number | null, number | null];
-        quotaTypes?: string[];
-        state?: string;
-        ageRange?: [number | null, number | null];
-    };
+    filters?: StudentFilters;
     sortBy?: string;
     sortOrder?: string;
+}
+
+/**
+ * Filtros comuns de get_students_paginated e get_student_stats, já com os
+ * nomes de parâmetro de cada RPC. Uma fonte só: antes a lista lia `name`,
+ * `incomeRange` e `ageRange`, que a página nunca enviava — nome, renda e idade
+ * filtravam os cards mas não a lista nem a exportação.
+ */
+function toStudentFilterValues(filters?: StudentFilters) {
+    return {
+        name: filters?.fullName || null,
+        city: filters?.city || null,
+        education: filters?.education || null,
+        isNuboStudent: filters?.isNuboStudent ?? null,
+        incomeMin: filters?.incomeMin || null,
+        incomeMax: filters?.incomeMax || null,
+        quotaTypes: filters?.quotaTypes && filters.quotaTypes.length > 0 ? filters.quotaTypes : null,
+        state: filters?.state || null,
+        ageMin: filters?.ageMin || null,
+        ageMax: filters?.ageMax || null,
+        attribution: attributionRpcArgs(filters ?? {}),
+    };
 }
 
 export const getStudents = async ({
@@ -123,22 +142,24 @@ export const getStudents = async ({
     sortOrder = "desc",
 }: GetStudentsOptions) => {
     try {
+        const f = toStudentFilterValues(filters);
         const rpcParams = {
             p_page: page,
             p_page_size: pageSize,
-            p_filter_name: filters?.name || null,
-            p_filter_city: filters?.city || null,
-            p_filter_education: filters?.education || null,
-            p_filter_is_nubo_student: filters?.isNuboStudent ?? null,
-            p_filter_income_min: filters?.incomeRange?.[0] || null,
-            p_filter_income_max: filters?.incomeRange?.[1] || null,
-            p_filter_quota_types: (filters?.quotaTypes && filters.quotaTypes.length > 0) ? filters.quotaTypes : null,
+            p_filter_name: f.name,
+            p_filter_city: f.city,
+            p_filter_education: f.education,
+            p_filter_is_nubo_student: f.isNuboStudent,
+            p_filter_income_min: f.incomeMin,
+            p_filter_income_max: f.incomeMax,
+            p_filter_quota_types: f.quotaTypes,
             p_sort_by: sortBy,
             p_sort_order: sortOrder,
-            p_filter_state: filters?.state || null,
-            p_filter_age_min: filters?.ageRange?.[0] || null,
-            p_filter_age_max: filters?.ageRange?.[1] || null,
-        }
+            p_filter_state: f.state,
+            p_filter_age_min: f.ageMin,
+            p_filter_age_max: f.ageMax,
+            ...f.attribution,
+        };
 
         const { data, error } = await supabase.rpc("get_students_paginated", rpcParams as any);
 
@@ -273,18 +294,20 @@ export interface StudentStats {
 }
 
 export const getStudentStats = async (filters?: StudentFilters): Promise<StudentStats> => {
+    const f = toStudentFilterValues(filters);
     const { data, error } = await supabase
         .rpc('get_student_stats' as any, {
-            filter_full_name: filters?.fullName || null,
-            filter_city: filters?.city || null,
-            filter_education: filters?.education || null,
-            filter_is_nubo_student: filters?.isNuboStudent ?? null,
-            filter_income_min: filters?.incomeMin || null,
-            filter_income_max: filters?.incomeMax || null,
-            filter_quota_types: (filters?.quotaTypes && filters.quotaTypes.length > 0) ? filters.quotaTypes : null,
-            filter_state: filters?.state || null,
-            filter_age_min: filters?.ageMin || null,
-            filter_age_max: filters?.ageMax || null
+            filter_full_name: f.name,
+            filter_city: f.city,
+            filter_education: f.education,
+            filter_is_nubo_student: f.isNuboStudent,
+            filter_income_min: f.incomeMin,
+            filter_income_max: f.incomeMax,
+            filter_quota_types: f.quotaTypes,
+            filter_state: f.state,
+            filter_age_min: f.ageMin,
+            filter_age_max: f.ageMax,
+            ...f.attribution,
         });
 
     if (error) throw error;
