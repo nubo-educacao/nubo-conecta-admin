@@ -1,0 +1,124 @@
+# NUB-RD-86 / ADR-NUBO-DEPLOY-01 — produção do admin com a config do Snaps PROD.
+#
+# Só roda DEPOIS de "Database migrations" terminar com SUCESSO num push em main.
+# Antes, o deploy da Vercel corria em paralelo às migrations de produção; uma
+# migration que falhasse deixava no ar um front que dependia dela.
+#
+# Neste mesmo PR o vercel.json desliga a integração Git da Vercel: este workflow
+# passa a ser o único caminho de produção.
+#
+# Barreiras: grant do Snaps para Production com allowed_ref=refs/heads/main (o
+# evento workflow_run roda na branch padrão, então o claim `ref` é main).
+# Rollback: reverter o PR; ou promover o deploy anterior na Vercel.
+#
+# GitHub Environment `Production` (já existe; também é o das migrations):
+#   vars:    SNAPS_API_URL_MATERIALIZE, SNAPS_PROJECT_ID, SNAPS_ENVIRONMENT_ID (PROD),
+#            VERCEL_ORG_ID, VERCEL_PROJECT_ID
+#   secrets: VERCEL_TOKEN
+name: deploy-production
+
+on:
+  workflow_run:
+    workflows: ["Database migrations"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  production:
+    # Só depois de migrations OK num push em main (não em PR, não em falha).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    environment: Production
+    timeout-minutes: 25
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_CLI: vercel@63.1.2
+      RUNTIME_KEYS: SNAPS_API_KEY SNAPS_API_URL VITE_SNAPS_PROJECT_ID VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY
+    steps:
+      # Publica exatamente o commit cujas migrations passaram.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Materializar configuração do Snaps (PROD)
+        env:
+          MATERIALIZE_URL: ${{ vars.SNAPS_API_URL_MATERIALIZE }}
+          SNAPS_PROJECT_ID: ${{ vars.SNAPS_PROJECT_ID }}
+          SNAPS_ENVIRONMENT_ID: ${{ vars.SNAPS_ENVIRONMENT_ID }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for v in MATERIALIZE_URL SNAPS_PROJECT_ID SNAPS_ENVIRONMENT_ID VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            [ -n "${!v:-}" ] || { echo "::error::$v não definido no GitHub Environment 'Production'"; exit 1; }
+          done
+          oidc=$(curl -sS --fail-with-body \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=snaps-api-materialize" | jq -r .value)
+          echo "::add-mask::$oidc"
+          ticket=$(curl -sS --fail-with-body -X POST "$MATERIALIZE_URL/materialization/tickets" \
+            -H "Authorization: Bearer $oidc" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg p "$SNAPS_PROJECT_ID" --arg e "$SNAPS_ENVIRONMENT_ID" '{project_id: $p, environment_id: $e}')" \
+            | jq -r .ticket)
+          echo "::add-mask::$ticket"
+          curl -sS --fail-with-body -X POST "$MATERIALIZE_URL/materialization/redeem" \
+            -H 'Accept: text/plain' -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg t "$ticket" '{ticket: $t}')" \
+            -D "$RUNNER_TEMP/snaps.headers" -o "$RUNNER_TEMP/snaps.env"
+          grep -i '^x-snaps-' "$RUNNER_TEMP/snaps.headers" || true
+          node scripts/ci/materialize-env.ts "$RUNNER_TEMP/snaps.env"
+          rm -f "$RUNNER_TEMP/snaps.env" "$RUNNER_TEMP/snaps.headers"
+
+      - name: Projeto Vercel, sem as variáveis da Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+          rm -f .vercel/.env.*.local
+
+      - name: Build (produção)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
+
+      - name: Verificar a saída do build (produção)
+        run: bash scripts/ci/verify-build-output.sh aifzkybxhmefbirujvdg yfgciamhzjvarwgzosto
+
+      - name: Deploy (produção)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          args=()
+          for k in $RUNTIME_KEYS; do
+            [ -n "${!k:-}" ] && args+=(--env "$k=${!k}")
+          done
+          url=$(npx --yes "$VERCEL_CLI" deploy --prebuilt --prod "${args[@]}" --token="$VERCEL_TOKEN")
+          echo "Deploy de produção: $url"
+
+      - name: Limpar
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/snaps.env" "$RUNNER_TEMP/snaps.headers" .vercel/.env.*.local

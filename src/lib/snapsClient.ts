@@ -1,18 +1,17 @@
 /**
  * snapsClient.ts
  * Cliente HTTP para a API pública do Snaps (/public/projects/).
- * Injeta o header x-api-key em todas as requisições.
+ * Vai pelo proxy do admin (/api/snaps); o x-api-key leva o token da sessão
+ * (NUB-RD-86 A4) — a chave do Snaps não está mais no bundle.
  */
-
-const BASE_URL = import.meta.env.VITE_SNAPS_BASE_URL ?? 'http://localhost:3001';
-const API_KEY = import.meta.env.VITE_SNAPS_API_KEY ?? '';
+import { SNAPS_PROXY_URL, snapsSessionToken } from '@/lib/snapsProxyClient';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}/public/projects${path}`, {
+  const res = await fetch(`${SNAPS_PROXY_URL}/public/projects${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': API_KEY,
+      'x-api-key': await snapsSessionToken(),
       ...init?.headers,
     },
   });
