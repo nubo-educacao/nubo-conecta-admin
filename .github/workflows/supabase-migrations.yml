@@ -64,6 +64,14 @@ jobs:
         shell: bash
         run: cd "$REPLAY_ROOT" && supabase db start
 
+      # Contratos SQL que precisam do schema `auth` real (GoTrue). Cada arquivo
+      # roda numa transação que termina em ROLLBACK.
+      - name: Run SQL contract tests on the replayed database
+        shell: bash
+        run: |
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 \
+            -f supabase/tests/conversion_event_claims/test.sql
+
       - name: Stop local database
         if: always()
         shell: bash
