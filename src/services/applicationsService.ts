@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { attributionRpcArgs, type AttributionFilter } from "@/lib/attributionFilter";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -38,14 +39,18 @@ export interface PartnerOption {
 /**
  * Fetches student applications enriched with user profile, phone, and partner name.
  * Pass partnerId to filter by a specific partner, or omit for all applications.
+ * `attribution` recorta pelo first-touch do ALUNO (TP-7, artefato Snaps 46d78fd5),
+ * independentemente da data da inscrição.
  */
 export async function getApplicationsWithDetails(
-    partnerId?: string
+    partnerId?: string,
+    attribution: AttributionFilter = {}
 ): Promise<ApplicationWithDetails[]> {
     const params: Record<string, unknown> = {};
     if (partnerId) {
         params.p_partner_id = partnerId;
     }
+    Object.assign(params, attributionRpcArgs(attribution));
 
     const { data, error } = await (supabase.rpc as any)(
         "get_student_applications_with_details",

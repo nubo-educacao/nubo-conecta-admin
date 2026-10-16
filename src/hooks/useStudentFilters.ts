@@ -1,6 +1,7 @@
 import { useSearchParams } from "react-router-dom";
 import { StudentFilters } from "@/services/studentsService";
 import { useCallback, useMemo, useEffect, useState } from "react";
+import { readAttributionParams, writeAttributionParams } from "@/lib/attributionFilter";
 
 const QUERY_DEBOUNCE_MS = 300; // Debounce query updates to avoid too many writes
 
@@ -66,6 +67,8 @@ export function useStudentFilters(storageKey: string = "student-filters") {
         const ageMax = searchParams.get("ageMax");
         if (ageMax) params.ageMax = Number(ageMax);
 
+        Object.assign(params, readAttributionParams(searchParams));
+
         return params;
     }, [searchParams]);
 
@@ -89,6 +92,8 @@ export function useStudentFilters(storageKey: string = "student-filters") {
         if (newFilters.state) params.set("state", newFilters.state);
         if (newFilters.ageMin) params.set("ageMin", newFilters.ageMin.toString());
         if (newFilters.ageMax) params.set("ageMax", newFilters.ageMax.toString());
+
+        writeAttributionParams(params, newFilters);
 
         setSearchParams(params);
     }, [setSearchParams]);

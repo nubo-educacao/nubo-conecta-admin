@@ -1,3 +1,5 @@
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg } from "@/lib/commandCenterAttribution";
 import {
   BarChart,
   Bar,
@@ -25,16 +27,16 @@ const colors = [
   "hsl(262, 83%, 58%)",
 ];
 
-export function TopCoursesChart() {
-  const { data, isLoading, error } = useTopCourses();
+export function TopCoursesChart({ attribution }: { attribution?: AttributionFilter } = {}) {
+  const { data, isLoading, error } = useTopCourses(...attributionArg(attribution));
 
   if (isLoading) {
     return (
       <div className="chart-container">
         <div className="mb-6 flex flex-col gap-1">
-          <h3 className="text-lg font-semibold font-display">Cursos Mais Buscados</h3>
+          <h3 className="text-lg font-semibold font-display">Cursos declarados no perfil</h3>
           <p className="text-sm text-muted-foreground">
-            Top 20 cursos com maior interesse
+            Top 20 cursos · preferências atuais
           </p>
         </div>
         <Skeleton className="h-[700px] w-full" />
@@ -54,14 +56,14 @@ export function TopCoursesChart() {
     return (
       <div className="chart-container">
         <div className="mb-6 flex flex-col gap-1">
-          <h3 className="text-lg font-semibold font-display">Cursos Mais Buscados</h3>
+          <h3 className="text-lg font-semibold font-display">Cursos declarados no perfil</h3>
           <p className="text-sm text-muted-foreground">
-            Top 20 cursos com maior interesse
+            Top 20 cursos · preferências atuais
           </p>
         </div>
         <div className="flex flex-col items-center justify-center h-[700px] text-muted-foreground">
           <GraduationCap className="h-12 w-12 mb-4 opacity-50" />
-          <p>Nenhum interesse de curso registrado</p>
+          <p role={error ? "alert" : undefined}>{error ? "Não foi possível carregar os cursos declarados." : "Nenhum interesse de curso registrado"}</p>
         </div>
       </div>
     );
@@ -70,9 +72,9 @@ export function TopCoursesChart() {
   return (
     <div className="chart-container">
       <div className="mb-6 flex flex-col gap-1">
-        <h3 className="text-lg font-semibold font-display">Cursos Mais Buscados</h3>
+        <h3 className="text-lg font-semibold font-display">Cursos declarados no perfil</h3>
         <p className="text-sm text-muted-foreground">
-          Top {normalizedData.length} cursos com maior interesse
+          Top {normalizedData.length} cursos · preferências atuais
         </p>
       </div>
       
@@ -110,7 +112,7 @@ export function TopCoursesChart() {
               cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
               formatter={(value: number) => [value, "Interessados"]}
             />
-            <Bar dataKey="buscas" radius={[0, 6, 6, 0]} name="Buscas">
+            <Bar dataKey="buscas" radius={[0, 6, 6, 0]} name="Interessados">
               {normalizedData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}

@@ -11,28 +11,34 @@ import {
   type DateRange,
   type ErrorLog,
 } from "@/lib/analytics-queries";
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg, attributionQueryKey } from "@/lib/commandCenterAttribution";
 
-export function useDashboardStats(dateRange?: DateRange) {
+// Recorte por campanha/divulgador (first-touch, TP-7): `attribution` entra na
+// query key de todo hook do Command Center e só é repassado ao fetcher quando
+// ativo — sem filtro, a chamada é a mesma de antes.
+
+export function useDashboardStats(dateRange?: DateRange, attribution?: AttributionFilter) {
   return useQuery({
-    queryKey: ["dashboard-stats", dateRange],
-    queryFn: () => fetchDashboardStats(dateRange),
+    queryKey: ["dashboard-stats", dateRange, attributionQueryKey(attribution)],
+    queryFn: () => fetchDashboardStats(dateRange, ...attributionArg(attribution)),
     staleTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 60 * 5,
   });
 }
 
-export function useActivityData() {
+export function useActivityData(dateRange?: DateRange, attribution?: AttributionFilter) {
   return useQuery({
-    queryKey: ["activity-data"],
-    queryFn: fetchActivityData,
+    queryKey: ["activity-data", dateRange, attributionQueryKey(attribution)],
+    queryFn: () => fetchActivityData(dateRange, ...attributionArg(attribution)),
     staleTime: 1000 * 60 * 10,
   });
 }
 
-export function useTopCourses() {
+export function useTopCourses(attribution?: AttributionFilter) {
   return useQuery({
-    queryKey: ["top-courses"],
-    queryFn: fetchTopCourses,
+    queryKey: ["top-courses", attributionQueryKey(attribution)],
+    queryFn: () => fetchTopCourses(...attributionArg(attribution)),
     staleTime: 1000 * 60 * 30,
   });
 }
@@ -42,18 +48,18 @@ export function useTopCourses() {
  * Substituiu useFunnelData: o funil linear saiu do Command Center por decisão
  * da ADR-0027 — funis viraram por domínio (MEC e parceiro), em telas próprias.
  */
-export function useCommandCenterDemographics() {
+export function useCommandCenterDemographics(attribution?: AttributionFilter) {
   return useQuery({
-    queryKey: ["command-center-demographics"],
-    queryFn: fetchCommandCenterDemographics,
+    queryKey: ["command-center-demographics", attributionQueryKey(attribution)],
+    queryFn: () => fetchCommandCenterDemographics(...attributionArg(attribution)),
     staleTime: 1000 * 60 * 10,
   });
 }
 
-export function useUserPreferences() {
+export function useUserPreferences(attribution?: AttributionFilter) {
   return useQuery({
-    queryKey: ["user-preferences"],
-    queryFn: fetchUserPreferences,
+    queryKey: ["user-preferences", attributionQueryKey(attribution)],
+    queryFn: () => fetchUserPreferences(...attributionArg(attribution)),
     staleTime: 1000 * 60 * 30,
   });
 }
@@ -67,18 +73,18 @@ export function useErrorLogs() {
   });
 }
 
-export function useTopUsers() {
+export function useTopUsers(dateRange?: DateRange, attribution?: AttributionFilter) {
   return useQuery({
-    queryKey: ["top-users"],
-    queryFn: fetchTopUsers,
+    queryKey: ["top-users", dateRange, attributionQueryKey(attribution)],
+    queryFn: () => fetchTopUsers(dateRange, ...attributionArg(attribution)),
     staleTime: 1000 * 60 * 15,
   });
 }
 
-export function useLocationData() {
+export function useLocationData(attribution?: AttributionFilter) {
   return useQuery({
-    queryKey: ["location-data"],
-    queryFn: fetchLocationData,
+    queryKey: ["location-data", attributionQueryKey(attribution)],
+    queryFn: () => fetchLocationData(...attributionArg(attribution)),
     staleTime: 1000 * 60 * 30,
   });
 }

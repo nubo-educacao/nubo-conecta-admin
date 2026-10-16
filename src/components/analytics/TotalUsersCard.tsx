@@ -6,7 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { InactiveUsersExportButton } from "./InactiveUsersExportButton";
+
 
 interface TotalUsersCardProps {
   totalRegistered: number;
@@ -23,7 +23,7 @@ export function TotalUsersCard({
   catalogUsers,
   activeChange,
 }: TotalUsersCardProps) {
-  const inactiveUsers = totalRegistered - activeUsers;
+  const inactiveUsers = Math.max(0, totalRegistered - activeUsers);
 
   return (
     <div className="stat-card relative overflow-hidden border-t-4 border-t-primary col-span-2 lg:col-span-1">
@@ -66,7 +66,7 @@ export function TotalUsersCard({
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full bg-success" />
-            <span className="text-muted-foreground">Ativos (7d):</span>
+            <span className="text-muted-foreground">Ativos (período):</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-success">{activeUsers.toLocaleString()}</span>
@@ -90,18 +90,18 @@ export function TotalUsersCard({
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full bg-warning" />
-            <span className="text-muted-foreground">Só catálogo:</span>
+            <span className="text-muted-foreground">Só catálogo (sinais):</span>
           </div>
           <span className="font-medium text-warning">{catalogUsers.toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-            <span className="text-muted-foreground">Inativos (7d):</span>
+            <span className="text-muted-foreground">Sem atividade (período):</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="font-medium text-muted-foreground">{inactiveUsers.toLocaleString()}</span>
-            <InactiveUsersExportButton inactiveCount={inactiveUsers} />
+            <span title="A exportação antiga usa outro período e está indisponível nesta tela até ser alinhada ao filtro." className="text-[10px] text-muted-foreground">CSV em ajuste</span>
           </div>
         </div>
       </div>

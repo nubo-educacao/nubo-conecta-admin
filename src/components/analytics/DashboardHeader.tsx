@@ -4,21 +4,42 @@ import { DateRangeFilter, DateRangeValue } from "./DateRangeFilter";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SegmentedExportButton from "./SegmentedExportButton";
+import { AttributionFilterFields } from "@/components/filters/AttributionFilterFields";
+import { useAttributionFilterOptions } from "@/hooks/useAttributionFilterOptions";
+import type { AttributionFilter } from "@/lib/attributionFilter";
 
 interface DashboardHeaderProps {
   selectedRange: DateRangeValue;
   onRangeChange: (range: DateRangeValue) => void;
+  onCustomDateChange?: (date: Date | undefined) => void;
   onRefresh: () => void;
   isRefreshing: boolean;
   lastUpdate: Date;
+  /** Recorte por campanha/divulgador (first-touch, TP-7). Sem as duas props, os seletores não aparecem. */
+  attribution?: AttributionFilter;
+  onAttributionChange?: (next: AttributionFilter) => void;
+}
+
+// Seletores compartilhados com Estudantes/Inscrições. Componente próprio para
+// que as opções só sejam buscadas quando o filtro é exibido.
+function CommandCenterAttributionFilter({ value, onChange }: { value: AttributionFilter; onChange: (next: AttributionFilter) => void }) {
+  const { options, isLoading } = useAttributionFilterOptions();
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-3 md:max-w-xl">
+      <AttributionFilterFields value={value} onChange={onChange} options={options} isLoading={isLoading} />
+    </div>
+  );
 }
 
 export function DashboardHeader({
   selectedRange,
   onRangeChange,
+  onCustomDateChange,
   onRefresh,
   isRefreshing,
   lastUpdate,
+  attribution,
+  onAttributionChange,
 }: DashboardHeaderProps) {
   const formatLastUpdate = () => {
     return format(lastUpdate, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR });
@@ -49,7 +70,7 @@ export function DashboardHeader({
             <SegmentedExportButton />
             <DateRangeFilter
               selectedRange={selectedRange}
-              onDateChange={onRangeChange}
+              onDateChange={onRangeChange} onCustomDateChange={onCustomDateChange}
               onRefresh={onRefresh}
               isRefreshing={isRefreshing}
             />
@@ -62,12 +83,16 @@ export function DashboardHeader({
           <div className="flex md:hidden items-center gap-2">
             <DateRangeFilter
               selectedRange={selectedRange}
-              onDateChange={onRangeChange}
+              onDateChange={onRangeChange} onCustomDateChange={onCustomDateChange}
               onRefresh={onRefresh}
               isRefreshing={isRefreshing}
             />
           </div>
         </div>
+
+        {attribution && onAttributionChange && (
+          <CommandCenterAttributionFilter value={attribution} onChange={onAttributionChange} />
+        )}
 
         {/* Mobile last update */}
         <p className="text-xs text-muted-foreground/70 flex items-center gap-1 mt-2 sm:hidden">

@@ -13,7 +13,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, ZoomOut } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { DateRange } from "@/lib/analytics-queries";
 import { Button } from "@/components/ui/button";
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionEdgeBody, attributionQueryKey } from "@/lib/commandCenterAttribution";
 
 type ViewMode = "week" | "day" | "total";
 
@@ -23,22 +26,31 @@ interface ActivityData {
   usuarios: number;
 }
 
-async function fetchActivityByMode(mode: ViewMode, zoomHour: number | null): Promise<ActivityData[]> {
+async function fetchActivityByMode(mode: ViewMode, zoomHour: number | null, dateRange?: DateRange, attribution?: AttributionFilter): Promise<ActivityData[]> {
   const { data, error } = await supabase.functions.invoke('analytics-activity', {
-    body: { mode, ...(zoomHour !== null && { zoomHour }) }
+    body: { mode, dateRange, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...(zoomHour !== null && { zoomHour }), ...attributionEdgeBody(attribution) }
   });
   
   if (error) throw error;
   return data;
 }
 
-export function ActivityChart() {
-  const [viewMode, setViewMode] = useState<ViewMode>("day");
+// Por dia num período de 90 dias são 90 rótulos: com intervalo 0 eles se
+// sobrepõem. "preserveStartEnd" deixa o recharts escolher os que cabem, sempre
+// com o primeiro e o último. Por hora (24 pontos) fica de 3 em 3; o zoom de 15
+// minutos (4 pontos) mostra todos.
+export function activityXAxisInterval(mode: ViewMode, zoomHour: number | null): number | "preserveStartEnd" {
+  if (zoomHour !== null) return 0;
+  return mode === "day" ? 2 : "preserveStartEnd";
+}
+
+export function ActivityChart({ dateRange, attribution }: { dateRange?: DateRange; attribution?: AttributionFilter }) {
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [zoomHour, setZoomHour] = useState<number | null>(null);
   
   const { data, isLoading, error } = useQuery({
-    queryKey: ["activity-data", viewMode, zoomHour],
-    queryFn: () => fetchActivityByMode(viewMode, zoomHour),
+    queryKey: ["activity-data", viewMode, zoomHour, dateRange, attributionQueryKey(attribution)],
+    queryFn: () => fetchActivityByMode(viewMode, zoomHour, dateRange, attribution),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -72,7 +84,7 @@ export function ActivityChart() {
     );
   }
 
-  if (error || !data || data.length === 0) {
+  if (error || !data) {
     return (
       <div className="chart-container">
         <div className="mb-6 flex items-center justify-between">
@@ -85,13 +97,15 @@ export function ActivityChart() {
         </div>
         <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
           <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
-          <p>Nenhum dado de atividade disponível</p>
+          <p role={error ? "alert" : undefined}>{error ? "Não foi possível carregar a atividade." : "Atividade indisponível."}</p>
         </div>
       </div>
     );
   }
 
   const getSubtitle = () => {
+    if (zoomHour !== null) return `Mensagens de usuários às ${zoomHour.toString().padStart(2, "0")}h · intervalos de 15 minutos no período`;
+    if (dateRange) return viewMode === "day" ? "Mensagens de usuários por hora — soma no período selecionado" : "Mensagens de usuários por dia no período selecionado";
     if (viewMode === "total") {
       return "Histórico completo de atividade por dia";
     }
@@ -139,21 +153,21 @@ export function ActivityChart() {
             <ToggleGroupItem 
               value="week" 
               size="sm"
-              className="data-[state=on]:bg-background data-[state=on]:shadow-sm px-3"
+              className="data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm px-3"
             >
-              Semana
+              {dateRange ? "Por dia" : "Semana"}
             </ToggleGroupItem>
             <ToggleGroupItem 
               value="day" 
               size="sm"
-              className="data-[state=on]:bg-background data-[state=on]:shadow-sm px-3"
+              className="data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm px-3"
             >
-              Hoje
+              {dateRange ? "Por hora" : "Hoje"}
             </ToggleGroupItem>
             <ToggleGroupItem 
               value="total" 
               size="sm"
-              className="data-[state=on]:bg-background data-[state=on]:shadow-sm px-3"
+              className="data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm px-3"
             >
               Total
             </ToggleGroupItem>
@@ -161,6 +175,7 @@ export function ActivityChart() {
         </div>
       </div>
       
+      {data.every(row => row.mensagens === 0) && <p className="text-sm text-muted-foreground">Nenhuma mensagem de usuário no período selecionado.</p>}
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
@@ -190,7 +205,8 @@ export function ActivityChart() {
               tickLine={false}
               axisLine={false}
               className="text-muted-foreground"
-              interval={zoomHour !== null ? 0 : (viewMode === "total" ? "preserveStartEnd" : (viewMode === "day" ? 2 : 0))}
+              interval={activityXAxisInterval(viewMode, zoomHour)}
+              minTickGap={16}
             />
             <YAxis
               tick={{ fontSize: 12 }}

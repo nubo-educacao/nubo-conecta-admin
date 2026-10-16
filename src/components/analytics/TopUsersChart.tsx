@@ -1,85 +1,20 @@
-import { useState } from "react";
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg } from "@/lib/commandCenterAttribution";
+import { downloadAnalyticsCsv } from "@/lib/analyticsCsv";
+import type { DateRange } from "@/lib/analytics-queries";
 import { useTopUsers } from "@/hooks/useAnalyticsData";
-import { User, MessageSquare, Heart, Trophy, RefreshCw, Download, Loader2 } from "lucide-react";
+import { User, MessageSquare, Heart, Trophy, RefreshCw, Download } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
-interface UserExportData {
-  nome: string;
-  telefone: string;
-  cidade_residencia: string;
-  local_interesse: string;
-  mensagens: number;
-  etapa_funil: string;
-  curso_interesse: string;
-  favoritos: number;
-}
-
-export function TopUsersChart() {
-  const [isExporting, setIsExporting] = useState(false);
-  const { data: users, isLoading, error } = useTopUsers();
-
-  const handleExportMatchRealizado = async () => {
-    setIsExporting(true);
-    try {
-      const { data, error: exportError } = await supabase.functions.invoke("analytics-top-users-export");
-
-      if (exportError) {
-        console.error("Export error:", exportError);
-        toast.error("Erro ao exportar dados");
-        return;
-      }
-
-      const exportData = data as UserExportData[];
-
-      if (!exportData || exportData.length === 0) {
-        toast.warning("Nenhum usuário com Match Realizado encontrado");
-        return;
-      }
-
-      // Generate CSV
-      const headers = ["Nome", "Telefone", "Cidade de Residência", "Local de Interesse", "Etapa do Funil", "Curso de Interesse", "Favoritos", "Total de Mensagens"];
-      const rows = exportData.map((user) => [
-        user.nome,
-        user.telefone,
-        user.cidade_residencia,
-        user.local_interesse,
-        user.etapa_funil,
-        user.curso_interesse,
-        user.favoritos.toString(),
-        user.mensagens.toString(),
-      ]);
-
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row) =>
-          row.map((cell) => `"${(cell || "").replace(/"/g, '""')}"`).join(",")
-        ),
-      ].join("\n");
-
-      // Add BOM for Excel UTF-8 compatibility
-      const BOM = "\uFEFF";
-      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `top_users_match_realizado_${new Date().toISOString().split("T")[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast.success(`Exportados ${exportData.length} usuários com Match Realizado`);
-    } catch (err) {
-      console.error("Export error:", err);
-      toast.error("Erro ao exportar dados");
-    } finally {
-      setIsExporting(false);
-    }
+export function TopUsersChart({ dateRange, attribution }: { dateRange?: DateRange; attribution?: AttributionFilter }) {
+  const { data: users, isLoading, error } = useTopUsers(dateRange, ...attributionArg(attribution));
+  const handleExportRanking = () => {
+    if (!users?.length) return;
+    downloadAnalyticsCsv(['Nome', 'Mensagens de usuário', 'Sessões no período', 'Favoritos atuais'],
+      users.map(user => [user.name, user.messages, user.sessions, user.favorites]), 'ranking-mensagens', dateRange);
   };
 
   if (isLoading) {
@@ -87,7 +22,7 @@ export function TopUsersChart() {
       <div className="chart-container">
         <div className="mb-6 flex flex-col gap-1">
           <h3 className="text-lg font-semibold font-display">Maior Volume de Mensagens</h3>
-          <p className="text-sm text-muted-foreground">Usuários com mais interações no chat</p>
+          <p className="text-sm text-muted-foreground">Mensagens enviadas por usuários no período selecionado</p>
         </div>
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
@@ -103,17 +38,17 @@ export function TopUsersChart() {
       <div className="chart-container">
         <div className="mb-6 flex flex-col gap-1">
           <h3 className="text-lg font-semibold font-display">Maior Volume de Mensagens</h3>
-          <p className="text-sm text-muted-foreground">Usuários com mais interações no chat</p>
+          <p className="text-sm text-muted-foreground">Mensagens enviadas por usuários no período selecionado</p>
         </div>
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <User className="h-12 w-12 mb-4 opacity-50" />
-          <p>Nenhum dado de usuário disponível</p>
+          <p role={error ? "alert" : undefined}>{error ? "Não foi possível carregar o ranking de mensagens." : "Nenhuma mensagem de usuário no período selecionado."}</p>
         </div>
       </div>
     );
   }
 
-  const maxScore = users[0]?.score || 1;
+  const maxScore = Math.max(...users.map(user => user.messages), 1);
 
   return (
     <div className="chart-container">
@@ -121,29 +56,24 @@ export function TopUsersChart() {
         <div className="flex flex-col gap-1">
           <h3 className="text-lg font-semibold font-display">Maior Volume de Mensagens</h3>
           <p className="text-sm text-muted-foreground">
-            Top {users.length} usuários com mais interações no chat
+            Top {users.length} por mensagens de usuário · período selecionado
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={handleExportMatchRealizado}
-          disabled={isExporting}
+          onClick={handleExportRanking}
           className="shrink-0"
         >
-          {isExporting ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Download className="h-4 w-4 mr-2" />
-          )}
-          Match Realizado
+          <Download className="h-4 w-4 mr-2" />
+          Exportar ranking
         </Button>
       </div>
 
       <ScrollArea className="h-[500px] pr-4">
         <div className="space-y-3">
           {users.map((user, index) => {
-            const percentage = (user.score / maxScore) * 100;
+            const percentage = (user.messages / maxScore) * 100;
             const isTop3 = index < 3;
 
             return (
@@ -178,7 +108,7 @@ export function TopUsersChart() {
                     <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <RefreshCw className="h-3 w-3" />
-                        {user.sessions} {user.sessions === 1 ? 'acesso' : 'acessos'}
+                        {user.sessions} {user.sessions === 1 ? 'sessão' : 'sessões'}
                       </span>
                       <span className="flex items-center gap-1">
                         <MessageSquare className="h-3 w-3" />
@@ -186,7 +116,7 @@ export function TopUsersChart() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Heart className="h-3 w-3" />
-                        {user.favorites} favs
+                        {user.favorites} favs atuais
                       </span>
                     </div>
                   </div>

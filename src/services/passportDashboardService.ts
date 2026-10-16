@@ -4,6 +4,7 @@ export interface PartnerFunnelData {
   partner_id: string;
   partner_name: string;
   total_unique_clicks: number;
+  total_card_clicks: number;
   total_applications_started: number;
   total_applications_completed: number;
 }
@@ -35,11 +36,11 @@ export async function getAdminFunnelUsers(): Promise<FunnelUserData[]> {
   return data as FunnelUserData[];
 }
 
-export async function getPartnerFunnel(): Promise<PartnerFunnelData[]> {
-  const { data, error } = await (supabase as any)
-    .from('vw_partner_funnel')
-    .select('*')
-    .order('total_applications_completed', { ascending: false });
+export async function getPartnerFunnel(partnerId?: string, daysAgo: number | null = null): Promise<PartnerFunnelData[]> {
+  const { data, error } = await supabase.rpc('get_tp2_partner_funnel' as any, {
+    p_partner_id: partnerId === 'all' ? null : partnerId || null,
+    p_days_ago: daysAgo,
+  });
   if (error) throw error;
   return data as PartnerFunnelData[];
 }

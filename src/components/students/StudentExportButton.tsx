@@ -4,6 +4,8 @@ import { Download, Loader2 } from "lucide-react";
 import { StudentFilters, getStudents, getStudentStats } from "@/services/studentsService";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import { describeAttributionFilter } from "@/lib/attributionFilter";
+import { useAttributionFilterOptions } from "@/hooks/useAttributionFilterOptions";
 
 interface StudentExportButtonProps {
     filters: StudentFilters;
@@ -11,6 +13,7 @@ interface StudentExportButtonProps {
 
 export function StudentExportButton({ filters }: StudentExportButtonProps) {
     const [isExporting, setIsExporting] = useState(false);
+    const attribution = useAttributionFilterOptions();
 
     const handleExport = async () => {
         try {
@@ -29,6 +32,7 @@ export function StudentExportButton({ filters }: StudentExportButtonProps) {
             }
 
             // 3. Prepare "Resumo" Sheet Data
+            const attributionLabels = describeAttributionFilter(filters, attribution.options);
             const resumoData = [
                 ["Resumo da Seleção", ""],
                 [""],
@@ -47,7 +51,9 @@ export function StudentExportButton({ filters }: StudentExportButtonProps) {
                 ["Renda Mínima", filters.incomeMin || "-"],
                 ["Renda Máxima", filters.incomeMax || "-"],
                 ["Cotas", filters.quotaTypes?.join(", ") || "-"],
-                ["Aluno Nubo", filters.isNuboStudent === true ? "Sim" : filters.isNuboStudent === false ? "Não" : "-"]
+                ["Aluno Nubo", filters.isNuboStudent === true ? "Sim" : filters.isNuboStudent === false ? "Não" : "-"],
+                ["Campanha (first-touch)", attributionLabels.campaign],
+                ["Divulgador (first-touch)", attributionLabels.channel]
             ];
 
             // 4. Prepare "Perfil Geral" Sheet Data

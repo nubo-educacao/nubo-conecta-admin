@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AttributionFilterFields } from "@/components/filters/AttributionFilterFields";
+import { useAttributionFilterOptions } from "@/hooks/useAttributionFilterOptions";
 
 interface StudentFilterModalProps {
     open: boolean;
@@ -60,6 +62,7 @@ export function StudentFilterModal({
     onClearFilters,
 }: StudentFilterModalProps) {
     const [localFilters, setLocalFilters] = useState<StudentFilters>(filters);
+    const attribution = useAttributionFilterOptions();
     const [states, setStates] = useState<State[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [loadingStates, setLoadingStates] = useState(false);
@@ -320,6 +323,14 @@ export function StudentFilterModal({
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {/* Campanha / Divulgador (first-touch) — componente compartilhado TP-7 */}
+                    <AttributionFilterFields
+                        value={localFilters}
+                        onChange={(next) => setLocalFilters({ ...localFilters, ...next })}
+                        options={attribution.options}
+                        isLoading={attribution.isLoading}
+                    />
 
                     {/* Idade Filters */}
                     <div className="col-span-2 grid gap-2">

@@ -1,3 +1,5 @@
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg } from "@/lib/commandCenterAttribution";
 import { useLocationData } from "@/hooks/useAnalyticsData";
 import { MapPin } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,8 +9,8 @@ const stateColors = [
   "bg-primary", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5", "bg-success", "bg-warning",
 ];
 
-export function LocationChart() {
-  const { data: locations, isLoading, error } = useLocationData();
+export function LocationChart({ attribution }: { attribution?: AttributionFilter } = {}) {
+  const { data: locations, isLoading, error } = useLocationData(...attributionArg(attribution));
 
   if (isLoading) {
     return (
@@ -35,7 +37,7 @@ export function LocationChart() {
         </div>
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <MapPin className="h-12 w-12 mb-4 opacity-50" />
-          <p>Nenhum dado de localização disponível</p>
+          <p role={error ? "alert" : undefined}>{error ? "Não foi possível carregar as localizações." : "Nenhum dado de localização disponível"}</p>
         </div>
       </div>
     );

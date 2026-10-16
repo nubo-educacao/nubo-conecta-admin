@@ -29,6 +29,7 @@ import OpportunitiesCourses from "./pages/educational-data/OpportunitiesCourses"
 
 // Pages — Parceiros & B2B
 import PassportDashboard from "./pages/PassportDashboard";
+import MecDashboard from "./pages/MecDashboard";
 import ChannelLinks from "./pages/ChannelLinks";
 import Channels from "./pages/Channels";
 import Partners from "./pages/Partners";
@@ -37,7 +38,6 @@ import PartnerForms from "./pages/PartnerForms";
 import PartnerUsers from "./pages/PartnerUsers";
 import PartnerApplications from "./pages/PartnerApplications";
 import PartnerOpportunities from "./pages/PartnerOpportunities";
-import FunnelUsers from "./pages/FunnelUsers";
 
 // Pages — Atendimento e App
 import Students from "./pages/Students";
@@ -83,6 +83,7 @@ const App = () => (
               <Route path="/agent-config" element={<AgentConfig />} />
 
               {/* Dados Educacionais */}
+              <Route path="/educational/mec-dashboard" element={<MecDashboard />} />
               <Route path="/educational/programs-import" element={<ProgramsImport />} />
               <Route path="/educational/institutions-campus" element={<InstitutionsCampus />} />
               <Route path="/educational/opportunities-courses" element={<OpportunitiesCourses />} />
@@ -103,7 +104,6 @@ const App = () => (
               <Route path="/forms" element={<PartnerForms />} />
               <Route path="/applications" element={<PartnerApplications />} />
               <Route path="/solicitations" element={<PartnerSolicitations />} />
-              <Route path="/funnel-users" element={<FunnelUsers />} />
               <Route path="/partners-users" element={<PartnerUsers />} />
 
               {/* Atendimento e App */}

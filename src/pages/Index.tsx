@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MessageSquare, Heart, TrendingUp, Clock, MapPin } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
@@ -17,36 +18,61 @@ import { ActionCenter } from "@/components/action-center/ActionCenter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangeValue } from "@/components/analytics/DateRangeFilter";
 
+import { OpportunityInterestChart } from '@/components/analytics/OpportunityInterestChart';
+import { UserPreferencesChart } from '@/components/analytics/UserPreferencesChart';
+import { commandCenterDateRange } from '@/lib/commandCenterDateRange';
+import { hasAttributionFilter, readAttributionParams, writeAttributionParams, type AttributionFilter } from '@/lib/attributionFilter';
+import { attributionArg } from '@/lib/commandCenterAttribution';
+
 const Index = () => {
   const [selectedRange, setSelectedRange] = useState<DateRangeValue>("7d");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const queryClient = useQueryClient();
-  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const [customDate, setCustomDate] = useState<Date>();
+  const dateRange = useMemo(() => commandCenterDateRange(selectedRange, lastUpdate, customDate), [selectedRange, lastUpdate, customDate]);
+
+  // Recorte por campanha/divulgador (first-touch, TP-7). Mora na URL com as
+  // mesmas chaves de Estudantes/Inscrições, para o link ser compartilhável, e
+  // chega a todos os painéis de pessoas. A Central de Ações não é por pessoa.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const attribution = useMemo(() => readAttributionParams(searchParams), [searchParams]);
+  const attributionActive = hasAttributionFilter(attribution);
+  const setAttribution = useCallback((next: AttributionFilter) => {
+    const params = new URLSearchParams(searchParams);
+    ["campaignId", "channelId", "unattributed"].forEach((k) => params.delete(k));
+    writeAttributionParams(params, next);
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats(dateRange, ...attributionArg(attribution));
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await queryClient.invalidateQueries();
-    setLastUpdate(new Date());
-    setIsRefreshing(false);
+    try {
+      await queryClient.invalidateQueries();
+      setLastUpdate(new Date());
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [queryClient]);
 
   const handleRangeChange = useCallback((range: DateRangeValue) => {
     setSelectedRange(range);
-    // Re-fetch data when range changes
-    queryClient.invalidateQueries();
     setLastUpdate(new Date());
-  }, [queryClient]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader
         selectedRange={selectedRange}
-        onRangeChange={handleRangeChange}
+        onRangeChange={handleRangeChange} onCustomDateChange={setCustomDate}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
         lastUpdate={lastUpdate}
+        attribution={attribution}
+        onAttributionChange={setAttribution}
       />
 
       <main className="container py-4 sm:py-6 space-y-4 sm:space-y-6 px-3 sm:px-4 lg:px-8">
@@ -60,61 +86,72 @@ const Index = () => {
             </>
           ) : (
             <>
-              <TotalUsersCard
+              {statsError || !stats ? <StatCard title="Usuários Cadastrados" value="Indisponível" icon={MessageSquare} /> : <TotalUsersCard
                 totalRegistered={stats?.totalRegistered || 0}
                 activeUsers={stats?.activeUsers || 0}
                 activeWithMessages={stats?.activeUsersWithMessages || 0}
                 catalogUsers={stats?.catalogUsers || 0}
                 activeChange={stats?.activeUsersChange}
-              />
-              <PowerUsersCard
+              />}
+              {statsError || !stats ? <StatCard title="Power Users" value="Indisponível" icon={MessageSquare} /> : <PowerUsersCard
                 count={stats?.powerUsers || 0}
                 change={stats?.powerUsersChange}
                 powerUsersList={stats?.powerUsersList || []}
-              />
+                dateRange={dateRange}
+              />}
               <StatCard
                 title="Total de Mensagens"
-                value={stats?.totalMessages.toLocaleString() || "0"}
-                change={stats?.messagesChange}
+                value={statsError ? "Indisponível" : stats?.totalMessages?.toLocaleString() ?? "Indisponível"}
+                change={statsError ? undefined : stats?.messagesChange}
                 icon={MessageSquare}
                 variant="default"
-                tooltip="Soma de todas as mensagens trocadas no chat (tanto do usuário quanto do assistente)."
+                tooltip="Mensagens enviadas por usuários no período selecionado. Exclui mensagens do sistema e do assistente; a comparação usa o período anterior de mesma duração."
               />
               <StatCard
                 title="Favoritos Salvos"
-                value={stats?.totalFavorites?.toLocaleString() || "0"}
-                change={stats?.favoritesChange}
+                value={statsError ? "Indisponível" : stats?.totalFavorites?.toLocaleString() ?? "Indisponível"}
+                change={statsError ? undefined : stats?.favoritesChange}
                 icon={Heart}
                 variant="success"
-                tooltip="Total de cursos ou parceiros que os usuários salvaram como favoritos."
+                tooltip="Favoritos ainda salvos que foram criados no período selecionado. Exclusões posteriores não são um histórico de eventos."
               />
             </>
           )}
         </section>
+
+        <p className="text-sm text-muted-foreground">O período filtra mensagens, atividade, recorrência, favoritos e cliques. Cadastros totais, Match, demografia e preferências mostram o estado atual dos perfis, sem filtro de período.</p>
+        {attributionActive && <p className="text-sm text-muted-foreground">Recorte por campanha/divulgador (first-touch) aplicado a cadastros, mensagens, atividade, rankings, interesse, preferências, localização, Match e demografia.</p>}
+        {statsError && <p role="alert" className="text-sm text-destructive">Não foi possível carregar os indicadores. Use Atualizar para tentar novamente.</p>}
 
         {/* Action Center */}
         <ActionCenter />
 
         {/* Charts Row 1 */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <ActivityChart />
-          <MatchHealthChart />
+          <ActivityChart key={`${dateRange.from?.toISOString()}-${dateRange.to?.toISOString()}`} dateRange={dateRange} attribution={attribution} />
+          <MatchHealthChart attribution={attribution} />
         </section>
 
         {/* Charts Row 2 - Rankings */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <TopUsersChart />
-          <TopCoursesChart />
+          <TopUsersChart dateRange={dateRange} attribution={attribution} />
+          <TopCoursesChart attribution={attribution} />
+        </section>
+
+        {/* Interesse observado e declarado */}
+        <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
+          <OpportunityInterestChart dateRange={dateRange} attribution={attribution} />
+          <UserPreferencesChart attribution={attribution} />
         </section>
 
         {/* Charts Row 3 - Location */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <LocationChart />
-          <LocationPreferenceChart />
+          <LocationChart attribution={attribution} />
+          <LocationPreferenceChart attribution={attribution} />
         </section>
 
         {/* Charts Row 5 - Demografia (TP-1 1B) */}
-        <DemographicsCharts />
+        <DemographicsCharts attribution={attribution} />
 
         {/* Quick Insights */}
         <section className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -127,7 +164,7 @@ const Index = () => {
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground">
               Clique em <span className="font-semibold text-foreground">atualizar</span> para ver os dados mais recentes.
-              Métricas baseadas nos últimos 7 dias.
+              Métricas temporais usam o período selecionado.
             </p>
           </div>
 
@@ -139,8 +176,8 @@ const Index = () => {
               <h4 className="font-semibold text-sm sm:text-base">Período de Análise</h4>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Comparações são feitas entre a <span className="font-semibold text-foreground">semana atual</span> e a 
-              semana anterior para identificar tendências.
+              Comparações são feitas entre o <span className="font-semibold text-foreground">período selecionado</span> e o
+              período anterior de mesma duração para identificar tendências.
             </p>
           </div>
 
@@ -152,7 +189,7 @@ const Index = () => {
               <h4 className="font-semibold text-sm sm:text-base">Conectado ao Supabase</h4>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Dashboard conectado ao banco <span className="font-semibold text-foreground">nubo-hub-prod</span> com 
+              Dashboard conectado ao <span className="font-semibold text-foreground">ambiente configurado</span> com
               dados reais da plataforma Cloudinha.
             </p>
           </div>
