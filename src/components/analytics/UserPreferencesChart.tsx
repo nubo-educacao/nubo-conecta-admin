@@ -1,3 +1,5 @@
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg } from "@/lib/commandCenterAttribution";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useUserPreferences } from "@/hooks/useAnalyticsData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,8 +13,8 @@ const defaultColors = [
   "hsl(280, 87%, 65%)",
 ];
 
-export function UserPreferencesChart() {
-  const { data, isLoading, error } = useUserPreferences();
+export function UserPreferencesChart({ attribution }: { attribution?: AttributionFilter } = {}) {
+  const { data, isLoading, error } = useUserPreferences(...attributionArg(attribution));
 
   if (isLoading) {
     return (

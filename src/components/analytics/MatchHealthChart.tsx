@@ -1,3 +1,5 @@
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg } from "@/lib/commandCenterAttribution";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Activity } from "lucide-react";
@@ -17,8 +19,8 @@ const COLORS = {
  * É pizza e não funil de propósito (ADR-0027): tratar o Match como etapa de
  * funil sugeria uma taxa de queda que não existe.
  */
-export function MatchHealthChart() {
-    const { data, isLoading, error } = useCommandCenterDemographics();
+export function MatchHealthChart({ attribution }: { attribution?: AttributionFilter } = {}) {
+    const { data, isLoading, error } = useCommandCenterDemographics(...attributionArg(attribution));
 
     if (isLoading) {
         return (

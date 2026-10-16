@@ -1,3 +1,5 @@
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg } from "@/lib/commandCenterAttribution";
 import { downloadAnalyticsCsv } from "@/lib/analyticsCsv";
 import type { DateRange } from "@/lib/analytics-queries";
 import { useTopUsers } from "@/hooks/useAnalyticsData";
@@ -7,8 +9,8 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 
-export function TopUsersChart({ dateRange }: { dateRange?: DateRange }) {
-  const { data: users, isLoading, error } = useTopUsers(dateRange);
+export function TopUsersChart({ dateRange, attribution }: { dateRange?: DateRange; attribution?: AttributionFilter }) {
+  const { data: users, isLoading, error } = useTopUsers(dateRange, ...attributionArg(attribution));
   const handleExportRanking = () => {
     if (!users?.length) return;
     downloadAnalyticsCsv(['Nome', 'Mensagens de usuário', 'Sessões no período', 'Favoritos atuais'],

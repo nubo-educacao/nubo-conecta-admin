@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { attributionRpcArgs, hasAttributionFilter, type AttributionFilter } from "@/lib/attributionFilter";
+import { attributionEdgeBody } from "@/lib/commandCenterAttribution";
 
 export interface DateRange {
   from?: Date;
@@ -98,9 +100,10 @@ export interface LocationData {
 }
 
 // Fetch dashboard statistics via Edge Function
-export async function fetchDashboardStats(dateRange?: DateRange): Promise<DashboardStats> {
+// Recorte first-touch (campanha/divulgador): os campos só vão no corpo com filtro ativo.
+export async function fetchDashboardStats(dateRange?: DateRange, attribution?: AttributionFilter): Promise<DashboardStats> {
   const { data, error } = await supabase.functions.invoke('analytics-stats', {
-    body: { dateRange },
+    body: { dateRange, ...attributionEdgeBody(attribution) },
   });
 
   if (error) {
@@ -112,8 +115,8 @@ export async function fetchDashboardStats(dateRange?: DateRange): Promise<Dashbo
 }
 
 // Fetch activity data (last 7 days)
-export async function fetchActivityData(dateRange?: DateRange): Promise<ActivityData[]> {
-  const { data, error } = await supabase.functions.invoke('analytics-activity', { body: { mode: 'week', dateRange, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } });
+export async function fetchActivityData(dateRange?: DateRange, attribution?: AttributionFilter): Promise<ActivityData[]> {
+  const { data, error } = await supabase.functions.invoke('analytics-activity', { body: { mode: 'week', dateRange, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...attributionEdgeBody(attribution) } });
 
   if (error) {
     console.error('Error fetching activity data:', error);
@@ -124,9 +127,9 @@ export async function fetchActivityData(dateRange?: DateRange): Promise<Activity
 }
 
 // Fetch top courses by interest
-export async function fetchTopCourses(): Promise<CourseInterest[]> {
+export async function fetchTopCourses(attribution?: AttributionFilter): Promise<CourseInterest[]> {
   const response = await supabase.functions.invoke('analytics-rankings', {
-    body: { type: 'courses' },
+    body: { type: 'courses', ...attributionEdgeBody(attribution) },
   });
 
   if (response.error) {
@@ -191,8 +194,12 @@ export interface CommandCenterDemographics {
  * tabela com os mesmos joins. Devolve apenas contagens agregadas e exige
  * is_backoffice_admin() no banco.
  */
-export async function fetchCommandCenterDemographics(): Promise<CommandCenterDemographics> {
-  const { data, error } = await (supabase.rpc as any)('get_command_center_demographics');
+export async function fetchCommandCenterDemographics(attribution?: AttributionFilter): Promise<CommandCenterDemographics> {
+  // Sem filtro, a chamada é exatamente a de antes (só o nome); com filtro, os
+  // três p_filter_* do contrato TP-7.
+  const { data, error } = attribution && hasAttributionFilter(attribution)
+    ? await (supabase.rpc as any)('get_command_center_demographics', attributionRpcArgs(attribution))
+    : await (supabase.rpc as any)('get_command_center_demographics');
 
   if (error) {
     console.error('Error fetching command center demographics:', error);
@@ -203,9 +210,9 @@ export async function fetchCommandCenterDemographics(): Promise<CommandCenterDem
 }
 
 // Fetch user preferences distribution
-export async function fetchUserPreferences(): Promise<UserPreference[]> {
+export async function fetchUserPreferences(attribution?: AttributionFilter): Promise<UserPreference[]> {
   const response = await supabase.functions.invoke('analytics-rankings', {
-    body: { type: 'preferences' },
+    body: { type: 'preferences', ...attributionEdgeBody(attribution) },
   });
 
   if (response.error) {
@@ -235,9 +242,9 @@ export async function fetchErrorLogs(filters?: {
 }
 
 // Fetch top engaged users
-export async function fetchTopUsers(dateRange?: DateRange): Promise<TopUser[]> {
+export async function fetchTopUsers(dateRange?: DateRange, attribution?: AttributionFilter): Promise<TopUser[]> {
   const response = await supabase.functions.invoke('analytics-rankings', {
-    body: { type: 'users', dateRange },
+    body: { type: 'users', dateRange, ...attributionEdgeBody(attribution) },
   });
 
   if (response.error) {
@@ -249,9 +256,9 @@ export async function fetchTopUsers(dateRange?: DateRange): Promise<TopUser[]> {
 }
 
 // Fetch location data
-export async function fetchLocationData(): Promise<LocationData[]> {
+export async function fetchLocationData(attribution?: AttributionFilter): Promise<LocationData[]> {
   const response = await supabase.functions.invoke('analytics-rankings', {
-    body: { type: 'locations' },
+    body: { type: 'locations', ...attributionEdgeBody(attribution) },
   });
 
   if (response.error) {
