@@ -49,3 +49,16 @@ A migration não escreve dados, então reverter é só DDL:
 
 `assert_rollback.sql` confere que a RPC volta ao hash normalizado
 `19a44c39cb46a62045ec0fa8edac22e1` (o de PROD e DEV em 15/10/2026).
+
+## Depois de 20261016140000
+
+A `20261016140000_command_center_attribution_filters` troca a assinatura de
+`get_command_center_demographics()` por `(uuid, uuid, boolean)`, com os três
+parâmetros DEFAULT NULL. Este bundle reaplica a `20261015204255`, que faz
+`CREATE OR REPLACE` da versão sem argumentos e, por isso, deixa duas assinaturas
+na transação (42725). Num banco que já tem a `140000`, ele não roda mais.
+
+Ele deu 87/87 no DEV em 2026-10-16, depois da aplicação da `204255` e antes da
+`140000`. A partir da `140000`, use `supabase/tests/command_center_attribution_filters`:
+ela confere o baseline sem filtro, a soma das dimensões igual a `match_health.total`
+e o ACL na assinatura nova.

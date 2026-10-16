@@ -56,8 +56,9 @@ BEGIN
     'public.get_tp2_partner_funnel(uuid,integer)',
     'public.get_partner_institution_redirect_users(uuid)',
     'public.get_mec_engagement_dashboard(text,integer)',
-    'public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer)',
-    'public.get_command_center_demographics()',
+    -- assinaturas finais: 20261016140000 acrescenta os filtros first-touch
+    'public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean)',
+    'public.get_command_center_demographics(uuid,uuid,boolean)',
     'public.cron_check_deadlines()',
     'public.cron_deadlines_secret_status(text)'
   ] LOOP
@@ -81,7 +82,10 @@ BEGIN
   SELECT count(*) INTO v_n FROM pg_proc WHERE pronamespace='public'::regnamespace
      AND proname IN ('get_students_paginated','get_student_stats','get_student_applications_with_details');
   IF v_n <> 3 THEN RAISE EXCEPTION 'S9_FAIL: overload nas RPCs de filtros (% assinaturas)', v_n; END IF;
-  INSERT INTO s9_log(msg) VALUES ('filtros: 1 assinatura por RPC, anon sem EXECUTE');
+  SELECT count(*) INTO v_n FROM pg_proc WHERE pronamespace='public'::regnamespace
+     AND proname IN ('get_command_center_opportunity_interest','get_command_center_demographics');
+  IF v_n <> 2 THEN RAISE EXCEPTION 'S9_FAIL: overload nas RPCs do Command Center (% assinaturas)', v_n; END IF;
+  INSERT INTO s9_log(msg) VALUES ('filtros: 1 assinatura por RPC (Estudantes/Inscrições/Command Center), anon sem EXECUTE');
 
   -- Busca do app continua pública (main 20261009150000/180000)
   IF NOT has_function_privilege('anon', 'public.search_opportunities_v2(text,double precision,double precision)', 'EXECUTE') THEN
