@@ -15,6 +15,8 @@ import { BarChart3, ZoomOut } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { DateRange } from "@/lib/analytics-queries";
 import { Button } from "@/components/ui/button";
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionEdgeBody, attributionQueryKey } from "@/lib/commandCenterAttribution";
 
 type ViewMode = "week" | "day" | "total";
 
@@ -24,22 +26,22 @@ interface ActivityData {
   usuarios: number;
 }
 
-async function fetchActivityByMode(mode: ViewMode, zoomHour: number | null, dateRange?: DateRange): Promise<ActivityData[]> {
+async function fetchActivityByMode(mode: ViewMode, zoomHour: number | null, dateRange?: DateRange, attribution?: AttributionFilter): Promise<ActivityData[]> {
   const { data, error } = await supabase.functions.invoke('analytics-activity', {
-    body: { mode, dateRange, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...(zoomHour !== null && { zoomHour }) }
+    body: { mode, dateRange, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...(zoomHour !== null && { zoomHour }), ...attributionEdgeBody(attribution) }
   });
   
   if (error) throw error;
   return data;
 }
 
-export function ActivityChart({ dateRange }: { dateRange?: DateRange }) {
+export function ActivityChart({ dateRange, attribution }: { dateRange?: DateRange; attribution?: AttributionFilter }) {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [zoomHour, setZoomHour] = useState<number | null>(null);
   
   const { data, isLoading, error } = useQuery({
-    queryKey: ["activity-data", viewMode, zoomHour, dateRange],
-    queryFn: () => fetchActivityByMode(viewMode, zoomHour, dateRange),
+    queryKey: ["activity-data", viewMode, zoomHour, dateRange, attributionQueryKey(attribution)],
+    queryFn: () => fetchActivityByMode(viewMode, zoomHour, dateRange, attribution),
     staleTime: 1000 * 60 * 5,
   });
 

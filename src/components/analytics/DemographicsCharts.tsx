@@ -1,3 +1,5 @@
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg } from "@/lib/commandCenterAttribution";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users } from "lucide-react";
@@ -83,8 +85,8 @@ function DistributionChart({
  * uma distribuição calculada só sobre quem respondeu parece completa, e a
  * cobertura real (que aqui aparece no subtítulo) some.
  */
-export function DemographicsCharts() {
-    const { data, isLoading, error } = useCommandCenterDemographics();
+export function DemographicsCharts({ attribution }: { attribution?: AttributionFilter } = {}) {
+    const { data, isLoading, error } = useCommandCenterDemographics(...attributionArg(attribution));
 
     if (isLoading) {
         return (

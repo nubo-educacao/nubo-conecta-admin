@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { authorizeBackoffice, corsHeaders, jsonResponse, periods, change, fetchRows, sessionCounts,
   type AnalyticsRange, type UserMessage } from '../_shared/command-center.ts'
 import { fetchUserMessageStats } from './user-message-stats.ts'
+import { parseAttributionFilter, resolveAttributedUserIds, keepAllowed, isAttributionFilterError } from '../_shared/attribution-filter.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -11,18 +12,28 @@ Deno.serve(async (req: Request) => {
     if (denied) return denied
     const payload: { dateRange?: AnalyticsRange } = req.method === 'POST' ? await req.json() : {}
     const { from, to, previousFrom } = periods(payload?.dateRange)
+    const attribution = parseAttributionFilter(payload)
     const db = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
-    const [registered, messages, favorites, preferences, profiles, volume] = await Promise.all([
-      db.auth.admin.listUsers({ page: 1, perPage: 1 }),
+    // Recorte first-touch: null = sem filtro, e tudo abaixo segue exatamente como antes.
+    const allowed = await resolveAttributedUserIds(db, attribution)
+    const [registered, rawMessages, rawFavorites, rawPreferences, profiles, unfilteredVolume, allTimeMessages] = await Promise.all([
+      allowed ? Promise.resolve(null) : db.auth.admin.listUsers({ page: 1, perPage: 1 }),
       fetchRows<UserMessage>(db, 'chat_messages', 'user_id, created_at', query =>
         query.eq('sender', 'user').gte('created_at', previousFrom.toISOString()).lt('created_at', to.toISOString())),
       fetchRows<{ user_id: string; created_at: string }>(db, 'user_favorites', 'user_id, created_at'),
       fetchRows<{ user_id: string; updated_at: string }>(db, 'user_preferences', 'user_id, updated_at', query =>
         query.gte('updated_at', previousFrom.toISOString()).lt('updated_at', to.toISOString())),
       fetchRows<{ id: string; full_name: string }>(db, 'user_profiles', 'id, full_name'),
-      fetchUserMessageStats(db, payload?.dateRange),
+      allowed ? Promise.resolve(null) : fetchUserMessageStats(db, payload?.dateRange),
+      // Sem período, "Total de Mensagens" é o histórico; com recorte, o histórico do recorte.
+      allowed && !payload?.dateRange
+        ? fetchRows<UserMessage>(db, 'chat_messages', 'user_id, created_at', query => query.eq('sender', 'user'))
+        : Promise.resolve(null),
     ])
-    if (registered.error || typeof registered.data?.total !== 'number') throw new Error('Contagem de usuários indisponível')
+    if (!allowed && (registered?.error || typeof registered?.data?.total !== 'number')) throw new Error('Contagem de usuários indisponível')
+    const messages = keepAllowed(rawMessages, allowed, 'user_id')
+    const favorites = keepAllowed(rawFavorites, allowed, 'user_id')
+    const preferences = keepAllowed(rawPreferences, allowed, 'user_id')
     const inWindow = (timestamp: string, start: Date, end: Date) => Date.parse(timestamp) >= start.getTime() && Date.parse(timestamp) < end.getTime()
     const currentMessages = messages.filter(message => inWindow(message.created_at, from, to))
     const previousMessages = messages.filter(message => inWindow(message.created_at, previousFrom, from))
@@ -42,8 +53,15 @@ Deno.serve(async (req: Request) => {
     const previousPowerUsers = [...previousSessions.values()].filter(count => count >= 2).length
     const currentFavorites = favorites.filter(row => inWindow(row.created_at, from, to)).length
     const previousFavorites = favorites.filter(row => inWindow(row.created_at, previousFrom, from)).length
+    // Com recorte: cadastros = perfis do recorte; volume de mensagens contado nas
+    // linhas já recortadas (mesma regra sender=user e mesma janela do helper).
+    const volume = !allowed ? unfilteredVolume : {
+      totalMessages: payload?.dateRange ? currentMessages.length : keepAllowed(allTimeMessages ?? [], allowed, 'user_id').length,
+      messagesChange: change(currentMessages.length, previousMessages.length),
+    }
+    const totalRegistered = allowed ? profiles.filter(profile => allowed.has(profile.id)).length : registered.data.total
     return jsonResponse({
-      totalRegistered: registered.data.total,
+      totalRegistered,
       activeUsers: current.active, activeUsersWithMessages: current.messageUsers, catalogUsers: current.catalogUsers,
       activeUsersChange: change(current.active, previous.active), catalogUsersChange: change(current.catalogUsers, previous.catalogUsers),
       ...volume, totalFavorites: payload?.dateRange ? currentFavorites : favorites.length,
@@ -54,6 +72,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Consulta indisponível'
     console.error('analytics-stats failed:', message)
-    return jsonResponse({ error: message }, message === 'Período inválido' || error instanceof SyntaxError ? 400 : 500)
+    return jsonResponse({ error: message },
+      message === 'Período inválido' || error instanceof SyntaxError || isAttributionFilterError(error) ? 400 : 500)
   }
 })

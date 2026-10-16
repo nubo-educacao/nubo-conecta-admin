@@ -1,3 +1,5 @@
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionArg } from "@/lib/commandCenterAttribution";
 import {
   BarChart,
   Bar,
@@ -25,8 +27,8 @@ const colors = [
   "hsl(262, 83%, 58%)",
 ];
 
-export function TopCoursesChart() {
-  const { data, isLoading, error } = useTopCourses();
+export function TopCoursesChart({ attribution }: { attribution?: AttributionFilter } = {}) {
+  const { data, isLoading, error } = useTopCourses(...attributionArg(attribution));
 
   if (isLoading) {
     return (

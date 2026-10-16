@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import Index from "./Index";
 import { useDashboardStats } from "@/hooks/useAnalyticsData";
 
@@ -48,7 +49,9 @@ function renderIndex() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <Index />
+      <MemoryRouter>
+        <Index />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }

@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { AttributionFilter } from "@/lib/attributionFilter";
+import { attributionEdgeBody, attributionQueryKey } from "@/lib/commandCenterAttribution";
 
 const stateColors = [
   "bg-primary", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5", "bg-success", "bg-warning",
@@ -13,19 +15,19 @@ interface LocationPreferenceData {
   count: number;
 }
 
-async function fetchLocationPreferences(): Promise<LocationPreferenceData[]> {
+async function fetchLocationPreferences(attribution?: AttributionFilter): Promise<LocationPreferenceData[]> {
   const { data, error } = await supabase.functions.invoke('analytics-rankings', {
-    body: { type: 'location_preferences' }
+    body: { type: 'location_preferences', ...attributionEdgeBody(attribution) }
   });
 
   if (error) throw error;
   return data || [];
 }
 
-export function LocationPreferenceChart() {
+export function LocationPreferenceChart({ attribution }: { attribution?: AttributionFilter } = {}) {
   const { data: locations, isLoading, error } = useQuery({
-    queryKey: ["location-preferences"],
-    queryFn: fetchLocationPreferences,
+    queryKey: ["location-preferences", attributionQueryKey(attribution)],
+    queryFn: () => fetchLocationPreferences(attribution),
     staleTime: 1000 * 60 * 5,
   });
 

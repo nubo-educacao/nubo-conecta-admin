@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { authorizeBackoffice, periods, fetchRows, sessionCounts, type UserMessage } from '../_shared/command-center.ts'
+import { parseAttributionFilter, resolveAttributedUserIds, keepAllowed, isAttributionFilterError } from '../_shared/attribution-filter.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,10 +98,16 @@ Deno.serve(async (req: Request) => {
     
     console.log('Analytics rankings - type:', type)
 
+    // Recorte first-touch por campanha/divulgador. null = sem filtro: consultas e
+    // resultados exatamente como antes. Com filtro, cada ranking conta só pessoas
+    // do recorte (a coluna de pessoa é lida só nesse caso).
+    const allowed = await resolveAttributedUserIds(supabase, parseAttributionFilter(body))
+    const withPerson = (fields: string, column: string) => allowed ? `${fields}, ${column}` : fields
+
     if (type === 'users') {
       const { from, to } = periods(body.dateRange)
-      const messages = await fetchRows<UserMessage>(supabase, 'chat_messages', 'user_id, created_at', query =>
-        query.eq('sender', 'user').gte('created_at', from.toISOString()).lt('created_at', to.toISOString()))
+      const messages = keepAllowed(await fetchRows<UserMessage>(supabase, 'chat_messages', 'user_id, created_at', query =>
+        query.eq('sender', 'user').gte('created_at', from.toISOString()).lt('created_at', to.toISOString())), allowed, 'user_id')
       const counts = new Map<string, number>()
       for (const message of messages) if (message.user_id) counts.set(message.user_id, (counts.get(message.user_id) ?? 0) + 1)
       if (counts.size === 0) return new Response('[]', { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -123,14 +130,14 @@ Deno.serve(async (req: Request) => {
 
     if (type === 'locations') {
       // This shows where users LIVE (from user_profiles.city)
-      interface Profile { city: string | null }
-      
-      const profiles = await fetchAllRecords<Profile>(
+      interface Profile { city: string | null; id?: string }
+
+      const profiles = keepAllowed(await fetchAllRecords<Profile>(
         supabase,
         'user_profiles',
-        'city',
+        withPerson('city', 'id'),
         [{ column: 'city', operator: 'not.is', value: 'null' }]
-      )
+      ), allowed, 'id')
 
       const locationCounts = new Map<string, number>()
       
@@ -156,14 +163,14 @@ Deno.serve(async (req: Request) => {
     }
 
     if (type === 'courses') {
-      interface Preference { course_interest: string[] | null }
-      
-      const preferences = await fetchAllRecords<Preference>(
+      interface Preference { course_interest: string[] | null; user_id?: string }
+
+      const preferences = keepAllowed(await fetchAllRecords<Preference>(
         supabase,
         'user_preferences',
-        'course_interest',
+        withPerson('course_interest', 'user_id'),
         [{ column: 'course_interest', operator: 'not.is', value: 'null' }]
-      )
+      ), allowed, 'user_id')
 
       const courseCounts = new Map<string, number>()
       
@@ -202,14 +209,14 @@ Deno.serve(async (req: Request) => {
     }
 
     if (type === 'preferences') {
-      interface Preference { program_preference: string | null }
-      
-      const preferences = await fetchAllRecords<Preference>(
+      interface Preference { program_preference: string | null; user_id?: string }
+
+      const preferences = keepAllowed(await fetchAllRecords<Preference>(
         supabase,
         'user_preferences',
-        'program_preference',
+        withPerson('program_preference', 'user_id'),
         [{ column: 'program_preference', operator: 'not.is', value: 'null' }]
-      )
+      ), allowed, 'user_id')
 
       const prefCounts = new Map<string, number>()
       
@@ -238,14 +245,14 @@ Deno.serve(async (req: Request) => {
 
     if (type === 'location_preferences') {
       // This shows where users WANT TO STUDY (from user_preferences.location_preference)
-      interface Preference { location_preference: string | null }
-      
-      const preferences = await fetchAllRecords<Preference>(
+      interface Preference { location_preference: string | null; user_id?: string }
+
+      const preferences = keepAllowed(await fetchAllRecords<Preference>(
         supabase,
         'user_preferences',
-        'location_preference',
+        withPerson('location_preference', 'user_id'),
         [{ column: 'location_preference', operator: 'not.is', value: 'null' }]
-      )
+      ), allowed, 'user_id')
 
       const locationCounts = new Map<string, number>()
       
@@ -278,7 +285,7 @@ Deno.serve(async (req: Request) => {
     console.error('Error in analytics-rankings:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
     return new Response(JSON.stringify({ error: message }), {
-      status: message === 'Período inválido' || error instanceof SyntaxError ? 400 : 500,
+      status: message === 'Período inválido' || error instanceof SyntaxError || isAttributionFilterError(error) ? 400 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }

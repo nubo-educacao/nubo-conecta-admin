@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MessageSquare, Heart, TrendingUp, Clock, MapPin } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
@@ -20,6 +21,8 @@ import { DateRangeValue } from "@/components/analytics/DateRangeFilter";
 import { OpportunityInterestChart } from '@/components/analytics/OpportunityInterestChart';
 import { UserPreferencesChart } from '@/components/analytics/UserPreferencesChart';
 import { commandCenterDateRange } from '@/lib/commandCenterDateRange';
+import { hasAttributionFilter, readAttributionParams, writeAttributionParams, type AttributionFilter } from '@/lib/attributionFilter';
+import { attributionArg } from '@/lib/commandCenterAttribution';
 
 const Index = () => {
   const [selectedRange, setSelectedRange] = useState<DateRangeValue>("7d");
@@ -29,7 +32,21 @@ const Index = () => {
   const queryClient = useQueryClient();
   const [customDate, setCustomDate] = useState<Date>();
   const dateRange = useMemo(() => commandCenterDateRange(selectedRange, lastUpdate, customDate), [selectedRange, lastUpdate, customDate]);
-  const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats(dateRange);
+
+  // Recorte por campanha/divulgador (first-touch, TP-7). Mora na URL com as
+  // mesmas chaves de Estudantes/Inscrições, para o link ser compartilhável, e
+  // chega a todos os painéis de pessoas. A Central de Ações não é por pessoa.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const attribution = useMemo(() => readAttributionParams(searchParams), [searchParams]);
+  const attributionActive = hasAttributionFilter(attribution);
+  const setAttribution = useCallback((next: AttributionFilter) => {
+    const params = new URLSearchParams(searchParams);
+    ["campaignId", "channelId", "unattributed"].forEach((k) => params.delete(k));
+    writeAttributionParams(params, next);
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats(dateRange, ...attributionArg(attribution));
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -54,6 +71,8 @@ const Index = () => {
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
         lastUpdate={lastUpdate}
+        attribution={attribution}
+        onAttributionChange={setAttribution}
       />
 
       <main className="container py-4 sm:py-6 space-y-4 sm:space-y-6 px-3 sm:px-4 lg:px-8">
@@ -101,6 +120,7 @@ const Index = () => {
         </section>
 
         <p className="text-sm text-muted-foreground">O período filtra mensagens, atividade, recorrência, favoritos e cliques. Cadastros totais, Match, demografia e preferências mostram o estado atual dos perfis, sem filtro de período.</p>
+        {attributionActive && <p className="text-sm text-muted-foreground">Recorte por campanha/divulgador (first-touch) aplicado a cadastros, mensagens, atividade, rankings, interesse, preferências, localização, Match e demografia.</p>}
         {statsError && <p role="alert" className="text-sm text-destructive">Não foi possível carregar os indicadores. Use Atualizar para tentar novamente.</p>}
 
         {/* Action Center */}
@@ -108,30 +128,30 @@ const Index = () => {
 
         {/* Charts Row 1 */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <ActivityChart key={`${dateRange.from?.toISOString()}-${dateRange.to?.toISOString()}`} dateRange={dateRange} />
-          <MatchHealthChart />
+          <ActivityChart key={`${dateRange.from?.toISOString()}-${dateRange.to?.toISOString()}`} dateRange={dateRange} attribution={attribution} />
+          <MatchHealthChart attribution={attribution} />
         </section>
 
         {/* Charts Row 2 - Rankings */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <TopUsersChart dateRange={dateRange} />
-          <TopCoursesChart />
+          <TopUsersChart dateRange={dateRange} attribution={attribution} />
+          <TopCoursesChart attribution={attribution} />
         </section>
 
         {/* Interesse observado e declarado */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <OpportunityInterestChart dateRange={dateRange} />
-          <UserPreferencesChart />
+          <OpportunityInterestChart dateRange={dateRange} attribution={attribution} />
+          <UserPreferencesChart attribution={attribution} />
         </section>
 
         {/* Charts Row 3 - Location */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <LocationChart />
-          <LocationPreferenceChart />
+          <LocationChart attribution={attribution} />
+          <LocationPreferenceChart attribution={attribution} />
         </section>
 
         {/* Charts Row 5 - Demografia (TP-1 1B) */}
-        <DemographicsCharts />
+        <DemographicsCharts attribution={attribution} />
 
         {/* Quick Insights */}
         <section className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">

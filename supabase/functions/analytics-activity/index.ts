@@ -2,6 +2,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { authorizeBackoffice, corsHeaders, jsonResponse, periods, fetchRows,
   type AnalyticsRange, type UserMessage } from '../_shared/command-center.ts'
+import { parseAttributionFilter, resolveAttributedUserIds, keepAllowed, isAttributionFilterError } from '../_shared/attribution-filter.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -32,14 +33,17 @@ Deno.serve(async (req: Request) => {
     const defaultStart = mode === 'day' ? today :
       new Date(Date.parse(today + 'T12:00:00Z') - 6 * 86400000).toISOString().slice(0, 10)
     const window = periods(body.dateRange)
+    const attribution = parseAttributionFilter(body)
     const db = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
-    const messages = await fetchRows<UserMessage>(db, 'chat_messages', 'user_id, created_at', query => {
+    // Recorte first-touch: null = sem filtro. Com filtro, mensagens sem user_id saem.
+    const allowed = await resolveAttributedUserIds(db, attribution)
+    const messages = keepAllowed(await fetchRows<UserMessage>(db, 'chat_messages', 'user_id, created_at', query => {
       query = query.eq('sender', 'user')
       if (body.dateRange) return query.gte('created_at', window.from.toISOString()).lt('created_at', window.to.toISOString())
       // Fetch a safe superset; exact local-calendar boundaries are applied below.
       return mode === 'total' ? query.lt('created_at', now.toISOString()) :
         query.gte('created_at', new Date(Date.parse(defaultStart + 'T00:00:00Z') - 86400000).toISOString()).lt('created_at', now.toISOString())
-    })
+    }), allowed, 'user_id')
     const selected = messages.filter(message => body.dateRange ||
       (local(message.created_at).day >= (mode === 'total' ? '0000' : defaultStart) && local(message.created_at).day < tomorrow))
     const buckets = new Map<string, { label: string; mensagens: number; users: Set<string> }>()
@@ -69,6 +73,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Consulta indisponível'
     console.error('analytics-activity failed:', message)
-    return jsonResponse({ error: message }, message === 'Período inválido' || error instanceof SyntaxError ? 400 : 500)
+    return jsonResponse({ error: message },
+      message === 'Período inválido' || error instanceof SyntaxError || isAttributionFilterError(error) ? 400 : 500)
   }
 })
