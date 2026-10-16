@@ -76,6 +76,15 @@ describe("MatchHealthChart", () => {
         expect(await screen.findByText(/40% dos 5 usuários/)).toBeInTheDocument();
     });
 
+    it("descreve with_match como Match concluído alguma vez (v0 ou v1), não como catálogo compatível", async () => {
+        renderWithClient(<MatchHealthChart />);
+
+        expect(
+            await screen.findByText(/40% dos 5 usuários concluíram o Match alguma vez \(v0 ou v1\)/),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/oportunidade compatível/)).not.toBeInTheDocument();
+    });
+
     it("não quebra quando não há usuário nenhum", async () => {
         rpc.mockResolvedValue({
             data: { ...payload, match_health: { with_match: 0, without_match: 0, total: 0 } },
