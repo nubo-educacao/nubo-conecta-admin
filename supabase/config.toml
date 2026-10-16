@@ -393,3 +393,19 @@ entrypoint = "./functions/test-knowledge/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/test-knowledge/*.html" ]
+
+[functions.analytics-stats]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/analytics-stats/index.ts"
+
+
+[functions.analytics-rankings]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/analytics-rankings/index.ts"
+
+[functions.analytics-activity]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/analytics-activity/index.ts"

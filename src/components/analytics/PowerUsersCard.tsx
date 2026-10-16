@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UserCheck, ChevronRight, Copy, Check, Download, Loader2 } from "lucide-react";
+import { UserCheck, ChevronRight, Copy, Check, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -18,7 +18,8 @@ import { HelpCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { downloadAnalyticsCsv } from "@/lib/analyticsCsv";
+import type { DateRange } from "@/lib/analytics-queries";
 
 interface PowerUser {
   userId: string;
@@ -29,25 +30,14 @@ interface PowerUser {
 
 interface PowerUsersCardProps {
   count: number;
+  dateRange?: DateRange;
   change?: number;
   powerUsersList: PowerUser[];
 }
 
-interface ExportUser {
-  nome: string;
-  telefone: string;
-  cidadeResidencia: string;
-  localInteresse: string;
-  cursoInteresse: string;
-  etapaFunil: string;
-  favoritos: number;
-  totalAcessos: number;
-}
-
-export function PowerUsersCard({ count, change, powerUsersList }: PowerUsersCardProps) {
+export function PowerUsersCard({ count, change, powerUsersList, dateRange }: PowerUsersCardProps) {
   const [open, setOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
   const isPositive = change && change > 0;
   const isNegative = change && change < 0;
 
@@ -76,76 +66,18 @@ export function PowerUsersCard({ count, change, powerUsersList }: PowerUsersCard
     }
   };
 
-  const handleExportCSV = async () => {
-    setIsExporting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('analytics-power-users-export');
-      
-      if (error) throw error;
-      
-      const users: ExportUser[] = data.users || [];
-      
-      if (users.length === 0) {
-        toast.error('Nenhum Power User encontrado para exportar');
-        return;
-      }
-
-      // CSV header
-      const headers = [
-        'Nome',
-        'Telefone',
-        'Cidade de Residência',
-        'Local de Interesse',
-        'Curso de Interesse',
-        'Etapa do Funil',
-        'Favoritos',
-        'Total de Acessos'
-      ];
-
-      // CSV rows
-      const rows = users.map(user => [
-        user.nome,
-        user.telefone,
-        user.cidadeResidencia,
-        user.localInteresse,
-        user.cursoInteresse,
-        user.etapaFunil,
-        user.favoritos.toString(),
-        user.totalAcessos.toString()
-      ]);
-
-      // Build CSV content with BOM for Excel compatibility
-      const csvContent = '\uFEFF' + [
-        headers.join(';'),
-        ...rows.map(row => row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(';'))
-      ].join('\n');
-
-      // Create and download file
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `power-users-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast.success(`${users.length} Power Users exportados com sucesso!`);
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Erro ao exportar Power Users');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  const handleExportCSV = () => downloadAnalyticsCsv(
+    ['Nome', 'Sessões no período'],
+    powerUsersList.map(user => [user.userName, user.accessCount]),
+    'power-users-top50', dateRange,
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <div 
+        <button type="button"
           className={cn(
-            "stat-card cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg",
+            "stat-card w-full text-left cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg",
             "before:bg-gradient-to-r before:from-chart-3 before:to-violet-400"
           )}
         >
@@ -159,7 +91,7 @@ export function PowerUsersCard({ count, change, powerUsersList }: PowerUsersCard
                       <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs">
-                      <p className="text-xs">Usuários recorrentes com 2 ou mais sessões (considerando todo o período). Clique para ver a lista.</p>
+                      <p className="text-xs">Usuários recorrentes com 2 ou mais sessões (no período selecionado; nova sessão após mais de 30 minutos sem mensagens do usuário). Clique para ver a lista.</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -194,7 +126,7 @@ export function PowerUsersCard({ count, change, powerUsersList }: PowerUsersCard
               </span>
             </div>
           )}
-        </div>
+        </button>
       </DialogTrigger>
       
       <DialogContent className="max-w-md">
@@ -208,22 +140,18 @@ export function PowerUsersCard({ count, change, powerUsersList }: PowerUsersCard
               variant="outline"
               size="sm"
               onClick={handleExportCSV}
-              disabled={isExporting}
+              disabled={!powerUsersList.length}
               className="ml-4 gap-1"
             >
-              {isExporting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              <span className="ml-1.5">Exportar CSV</span>
+              <Download className="h-4 w-4" />
+              <span className="ml-1.5">Exportar lista</span>
             </Button>
           </div>
         </DialogHeader>
         
         <div className="text-sm text-muted-foreground mb-4">
           {powerUsersList.length > 0 ? (
-            <p>Top {powerUsersList.length} usuários com mais sessões (todo o período)</p>
+            <p>Top {powerUsersList.length} usuários com mais sessões (período selecionado; até 50)</p>
           ) : (
             <p>Nenhum usuário recorrente encontrado</p>
           )}
@@ -248,7 +176,7 @@ export function PowerUsersCard({ count, change, powerUsersList }: PowerUsersCard
                       <span className="text-sm font-bold text-chart-3">
                         {user.accessCount}
                       </span>
-                      <span className="text-[10px] text-chart-3/80">acessos</span>
+                      <span className="text-[10px] text-chart-3/80">sessões</span>
                     </div>
                   </div>
                   {user.userPhone ? (

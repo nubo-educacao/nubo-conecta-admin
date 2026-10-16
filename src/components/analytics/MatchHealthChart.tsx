@@ -66,7 +66,7 @@ export function MatchHealthChart() {
 
             {total === 0 ? (
                 <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
-                    Nenhum usuário cadastrado no período.
+                    Nenhum perfil disponível no estado atual.
                 </div>
             ) : (
                 <ResponsiveContainer width="100%" height={260}>

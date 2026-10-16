@@ -39,7 +39,7 @@ export function UserPreferencesChart() {
         </div>
         <div className="flex flex-col items-center justify-center h-[250px] text-muted-foreground">
           <PieChartIcon className="h-12 w-12 mb-4 opacity-50" />
-          <p>Nenhuma preferência registrada</p>
+          <p role={error ? "alert" : undefined}>{error ? "Não foi possível carregar as preferências." : "Nenhuma preferência registrada"}</p>
         </div>
       </div>
     );

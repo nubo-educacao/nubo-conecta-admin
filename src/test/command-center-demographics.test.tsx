@@ -84,7 +84,7 @@ describe("MatchHealthChart", () => {
 
         renderWithClient(<MatchHealthChart />);
 
-        expect(await screen.findByText(/Nenhum usuário cadastrado/)).toBeInTheDocument();
+        expect(await screen.findByText(/Nenhum perfil disponível no estado atual/)).toBeInTheDocument();
     });
 
     it("exibe estado de erro quando a RPC falha", async () => {

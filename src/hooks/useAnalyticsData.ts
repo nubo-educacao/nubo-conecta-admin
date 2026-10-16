@@ -21,10 +21,10 @@ export function useDashboardStats(dateRange?: DateRange) {
   });
 }
 
-export function useActivityData() {
+export function useActivityData(dateRange?: DateRange) {
   return useQuery({
-    queryKey: ["activity-data"],
-    queryFn: fetchActivityData,
+    queryKey: ["activity-data", dateRange],
+    queryFn: () => fetchActivityData(dateRange),
     staleTime: 1000 * 60 * 10,
   });
 }
@@ -67,10 +67,10 @@ export function useErrorLogs() {
   });
 }
 
-export function useTopUsers() {
+export function useTopUsers(dateRange?: DateRange) {
   return useQuery({
-    queryKey: ["top-users"],
-    queryFn: fetchTopUsers,
+    queryKey: ["top-users", dateRange],
+    queryFn: () => fetchTopUsers(dateRange),
     staleTime: 1000 * 60 * 15,
   });
 }
