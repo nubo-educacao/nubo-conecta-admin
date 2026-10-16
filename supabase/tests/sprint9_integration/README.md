@@ -31,3 +31,38 @@ O que a suíte faz:
 Para recusar outro alvo, a suíte exige `cron.job = 1`, o que vale só no DEV
 (PROD tem 2 jobs). Migrations com `BEGIN;`/`COMMIT;` no topo do arquivo têm só
 essas linhas removidas. O bundle é abortado se ainda contiver controle de transação.
+
+## Massa de QA do assurance (`qa_seed.sh`)
+
+Ao contrário do `run_dev.sh`, este script **persiste** dados no DEV, porque o
+assurance humano precisa vê-los na tela. Cada execução apaga a rodada anterior e
+recria tudo com datas relativas a `now()`. Para remover ao fim do assurance:
+`bash supabase/tests/sprint9_integration/qa_seed.sh cleanup`.
+
+Tudo o que o seed cria é identificável e só isso é removido:
+- UUIDs `5e9a0000-…`;
+- nomes `[QA-S9]`;
+- e-mails `@qa-s9.invalid`;
+- anônimos `qa-s9-anon-*`.
+
+O seed reaproveita os parceiros que já existem no DEV: "[QA SEED] Bolsa Integral QA-7" e "BIP Impulsiona".
+
+| Aluno | First-touch (last-touch) | Mensagens (sessões) | Match | Renda |
+|---|---|---|---|---|
+| 01 Ana | L1 = Campanha A + Divulgador X (last: L3) | 6 (3) | v1 MEC | R$ 450 |
+| 02 Bruna | L1 | 4 (2) | v0 resultado | R$ 900 |
+| 03 Caio | L1 | 2 (1), favorito | v1 só parceiro | R$ 1.200 |
+| 04 Davi | L1 | 2 (1) + chat match_workflow | tentou v0 | R$ 2.500 |
+| 05 Elisa | L2 = Campanha A + Divulgador Y | 2 (1) | v1 erro | faixa SM (candidatura) |
+| 06 Felipe | L2 | 2 (1) | nunca | não respondeu |
+| 07 Gabi | L3 = Campanha B + Divulgador X | 4 (2) | v1 MEC | R$ 4.000 |
+| 08 Heitor | L3 | 2 (1) | nunca | R$ 700 |
+| 09 Iara | sem atribuição | — (preferência e favorito no período) | v0 resultado | R$ 300 |
+| 10 João | sem atribuição | — (favorito no período) | v1 pronto sem resultado | R$ 3.500 |
+| 11 Kátia | sem atribuição | — | nunca | não respondeu |
+| 12 Lucas | sem atribuição | — (sem preferências) | nunca | não respondeu |
+
+Outros dados criados:
+- **Cliques em card:** 01, 02 e 03 → QA-7; 07 e 09 → BIP; mais dois cliques anônimos → QA-7.
+- **Candidaturas:** 01 (QA-7, enviada), 05 (QA-7, iniciada), 07 (QA-7, enviada), 02 (BIP, enviada), 09 (BIP, iniciada).
+- **Fixture do cron:** `important_dates` `5e9a0000-…b001`, com início em now()+2 dias.
