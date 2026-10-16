@@ -9,12 +9,13 @@ const COLORS = {
 };
 
 /**
- * Saúde do motor de match: proporção de usuários com pelo menos uma
- * oportunidade compatível.
+ * Saúde do Match: proporção de usuários que concluíram o Match alguma vez, no
+ * v0 (chat) ou no v1 (resultado gravado, MEC ou parceiro). with_match não diz
+ * que o catálogo atual tem oportunidade compatível; resultado atual vem em
+ * with_current_result (Complemento TP-1, D1).
  *
- * É pizza e não funil de propósito (ADR-0027). Match não é etapa por onde a
- * pessoa passa a caminho de converter — é um estado do catálogo em relação ao
- * perfil. Tratá-lo como etapa de funil sugeria uma taxa de queda que não existe.
+ * É pizza e não funil de propósito (ADR-0027): tratar o Match como etapa de
+ * funil sugeria uma taxa de queda que não existe.
  */
 export function MatchHealthChart() {
     const { data, isLoading, error } = useCommandCenterDemographics();
@@ -36,7 +37,7 @@ export function MatchHealthChart() {
             <div className="chart-container">
                 <div className="mb-6 flex flex-col gap-1">
                     <h3 className="text-lg font-semibold font-display">Saúde do Match</h3>
-                    <p className="text-sm text-muted-foreground">Usuários com ao menos uma oportunidade compatível</p>
+                    <p className="text-sm text-muted-foreground">Usuários que concluíram o Match alguma vez (v0 ou v1)</p>
                 </div>
                 <div className="flex h-[260px] flex-col items-center justify-center text-muted-foreground">
                     <Activity className="mb-4 h-12 w-12 opacity-50" />
@@ -49,8 +50,8 @@ export function MatchHealthChart() {
     const { with_match, without_match, total } = data.match_health;
 
     const chartData = [
-        { name: "Com match", value: with_match, fill: COLORS.with },
-        { name: "Sem match", value: without_match, fill: COLORS.without },
+        { name: "Concluiu o Match", value: with_match, fill: COLORS.with },
+        { name: "Não concluiu", value: without_match, fill: COLORS.without },
     ];
 
     const pct = total > 0 ? Math.round((with_match / total) * 100) : 0;
@@ -60,7 +61,7 @@ export function MatchHealthChart() {
             <div className="mb-6 flex flex-col gap-1">
                 <h3 className="text-lg font-semibold font-display">Saúde do Match</h3>
                 <p className="text-sm text-muted-foreground">
-                    {pct}% dos {total.toLocaleString("pt-BR")} usuários têm ao menos uma oportunidade compatível
+                    {pct}% dos {total.toLocaleString("pt-BR")} usuários concluíram o Match alguma vez (v0 ou v1)
                 </p>
             </div>
 
