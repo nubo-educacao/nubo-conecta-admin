@@ -35,6 +35,15 @@ async function fetchActivityByMode(mode: ViewMode, zoomHour: number | null, date
   return data;
 }
 
+// Por dia num período de 90 dias são 90 rótulos: com intervalo 0 eles se
+// sobrepõem. "preserveStartEnd" deixa o recharts escolher os que cabem, sempre
+// com o primeiro e o último. Por hora (24 pontos) fica de 3 em 3; o zoom de 15
+// minutos (4 pontos) mostra todos.
+export function activityXAxisInterval(mode: ViewMode, zoomHour: number | null): number | "preserveStartEnd" {
+  if (zoomHour !== null) return 0;
+  return mode === "day" ? 2 : "preserveStartEnd";
+}
+
 export function ActivityChart({ dateRange, attribution }: { dateRange?: DateRange; attribution?: AttributionFilter }) {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [zoomHour, setZoomHour] = useState<number | null>(null);
@@ -144,21 +153,21 @@ export function ActivityChart({ dateRange, attribution }: { dateRange?: DateRang
             <ToggleGroupItem 
               value="week" 
               size="sm"
-              className="data-[state=on]:bg-background data-[state=on]:shadow-sm px-3"
+              className="data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm px-3"
             >
               {dateRange ? "Por dia" : "Semana"}
             </ToggleGroupItem>
             <ToggleGroupItem 
               value="day" 
               size="sm"
-              className="data-[state=on]:bg-background data-[state=on]:shadow-sm px-3"
+              className="data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm px-3"
             >
               {dateRange ? "Por hora" : "Hoje"}
             </ToggleGroupItem>
             <ToggleGroupItem 
               value="total" 
               size="sm"
-              className="data-[state=on]:bg-background data-[state=on]:shadow-sm px-3"
+              className="data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm px-3"
             >
               Total
             </ToggleGroupItem>
@@ -196,7 +205,8 @@ export function ActivityChart({ dateRange, attribution }: { dateRange?: DateRang
               tickLine={false}
               axisLine={false}
               className="text-muted-foreground"
-              interval={zoomHour !== null ? 0 : (viewMode === "total" ? "preserveStartEnd" : (viewMode === "day" ? 2 : 0))}
+              interval={activityXAxisInterval(viewMode, zoomHour)}
+              minTickGap={16}
             />
             <YAxis
               tick={{ fontSize: 12 }}
