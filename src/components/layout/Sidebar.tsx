@@ -145,7 +145,6 @@ export default function Sidebar() {
         { to: "/forms", icon: FileText, label: "Formulários Dinâmicos", permission: "Parceiros" },
         { to: "/applications", icon: FolderOpen, label: "Inscrições Recebidas", permission: "Parceiros" },
         { to: "/solicitations", icon: ClipboardList, label: "Leads Comerciais", permission: "Parceiros" },
-        { to: "/funnel-users", icon: PieChart, label: "Funil de Conversão", permission: "Parceiros" },
         { to: "/partners-users", icon: Users, label: "Usuários (Parceiros)", permission: "Parceiros" },
       ],
     },
