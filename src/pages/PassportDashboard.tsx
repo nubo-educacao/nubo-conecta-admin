@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getPartnersList } from "@/services/applicationsService";
+import { getPartnersList, getInstitutionsList } from "@/services/applicationsService";
 import {
   getPartnerFunnel,
   getPartnerApplicationBuckets,
@@ -75,6 +75,7 @@ const CustomDropBadge = (props: any) => {
 export default function PassportDashboard() {
   const [partnerFilter, setPartnerFilter] = React.useState<string>("all");
   const [daysFilter, setDaysFilter] = React.useState<number | null>(30);
+  const [funnelInstitutionFilter, setFunnelInstitutionFilter] = React.useState("all");
   const [isExporting, setIsExporting] = React.useState(false);
 
   const { data: partnersData } = useQuery({
@@ -82,9 +83,11 @@ export default function PassportDashboard() {
     queryFn: getPartnersList,
   });
 
-  const { data: partnerFunnelData, isLoading: isLoadingPartnerFunnel } = useQuery({
-    queryKey: ["partnerFunnel"],
-    queryFn: getPartnerFunnel,
+  const { data: institutionsData } = useQuery({ queryKey: ["partnerInstitutionsList"], queryFn: getInstitutionsList });
+
+  const { data: partnerFunnelData, isLoading: isLoadingPartnerFunnel, isError: isFunnelError } = useQuery({
+    queryKey: ["partnerFunnel", "admin", funnelInstitutionFilter, daysFilter],
+    queryFn: () => getPartnerFunnel(funnelInstitutionFilter, daysFilter),
   });
 
   const { data: bucketsData, isLoading: isLoadingBuckets } = useQuery({
@@ -276,14 +279,21 @@ export default function PassportDashboard() {
         <Card className="col-span-1 lg:col-span-2">
           <CardHeader>
             <CardTitle>Funil por Parceiro Institucional</CardTitle>
-            <CardDescription>Conversão de cliques em cards de parceiros até candidatura completa (submetida ou redirecionada).</CardDescription>
+            <CardDescription>Volumes por instituição no período selecionado. Conclusão reflete candidaturas submetidas ou redirecionadas; cliques e pessoas são métricas distintas. A taxa mede a conclusão das candidaturas iniciadas, sem presumir sequência de aquisição por clique.</CardDescription>
+            <Select value={funnelInstitutionFilter} onValueChange={setFunnelInstitutionFilter}>
+              <SelectTrigger className="w-[250px]" aria-label="Instituição do funil"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">Todas as instituições parceiras</SelectItem>
+                {institutionsData?.map(i => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Parceiro</TableHead>
-                  <TableHead className="text-right">Cliques</TableHead>
+                  <TableHead className="text-right">Cliques (eventos)</TableHead>
+                  <TableHead className="text-right">Usuários que clicaram</TableHead>
                   <TableHead className="text-right">Iniciadas</TableHead>
                   <TableHead className="text-right">Concluídas</TableHead>
                   <TableHead className="text-right">Tx Conversão (Iniciada ➔ Concluída)</TableHead>
@@ -293,20 +303,21 @@ export default function PassportDashboard() {
                 {partnerFunnelData?.map((row) => (
                   <TableRow key={row.partner_id}>
                     <TableCell className="font-medium">{row.partner_name || 'Desconhecido'}</TableCell>
+                    <TableCell className="text-right">{row.total_card_clicks}</TableCell>
                     <TableCell className="text-right">{row.total_unique_clicks}</TableCell>
                     <TableCell className="text-right">{row.total_applications_started}</TableCell>
                     <TableCell className="text-right">{row.total_applications_completed}</TableCell>
                     <TableCell className="text-right">
                       {row.total_applications_started > 0
                         ? `${((row.total_applications_completed / row.total_applications_started) * 100).toFixed(1)}%`
-                        : '0%'}
+                        : '—'}
                     </TableCell>
                   </TableRow>
                 ))}
                 {(!partnerFunnelData || partnerFunnelData.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                      Nenhum dado encontrado.
+                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground" role={isFunnelError ? "alert" : undefined}>
+                      {isFunnelError ? "Não foi possível carregar o funil. Verifique seu acesso e tente novamente." : "Nenhum dado encontrado."}
                     </TableCell>
                   </TableRow>
                 )}
