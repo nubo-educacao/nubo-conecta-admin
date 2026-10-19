@@ -31,33 +31,18 @@ export async function authorizeBackoffice(req: Request, createClient: any) {
   return null
 }
 
-// Stable pagination; a failed page never produces a partial successful metric.
-// deno-lint-ignore no-explicit-any
-export async function fetchRows<T>(db: any, table: string, fields: string, filter?: (query: any) => any): Promise<T[]> {
-  const result: T[] = []
-  for (let offset = 0; ; offset += 1000) {
-    let query = db.from(table).select(fields).order('id', { ascending: true }).range(offset, offset + 999)
-    if (filter) query = filter(query)
-    const { data, error } = await query
-    if (error) throw new Error(error.message ?? 'Consulta indisponível')
-    if (!Array.isArray(data)) throw new Error('Resposta de consulta inválida')
-    result.push(...data)
-    if (data.length < 1000) return result
+export class AggregateQueryError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message)
+    this.name = 'AggregateQueryError'
   }
 }
 
-export interface UserMessage { user_id: string | null; created_at: string }
-export function sessionCounts(messages: UserMessage[]) {
-  const byUser = new Map<string, number[]>()
-  for (const message of messages) {
-    if (!message.user_id) continue
-    const times = byUser.get(message.user_id) ?? []
-    times.push(Date.parse(message.created_at)); byUser.set(message.user_id, times)
-  }
-  const counts = new Map<string, number>()
-  for (const [id, times] of byUser) {
-    times.sort((a, b) => a - b)
-    counts.set(id, 1 + times.slice(1).filter((time, index) => time - times[index] > 30 * 60000).length)
-  }
-  return counts
+// One aggregate RPC per Edge call (NUB-RD-93): a failed query never becomes a successful zero.
+// deno-lint-ignore no-explicit-any
+export async function callAggregate<T>(db: any, fn: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await db.rpc(fn, args)
+  if (error) throw new AggregateQueryError(error.message ?? 'Consulta indisponível', error.code)
+  if (data === null || typeof data !== 'object') throw new Error('Resposta de consulta inválida')
+  return data as T
 }
