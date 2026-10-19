@@ -5,7 +5,6 @@ import {
   Radio,
   LayoutDashboard,
   ChevronLeft,
-  ChevronRight,
   LogOut,
   MessageSquare,
   Sparkles,
@@ -36,7 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { EDUCATIONAL_NAV_ITEMS } from "./educationalNavigation";
+import { EDUCATIONAL_NAV_ITEMS, MEC_DASHBOARD_NAV_ITEM } from "./educationalNavigation";
 
 interface NavItemProps {
   to: string;
@@ -125,10 +124,10 @@ export default function Sidebar() {
       permission: "Dashboard",
       isGroup: true,
       items: [
+        { ...MEC_DASHBOARD_NAV_ITEM, icon: LayoutDashboard, permission: "Dashboard" },
         { ...EDUCATIONAL_NAV_ITEMS[0], icon: GraduationCap, permission: "Dashboard" },
         { ...EDUCATIONAL_NAV_ITEMS[1], icon: Library, permission: "Dashboard" },
         { ...EDUCATIONAL_NAV_ITEMS[2], icon: BookOpen, permission: "Dashboard" },
-        { to: "/educational/mec-dashboard", icon: LayoutDashboard, label: "Dashboard MEC", permission: "Dashboard" },
         { to: "/calendar", icon: CalendarDays, label: "Calendário Educacional", permission: "Calendário" },
       ],
     },
@@ -252,16 +251,32 @@ export default function Sidebar() {
         collapsed ? "w-16" : "w-64"
       )}
     >
-      <div className="flex h-16 items-center justify-between px-4 border-b">
-        {!collapsed && <span className="font-bold text-lg">Nubo Admin</span>}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
+      <div className={cn("flex h-16 items-center border-b", collapsed ? "justify-center px-2" : "justify-between px-4")}>
+        {collapsed ? (
+          // Recolhido (w-16): só o ícone, que também expande o menu.
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed(false)}
+            className="h-10 w-10"
+            aria-label="Expandir menu"
+          >
+            <img src="/favicon.png" alt="Nubo Conecta" width={48} height={48} className="h-8 w-8 object-contain" />
+          </Button>
+        ) : (
+          <>
+            <img src="/brand/nubo-logo-sm.png" alt="Nubo Conecta" width={480} height={274} className="h-9 w-auto" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCollapsed(true)}
+              className="h-8 w-8"
+              aria-label="Recolher menu"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </>
+        )}
       </div>
 
       <nav className="flex-1 space-y-1 p-2 overflow-y-auto">

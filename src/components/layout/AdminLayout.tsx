@@ -39,11 +39,12 @@ export default function AdminLayout() {
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* Top Header for Mobile */}
                 <header className="md:hidden flex h-16 items-center justify-between px-4 border-b shrink-0">
-                    <span className="font-bold text-lg">Nubo Admin</span>
+                    <img src="/brand/nubo-logo-sm.png" alt="Nubo Conecta" width={480} height={274} className="h-9 w-auto" />
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => setIsMobileOpen(true)}
+                        aria-label="Abrir menu"
                     >
                         <Menu className="h-6 w-6" />
                     </Button>

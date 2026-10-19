@@ -56,7 +56,7 @@ export function DashboardHeader({
             </div>
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold font-display tracking-tight truncate">
-                Cloudinha Analytics
+                Command Center
               </h1>
               <p className="text-xs text-muted-foreground/70 flex items-center gap-1 hidden sm:flex">
                 <Clock className="h-3 w-3" />
