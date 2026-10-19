@@ -43,8 +43,9 @@ SELECT nullif(v.u, '')::uuid, v.s, v.t::timestamptz FROM (VALUES
   ('',                                     'user',   '2031-01-01T12:30:00Z')
 ) v(u, s, t);
 
-INSERT INTO public.user_favorites (user_id, created_at)
-SELECT v.u::uuid, '2031-01-01T10:00:00Z' FROM (VALUES
+-- Favorito precisa de um alvo (user_favorites_target_check): a oportunidade do fixture.
+INSERT INTO public.user_favorites (user_id, partner_opportunities_id, created_at)
+SELECT v.u::uuid, (SELECT c.v FROM ccaf_ctx c WHERE c.k = 'partner')::uuid, '2031-01-01T10:00:00Z' FROM (VALUES
   ('ccaf0000-0000-4000-d000-000000000004'), ('ccaf0000-0000-4000-d000-000000000005')) v(u);
 
 INSERT INTO public.user_preferences (user_id, updated_at, course_interest, program_preference, location_preference) VALUES

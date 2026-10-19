@@ -48,7 +48,14 @@ DO $pre$ BEGIN
   END IF;
 END $pre$;
 SQL
-  if [ "$MODE" != "red" ]; then cat "$MIGRATION" "$AGGREGATES"; fi
+  if [ "$MODE" != "red" ]; then
+    # O DEV já tem 20261016140000 aplicada: o baseline acima capturou as funções
+    # vigentes (filtros nulos) e a migration é reaplicada sobre elas. Sem estes
+    # DROPs o CREATE FUNCTION colide (42723). Num banco anterior são no-op.
+    echo "DROP FUNCTION IF EXISTS public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean);"
+    echo "DROP FUNCTION IF EXISTS public.get_command_center_demographics(uuid,uuid,boolean);"
+    cat "$MIGRATION" "$AGGREGATES"
+  fi
   cat "$DIR/assert_aggregates.sql"
   cat "$DIR/assert.sql"
   echo "ROLLBACK;"
