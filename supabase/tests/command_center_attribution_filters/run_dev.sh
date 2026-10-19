@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Teste dos filtros de campanha/divulgador (first-touch) do Command Center:
-# migration 20261016140000_command_center_attribution_filters.sql.
+# migration 20261016140000_command_center_attribution_filters.sql e, desde o
+# NUB-RD-93, as agregações das Edges em SQL (*_cc_attribution_sql_aggregates.sql,
+# asserções em assert_aggregates.sql).
 #
 # Roda no DEV (yfgciamhzjvarwgzosto) numa ÚNICA transação que SEMPRE termina
 # em exceção: fixtures → baseline com as funções ANTIGAS → migration →
@@ -27,6 +29,12 @@ MODE=${1:-green}
 DIR=supabase/tests/command_center_attribution_filters
 MIGRATION=supabase/migrations/20261016140000_command_center_attribution_filters.sql
 TP7=supabase/migrations/20261015202330_tp7_first_touch_attribution_filters.sql
+AGGREGATES=$(ls supabase/migrations/*_cc_attribution_sql_aggregates.sql 2>/dev/null || true)
+# 1 = o DEV já registra 20261016140000 (estado aplicado; ver o bloco da migration abaixo).
+APPLIED_140000=$(npx -y supabase@2.121.0 db query --linked --project-ref "$REF" -o json \
+  "select count(*) as n from supabase_migrations.schema_migrations where version = '20261016140000'" 2>/dev/null \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).rows[0].n))')
+echo "20261016140000 no histórico do DEV: $APPLIED_140000 (1 = asserções sobre o estado aplicado)" >&2
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
 
@@ -45,7 +53,16 @@ DO $pre$ BEGIN
   END IF;
 END $pre$;
 SQL
-  if [ "$MODE" != "red" ]; then cat "$MIGRATION"; fi
+  if [ "$MODE" != "red" ]; then
+    # Com 20261016140000 já no histórico do DEV, reaplicá-la estoura 42723
+    # (CREATE FUNCTION de assinatura existente). Nesse caso as asserções rodam
+    # sobre o estado APLICADO e só a migration nova entra no bundle; o
+    # "baseline" de interest/demographics passa a comparar a função vigente
+    # consigo mesma (regressão da 9.0, não oráculo do NUB-RD-93).
+    if [ "$APPLIED_140000" != "1" ]; then cat "$MIGRATION"; fi
+    cat "$AGGREGATES"
+  fi
+  cat "$DIR/assert_aggregates.sql"
   cat "$DIR/assert.sql"
   echo "ROLLBACK;"
 } > "$tmp"
