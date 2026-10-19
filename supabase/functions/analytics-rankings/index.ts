@@ -1,60 +1,21 @@
+// NUB-RD-93: the first-touch cut, counts and tie order run in SQL
+// (cc_rankings_aggregate); this Edge only authorizes, validates, normalizes
+// labels and cuts the top N, exactly as before.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { authorizeBackoffice, periods, fetchRows, sessionCounts, type UserMessage } from '../_shared/command-center.ts'
-import { parseAttributionFilter, resolveAttributedUserIds, keepAllowed, isAttributionFilterError } from '../_shared/attribution-filter.ts'
+import { authorizeBackoffice, periods, callAggregate } from '../_shared/command-center.ts'
+import { parseAttributionFilter, attributionRpcArgs, isAttributionFilterError } from '../_shared/attribution-filter.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+const json = (data: unknown) => new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
-// Helper function to fetch all records with pagination
-async function fetchAllRecords<T>(
-  supabase: any,
-  table: string,
-  selectFields: string,
-  filters?: { column: string; operator: string; value: string }[],
-  orderBy?: { column: string; ascending: boolean }
-): Promise<T[]> {
-  const PAGE_SIZE = 1000
-  let allData: T[] = []
-  let offset = 0
-  let hasMore = true
+const TYPES = ['users', 'locations', 'courses', 'preferences', 'location_preferences']
 
-  while (hasMore) {
-    let query = supabase
-      .from(table)
-      .select(selectFields)
-      .range(offset, offset + PAGE_SIZE - 1)
-
-    if (filters) {
-      for (const filter of filters) {
-        if (filter.operator === 'gte') {
-          query = query.gte(filter.column, filter.value)
-        } else if (filter.operator === 'not.is') {
-          query = query.not(filter.column, 'is', null)
-        }
-      }
-    }
-
-    query = query.order(orderBy?.column ?? 'id', { ascending: orderBy?.ascending ?? true })
-
-    const { data, error } = await query
-
-    if (error) {
-      throw new Error(error.message ?? 'Consulta indisponível')
-    }
-
-    if (data && data.length > 0) {
-      allData = allData.concat(data as T[])
-      offset += PAGE_SIZE
-      hasMore = data.length === PAGE_SIZE
-    } else {
-      hasMore = false
-    }
-  }
-
-  return allData
-}
+interface RankedUser { id: string; name: string; messages: number; favorites: number; sessions: number; score: number }
+// Raw values grouped in SQL, in order of first appearance (rows by id, array items in order).
+interface RawGroups { total: number; groups: { value: string; count: number }[] }
 
 // Normalize city names to remove duplicates like "São Paulo" vs "São Paulo - SP"
 function normalizeCity(city: string): string {
@@ -69,6 +30,25 @@ function normalizeCity(city: string): string {
   return normalized.split(' ').map(word => 
     word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   ).join(' ')
+}
+
+// Normalize course names to handle case differences
+function normalizeCourse(course: string): string {
+  if (!course) return ''
+  // Capitalize first letter of each word
+  return course.trim().split(' ').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ')
+}
+
+// Same Map-insertion + stable-sort semantics the paginated version had.
+function countBy(groups: RawGroups['groups'], label: (value: string) => string) {
+  const counts = new Map<string, number>()
+  for (const group of groups) {
+    const name = label(group.value)
+    if (name) counts.set(name, (counts.get(name) || 0) + group.count)
+  }
+  return Array.from(counts.entries())
 }
 
 Deno.serve(async (req: Request) => {
@@ -98,189 +78,68 @@ Deno.serve(async (req: Request) => {
     
     console.log('Analytics rankings - type:', type)
 
-    // Recorte first-touch por campanha/divulgador. null = sem filtro: consultas e
-    // resultados exatamente como antes. Com filtro, cada ranking conta só pessoas
-    // do recorte (a coluna de pessoa é lida só nesse caso).
-    const allowed = await resolveAttributedUserIds(supabase, parseAttributionFilter(body))
-    const withPerson = (fields: string, column: string) => allowed ? `${fields}, ${column}` : fields
-
-    if (type === 'users') {
-      const { from, to } = periods(body.dateRange)
-      const messages = keepAllowed(await fetchRows<UserMessage>(supabase, 'chat_messages', 'user_id, created_at', query =>
-        query.eq('sender', 'user').gte('created_at', from.toISOString()).lt('created_at', to.toISOString())), allowed, 'user_id')
-      const counts = new Map<string, number>()
-      for (const message of messages) if (message.user_id) counts.set(message.user_id, (counts.get(message.user_id) ?? 0) + 1)
-      if (counts.size === 0) return new Response('[]', { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-      const [profiles, favorites] = await Promise.all([
-        fetchRows<{ id: string; full_name: string }>(supabase, 'user_profiles', 'id, full_name'),
-        fetchRows<{ user_id: string }>(supabase, 'user_favorites', 'user_id'),
-      ])
-      const names = new Map(profiles.map(profile => [profile.id, profile.full_name]))
-      const favoriteCounts = new Map<string, number>()
-      for (const favorite of favorites) if (favorite.user_id) favoriteCounts.set(favorite.user_id, (favoriteCounts.get(favorite.user_id) ?? 0) + 1)
-      const sessions = sessionCounts(messages)
-      const topUsers = [...counts].map(([id, count]) => ({
-        id, name: names.get(id) || 'Usuário sem perfil', messages: count,
-        favorites: favoriteCounts.get(id) ?? 0, sessions: sessions.get(id) ?? 0, score: count,
-      })).sort((a, b) => b.messages - a.messages || a.id.localeCompare(b.id)).slice(0, 100)
-      return new Response(JSON.stringify(topUsers), {
+    // Recorte first-touch por campanha/divulgador; sem filtro, resultados como antes.
+    const attribution = parseAttributionFilter(body)
+    if (!TYPES.includes(type)) {
+      return new Response(JSON.stringify({ error: 'Invalid type parameter' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    const range = type === 'users' ? periods(body.dateRange) : null
+    const ranking = await callAggregate<RankedUser[] | RawGroups>(supabase, 'cc_rankings_aggregate', {
+      p_type: type,
+      p_from: range ? range.from.toISOString() : null,
+      p_to: range ? range.to.toISOString() : null,
+      ...attributionRpcArgs(attribution),
+    })
+
+    if (type === 'users') {
+      return json((ranking as RankedUser[]).map(user => ({ id: user.id, name: user.name, messages: user.messages,
+        favorites: user.favorites, sessions: user.sessions, score: user.score })))
+    }
+
+    const { total, groups } = ranking as RawGroups
 
     if (type === 'locations') {
       // This shows where users LIVE (from user_profiles.city)
-      interface Profile { city: string | null; id?: string }
-
-      const profiles = keepAllowed(await fetchAllRecords<Profile>(
-        supabase,
-        'user_profiles',
-        withPerson('city', 'id'),
-        [{ column: 'city', operator: 'not.is', value: 'null' }]
-      ), allowed, 'id')
-
-      const locationCounts = new Map<string, number>()
-      
-      for (const p of profiles) {
-        if (p.city) {
-          const normalized = normalizeCity(p.city)
-          if (normalized) {
-            locationCounts.set(normalized, (locationCounts.get(normalized) || 0) + 1)
-          }
-        }
-      }
-
-      const locations = Array.from(locationCounts.entries())
+      const locations = countBy(groups, normalizeCity)
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 10)
-
       console.log('Analytics rankings (locations) response:', locations.length, 'locations')
-
-      return new Response(JSON.stringify(locations), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return json(locations)
     }
 
     if (type === 'courses') {
-      interface Preference { course_interest: string[] | null; user_id?: string }
-
-      const preferences = keepAllowed(await fetchAllRecords<Preference>(
-        supabase,
-        'user_preferences',
-        withPerson('course_interest', 'user_id'),
-        [{ column: 'course_interest', operator: 'not.is', value: 'null' }]
-      ), allowed, 'user_id')
-
-      const courseCounts = new Map<string, number>()
-      
-      // Normalize course names to handle case differences
-      const normalizeCourse = (course: string): string => {
-        if (!course) return ''
-        // Capitalize first letter of each word
-        return course.trim().split(' ').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-        ).join(' ')
-      }
-      
-      for (const p of preferences) {
-        if (p.course_interest && Array.isArray(p.course_interest)) {
-          for (const course of p.course_interest) {
-            if (course && course.trim()) {
-              const normalized = normalizeCourse(course)
-              if (normalized) {
-                courseCounts.set(normalized, (courseCounts.get(normalized) || 0) + 1)
-              }
-            }
-          }
-        }
-      }
-
-      const courses = Array.from(courseCounts.entries())
+      const courses = countBy(groups, course => course && course.trim() ? normalizeCourse(course) : '')
         .map(([name, searches]) => ({ name, searches }))
         .sort((a, b) => b.searches - a.searches)
         .slice(0, 20)
-
       console.log('Analytics rankings (courses) response:', courses.length, 'courses')
-
-      return new Response(JSON.stringify(courses), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return json(courses)
     }
 
     if (type === 'preferences') {
-      interface Preference { program_preference: string | null; user_id?: string }
-
-      const preferences = keepAllowed(await fetchAllRecords<Preference>(
-        supabase,
-        'user_preferences',
-        withPerson('program_preference', 'user_id'),
-        [{ column: 'program_preference', operator: 'not.is', value: 'null' }]
-      ), allowed, 'user_id')
-
-      const prefCounts = new Map<string, number>()
-      
-      for (const p of preferences) {
-        if (p.program_preference) {
-          prefCounts.set(p.program_preference, (prefCounts.get(p.program_preference) || 0) + 1)
-        }
-      }
-
-      const total = preferences.length || 1
-
-      const prefs = Array.from(prefCounts.entries())
+      const prefTotal = total || 1
+      const prefs = countBy(groups, value => value)
         .map(([name, count]) => ({ 
           name, 
-          value: Math.round((count / total) * 100)
+          value: Math.round((count / prefTotal) * 100)
         }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5)
-
       console.log('Analytics rankings (preferences) response:', prefs.length, 'preferences')
-
-      return new Response(JSON.stringify(prefs), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return json(prefs)
     }
 
-    if (type === 'location_preferences') {
-      // This shows where users WANT TO STUDY (from user_preferences.location_preference)
-      interface Preference { location_preference: string | null; user_id?: string }
-
-      const preferences = keepAllowed(await fetchAllRecords<Preference>(
-        supabase,
-        'user_preferences',
-        withPerson('location_preference', 'user_id'),
-        [{ column: 'location_preference', operator: 'not.is', value: 'null' }]
-      ), allowed, 'user_id')
-
-      const locationCounts = new Map<string, number>()
-      
-      for (const p of preferences) {
-        if (p.location_preference) {
-          const loc = normalizeCity(p.location_preference)
-          if (loc) {
-            locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1)
-          }
-        }
-      }
-
-      const locations = Array.from(locationCounts.entries())
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 8)
-
-      console.log('Analytics rankings (location_preferences) response:', locations.length, 'locations')
-
-      return new Response(JSON.stringify(locations), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    return new Response(JSON.stringify({ error: 'Invalid type parameter' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    // location_preferences: where users WANT TO STUDY (from user_preferences.location_preference)
+    const locations = countBy(groups, normalizeCity)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+    console.log('Analytics rankings (location_preferences) response:', locations.length, 'locations')
+    return json(locations)
   } catch (error) {
     console.error('Error in analytics-rankings:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
