@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Teste dos filtros de campanha/divulgador (first-touch) do Command Center:
-# migration 20261016140000_command_center_attribution_filters.sql.
+# migration 20261016140000_command_center_attribution_filters.sql e, desde o
+# NUB-RD-93, as agregações das Edges em SQL (*_cc_attribution_sql_aggregates.sql,
+# asserções em assert_aggregates.sql).
 #
 # Roda no DEV (yfgciamhzjvarwgzosto) numa ÚNICA transação que SEMPRE termina
 # em exceção: fixtures → baseline com as funções ANTIGAS → migration →
@@ -27,6 +29,7 @@ MODE=${1:-green}
 DIR=supabase/tests/command_center_attribution_filters
 MIGRATION=supabase/migrations/20261016140000_command_center_attribution_filters.sql
 TP7=supabase/migrations/20261015202330_tp7_first_touch_attribution_filters.sql
+AGGREGATES=$(ls supabase/migrations/*_cc_attribution_sql_aggregates.sql 2>/dev/null || true)
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
 
@@ -45,7 +48,8 @@ DO $pre$ BEGIN
   END IF;
 END $pre$;
 SQL
-  if [ "$MODE" != "red" ]; then cat "$MIGRATION"; fi
+  if [ "$MODE" != "red" ]; then cat "$MIGRATION" "$AGGREGATES"; fi
+  cat "$DIR/assert_aggregates.sql"
   cat "$DIR/assert.sql"
   echo "ROLLBACK;"
 } > "$tmp"

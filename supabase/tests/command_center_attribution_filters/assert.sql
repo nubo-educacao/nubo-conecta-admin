@@ -172,5 +172,6 @@ BEGIN
       (SELECT count(*) FROM ccaf_results WHERE actual IS DISTINCT FROM expected), v_total, v_fail;
   END IF;
   -- Sucesso também aborta: é o que garante o rollback no ambiente compartilhado.
-  RAISE EXCEPTION 'CCAF_ALL_PASS (% verificações; transação desfeita)', v_total;
+  RAISE EXCEPTION 'CCAF_ALL_PASS (% verificações + % de agregados NUB-RD-93; transação desfeita)', v_total,
+    (SELECT n FROM ccaf_agg_pass);
 END $$;
