@@ -146,9 +146,17 @@ export async function fetchTopCourses(attribution?: AttributionFilter): Promise<
 // ADR-0027 move funil para os dashboards de domínio (MEC e parceiro), que são
 // separados. Match não é etapa de funil — é saúde do motor, e vira pizza.
 
+/**
+ * Origem de um item de raça/escola (NUB-RD-92). "(por cota)" é inferência a
+ * partir da cota declarada, nunca autodeclaração, e vem em item próprio.
+ */
+export type DemographicSource = 'self_declared' | 'quota_inferred' | 'unanswered';
+
 export interface DistributionSlice {
   label: string;
   value: number;
+  /** Só em race/school_type, a partir do NUB-RD-92. */
+  source?: DemographicSource;
 }
 
 // with_match = concluiu Match alguma vez (v0 ∪ v1, incluindo elegibilidade de
@@ -172,14 +180,49 @@ export interface DimensionProvenance {
   conflicts: number;
 }
 
+/**
+ * Diagnóstico da inferência por cota (NUB-RD-92). quota_unmapped = perfis com
+ * ao menos um token fora do mapeamento; quota_conflict = escola pública e bolsa
+ * integral juntas, sem inferência. Não são parcelas da cobertura.
+ */
+export interface QuotaProvenance {
+  quota_inferred?: number;
+  quota_unmapped?: number;
+}
+
 export interface DemographicsProvenance {
   rule_version: string;
   education: DimensionProvenance;
-  race: DimensionProvenance & { declined: number };
-  school_type: DimensionProvenance;
+  race: DimensionProvenance & QuotaProvenance & { declined: number };
+  school_type: DimensionProvenance & QuotaProvenance & { quota_conflict?: number };
   income: DimensionProvenance & { onboarding_v0: number; sm_band: number };
 }
 
+/**
+ * Cobertura por perfil único: self_declared + quota_inferred + uncovered =
+ * total_users. Percentuais são null quando total_users = 0.
+ */
+export interface DimensionCoverage {
+  total_users: number;
+  self_declared: number;
+  quota_inferred: number;
+  uncovered: number;
+  self_declared_pct: number | null;
+  quota_inferred_pct: number | null;
+  uncovered_pct: number | null;
+  covered_pct: number | null;
+}
+
+export interface DemographicsCoverage {
+  /** declined ("Prefiro não informar") é subconjunto de uncovered. */
+  race: DimensionCoverage & { declined: number };
+  school_type: DimensionCoverage;
+}
+
+/**
+ * Snapshot do estado atual (todo o histórico), recortável só por first-touch.
+ * Não tem período.
+ */
 export interface CommandCenterDemographics {
   match_health: MatchHealth;
   education: DistributionSlice[];
@@ -187,6 +230,7 @@ export interface CommandCenterDemographics {
   race: DistributionSlice[];
   school_type: DistributionSlice[];
   provenance?: DemographicsProvenance;
+  coverage?: DemographicsCoverage;
 }
 
 /**
