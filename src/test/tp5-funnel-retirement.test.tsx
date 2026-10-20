@@ -16,6 +16,7 @@ vi.mock("@/components/ui/toaster", () => ({ Toaster: () => null }));
 vi.mock("@/components/ui/sonner", () => ({ Toaster: () => null }));
 vi.mock("@/pages/Login", () => ({ default: () => <div>Login</div> }));
 vi.mock("@/pages/Index", () => ({ default: () => <div>Index</div> }));
+vi.mock("@/pages/Analytics", () => ({ default: () => <div>Analytics</div> }));
 vi.mock("@/pages/AIInsights", () => ({ default: () => <div>AIInsights</div> }));
 vi.mock("@/pages/AppCMS", () => ({ default: () => <div>AppCMS</div> }));
 vi.mock("@/pages/Conversas", () => ({ default: () => <div>Conversas</div> }));
@@ -97,5 +98,24 @@ describe("TP-5 standalone funnel retirement", () => {
     expect(screen.getByText("Login")).toBeVisible();
     expect(screen.queryByText("PartnerDashboard")).not.toBeInTheDocument();
   });
+  // NUB-RD-89a: o item "Analytics de Produto" existia na Sidebar desde a Sprint 1 e caía no 404.
+  it("abre /analytics para quem tem Dashboard, sem cair no 404", () => {
+    auth.permissions = ["Dashboard"];
+    window.history.replaceState({}, "", "/analytics?campaignId=x");
+    render(<App />);
+    expect(screen.getByText("Analytics")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "404" })).not.toBeInTheDocument();
+  });
+  it("não concede /analytics a quem não tem Dashboard", () => {
+    auth.permissions = ["Parceiros"];
+    window.history.replaceState({}, "", "/analytics");
+    render(<App />);
+    expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Você não tem permissão para acessar esta página.");
+  });
+  it("o link da Sidebar (grupo Visão Geral aberto por padrão) aponta para a rota registrada", () => {
+    auth.permissions = ["Dashboard"];
+    render(<MemoryRouter><Sidebar /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "Analytics de Produto" })).toHaveAttribute("href", "/analytics");
+  });
 });
-
