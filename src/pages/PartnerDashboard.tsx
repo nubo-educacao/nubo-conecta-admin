@@ -145,10 +145,10 @@ export default function PartnerDashboard() {
         }));
     }, [filteredApps, formFieldsMap]);
 
-    // 7. Fetch partner funnel
+    // 7. Fetch partner funnel (v2, all time = NULL/NULL; the RPC scopes partners_users to their institution)
     const { data: funnelData } = useQuery({
-        queryKey: ["partnerFunnel", "portal", partnerId],
-        queryFn: () => getPartnerFunnel(partnerId!),
+        queryKey: ["partnerFunnel", "portal", partnerId, "all-time"],
+        queryFn: () => getPartnerFunnel(partnerId!, {}),
         enabled: !!partnerId,
     });
 
