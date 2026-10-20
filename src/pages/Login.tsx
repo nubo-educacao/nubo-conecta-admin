@@ -50,9 +50,9 @@ export default function Login() {
     const describedBy = error ? ERROR_ID : undefined;
 
     return (
-        <div className="relative min-h-screen bg-white lg:grid lg:grid-cols-2">
-            <main className="relative z-10 flex min-h-screen items-center justify-center px-6 pb-12 pt-36 lg:pt-12">
-                <div className="w-full max-w-sm">
+        <div className="grid h-dvh grid-rows-[6rem_minmax(0,1fr)] overflow-hidden bg-white lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)]">
+            <main className="relative z-10 row-start-2 flex min-h-0 items-center justify-center overflow-y-auto px-6 py-6 lg:row-start-1 lg:py-12">
+                <div className="my-auto w-full max-w-sm shrink-0">
                     <img
                         src="/brand/nubo-logo-sm.png"
                         alt="Nubo Conecta"
@@ -128,7 +128,7 @@ export default function Login() {
                 </div>
             </main>
 
-            <LoginArt className="absolute inset-x-0 top-0 h-32 rounded-b-3xl lg:static lg:h-auto lg:rounded-none" />
+            <LoginArt className="relative col-start-1 row-start-1 min-h-0 rounded-b-3xl lg:col-start-2 lg:rounded-none" />
         </div>
     );
 }

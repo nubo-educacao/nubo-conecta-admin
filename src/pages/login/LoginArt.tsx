@@ -1,34 +1,47 @@
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 
-// Arte decorativa da tela de login: nuvens em SVG inline (sem imagem, sem fonte
-// extra), gradiente primary-light → secondary dos tokens nubo.* do app.
-// Puramente decorativa: aria-hidden, sem captura de ponteiro, nada focável.
+// Position each cloud outside the animated group: CSS transforms must never
+// replace the composition's placement. All artwork stays inline and decorative.
 const LOGIN_ART_CSS = `
 @keyframes login-cloud-drift {
-  from { transform: translateX(-18px); }
-  to   { transform: translateX(18px); }
+  from { transform: translate3d(-12px, 0, 0); }
+  to   { transform: translate3d(12px, 4px, 0); }
 }
-.login-cloud { animation: login-cloud-drift 28s ease-in-out infinite alternate; transform-box: fill-box; }
-.login-cloud-b { animation-duration: 36s; animation-direction: alternate-reverse; }
-.login-cloud-c { animation-duration: 44s; }
+.login-cloud {
+  animation: login-cloud-drift 28s ease-in-out infinite alternate;
+  will-change: transform;
+}
+.login-cloud-b { animation-duration: 36s; animation-delay: -12s; animation-direction: alternate-reverse; }
+.login-cloud-c { animation-duration: 44s; animation-delay: -24s; }
+.login-cloud-shape { position: absolute; overflow: visible; }
+.login-cloud-back { width: 47%; left: 51%; top: 9%; opacity: .55; }
+.login-cloud-upper { width: 78%; left: -9%; top: 23%; opacity: .95; }
+.login-cloud-middle { width: 57%; left: 45%; top: 48%; opacity: .8; }
+.login-cloud-front { width: 91%; left: -18%; top: 68%; opacity: .95; }
+.login-cloud-lower { width: 43%; left: 63%; top: 84%; opacity: .65; }
+@media (max-width: 1023px) {
+  .login-cloud-back { width: 28%; left: 72%; top: -18%; }
+  .login-cloud-upper { width: 43%; left: -6%; top: 8%; }
+  .login-cloud-middle { width: 33%; left: 40%; top: 38%; }
+  .login-cloud-front { width: 42%; left: 4%; top: 72%; }
+  .login-cloud-lower { width: 29%; left: 77%; top: 73%; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .login-cloud { animation: none; }
+  .login-cloud { animation: none; will-change: auto; }
 }
 `;
 
-function Cloud({ className, x, y, scale, opacity }: { className: string; x: number; y: number; scale: number; opacity: number }) {
-  return (
-    <g className={`login-cloud ${className}`} transform={`translate(${x} ${y}) scale(${scale})`} opacity={opacity} fill="url(#login-cloud-fill)">
-      <circle cx="70" cy="90" r="46" />
-      <circle cx="140" cy="62" r="62" />
-      <circle cx="222" cy="86" r="50" />
-      <circle cx="285" cy="104" r="34" />
-      <rect x="30" y="96" width="290" height="42" rx="21" />
-    </g>
-  );
-}
+const clouds = [
+  ["back", "login-cloud-b"],
+  ["upper", ""],
+  ["middle", "login-cloud-c"],
+  ["front", "login-cloud-b"],
+  ["lower", "login-cloud-c"],
+];
 
 export function LoginArt({ className }: { className?: string }) {
+  const id = useId();
   return (
     <div
       data-testid="login-art"
@@ -36,24 +49,25 @@ export function LoginArt({ className }: { className?: string }) {
       className={cn("pointer-events-none select-none overflow-hidden bg-gradient-to-b from-[#60c6f2] to-[#E6F4F9]", className)}
     >
       <style>{LOGIN_ART_CSS}</style>
-      <svg
-        className="h-full w-full"
-        viewBox="0 0 600 800"
-        preserveAspectRatio="xMidYMid slice"
-        focusable="false"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <linearGradient id="login-cloud-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#ffffff" />
-            <stop offset="1" stopColor="#E6F4F9" />
-          </linearGradient>
-        </defs>
-        <Cloud className="" x={40} y={90} scale={1.25} opacity={0.95} />
-        <Cloud className="login-cloud-b" x={250} y={300} scale={0.9} opacity={0.8} />
-        <Cloud className="login-cloud-c" x={-30} y={520} scale={1.5} opacity={0.9} />
-        <Cloud className="login-cloud-b" x={300} y={640} scale={0.7} opacity={0.65} />
-      </svg>
+      {clouds.map(([layer, motion]) => (
+        <svg
+          key={layer}
+          className={`login-cloud-shape login-cloud-${layer}`}
+          viewBox="0 0 340 160"
+          focusable="false"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id={`${id}-${layer}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#ffffff" />
+              <stop offset="1" stopColor="#E6F4F9" />
+            </linearGradient>
+          </defs>
+          <g className={`login-cloud ${motion}`} fill={`url(#${id}-${layer})`}>
+            <path d="M70 138a46 46 0 0 1-4-92 62 62 0 0 1 120-6 50 50 0 0 1 83 33 34 34 0 1 1 16 65Z" />
+          </g>
+        </svg>
+      ))}
     </div>
   );
 }
