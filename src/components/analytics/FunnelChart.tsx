@@ -16,6 +16,9 @@ export interface FunnelChartProps {
   height?: number;
   emptyLabel?: string;
 }
+// Sem valor não há volume observado a qualificar (o valor aparece como "—").
+const volumeNote = (value: number | null) =>
+  value === null ? "volume indisponível" : "volume observado";
 export function FunnelChart({
   steps,
   mode,
@@ -126,8 +129,8 @@ export function FunnelChart({
                 step.coverage?.status === "not_instrumented"
                   ? "Não instrumentado"
                   : step.coverage?.status === "partial"
-                    ? "Cobertura parcial — volume observado"
-                    : "Cobertura desconhecida — volume observado"}
+                    ? "Cobertura parcial — " + volumeNote(step.value)
+                    : "Cobertura desconhecida — " + volumeNote(step.value)}
               </p>
             )}
             {ratio !== null && (

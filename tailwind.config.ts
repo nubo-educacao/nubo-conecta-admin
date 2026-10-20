@@ -27,6 +27,13 @@ export default {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
+        // Cores do funil de produto: MEC = primary, Parceiro = primary-dark.
+        nubo: {
+          primary: {
+            DEFAULT: "#3092bb",
+            dark: "#024F86",
+          },
+        },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
