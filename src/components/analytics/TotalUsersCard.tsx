@@ -1,11 +1,6 @@
-import { Users, MessageSquare, HelpCircle } from "lucide-react";
+import { Users, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { InfoTooltip } from "@/components/analytics/InfoTooltip";
 
 
 interface TotalUsersCardProps {
@@ -26,31 +21,17 @@ export function TotalUsersCard({
   const inactiveUsers = Math.max(0, totalRegistered - activeUsers);
 
   return (
-    <div className="stat-card relative overflow-hidden border-t-4 border-t-primary col-span-2 lg:col-span-1">
+    // Sem border-t extra: a faixa do topo já vem do .stat-card::before, e a borda empurrava o título 4px abaixo dos outros cards.
+    <div className="stat-card relative overflow-hidden col-span-2 lg:col-span-1">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 mb-1">
             <h3 className="text-sm font-medium text-muted-foreground truncate">
               Usuários Cadastrados
             </h3>
-            <TooltipProvider>
-              <Tooltip delayDuration={200}>
-                <TooltipTrigger asChild>
-                  <button className="text-muted-foreground/60 hover:text-muted-foreground transition-colors">
-                    <HelpCircle className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent 
-                  side="top" 
-                  className="max-w-xs bg-popover text-popover-foreground border-border"
-                >
-                  <p className="text-xs">
-                    Total de usuários autenticados na plataforma (auth.users). 
-                    Inclui todos que criaram conta, mesmo sem perfil completo.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <InfoTooltip label="Usuários Cadastrados">
+              Total de usuários autenticados na plataforma (auth.users). Inclui todos que criaram conta, mesmo sem perfil completo.
+            </InfoTooltip>
           </div>
           <p className="text-3xl font-bold font-display">
             {totalRegistered.toLocaleString()}

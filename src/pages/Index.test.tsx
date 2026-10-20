@@ -37,8 +37,9 @@ vi.mock("@/components/analytics/StatCard", () => ({ StatCard: ({ title, value, t
 vi.mock("@/components/analytics/ActivityChart", () => ({ ActivityChart: ({ dateRange }: any) => <div data-testid="activity-period">{dateRange?.from?.toISOString()}</div> }));
 vi.mock("@/components/analytics/TopUsersChart", () => ({ TopUsersChart: ({ dateRange }: any) => <div data-testid="users-period">{dateRange?.from?.toISOString()}</div> }));
 vi.mock("@/components/action-center/ActionCenter", () => ({ ActionCenter: () => <div>Central de Ações</div> }));
+vi.mock("@/components/analytics/GlobalFunnelSection", () => ({ GlobalFunnelSection: (props: any) => <div data-testid="global-funnel">{JSON.stringify(props)}</div> }));
+// NSM e gráficos que estão em Analytics (NUB-RD-89): se o CC voltar a montá-los, o texto aparece.
 vi.mock("@/components/analytics/NsmCard", () => ({ NsmCard: () => <div>NSM encaminhamentos por aluno ativo</div> }));
-// Gráficos que saíram para Analytics (NUB-RD-89): se o CC voltar a montá-los, o texto aparece.
 vi.mock("@/components/analytics/MatchHealthChart", () => ({ MatchHealthChart: () => <div>Saúde do Match</div> }));
 vi.mock("@/components/analytics/DemographicsCharts", () => ({ DemographicsCharts: () => <div>Demografia</div> }));
 vi.mock("@/components/analytics/OpportunityInterestChart", () => ({ OpportunityInterestChart: () => <div>Interesse por cliques</div> }));
@@ -85,23 +86,32 @@ describe("Command Center", () => {
   });
 });
 
-describe('Command Center enxuto (NUB-RD-89)', () => {
-  it('mantém NSM, cards, Central de Ações, Atividade e Top usuários e tira os gráficos movidos e os cards estáticos', () => {
+describe('Command Center enxuto (NUB-RD-89, composição do PO em 20/10)', () => {
+  it('mantém cards, Central de Ações, Atividade, Top usuários e funil global; NSM e gráficos ficam em Analytics', () => {
     renderIndex();
-    expect(screen.getByText('NSM encaminhamentos por aluno ativo')).toBeInTheDocument();
     expect(screen.getByText('Central de Ações')).toBeInTheDocument();
     expect(screen.getByTestId('activity-period')).toBeInTheDocument();
     expect(screen.getByTestId('users-period')).toBeInTheDocument();
+    expect(screen.getByTestId('global-funnel')).toBeInTheDocument();
     expect(screen.getByLabelText('Total de Mensagens')).toBeInTheDocument();
     expect(screen.getByLabelText('Favoritos Salvos')).toBeInTheDocument();
-    for (const gone of ['Saúde do Match', 'Demografia', 'Interesse por cliques', 'Top cursos', 'Preferências de Acesso', 'Localização', 'Preferência de localização',
+    for (const gone of ['NSM encaminhamentos por aluno ativo', 'Saúde do Match', 'Demografia', 'Interesse por cliques', 'Top cursos', 'Preferências de Acesso', 'Localização', 'Preferência de localização',
       'Dados em Tempo Real', 'Período de Análise', 'Conectado ao Supabase']) expect(screen.queryByText(gone)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Analytics de Produto/ })).toHaveAttribute('href', '/analytics');
   });
-  it('NSM fica no topo, antes dos cards', () => {
+  it('ordem: big numbers → Central de Ações → Atividade/Top usuários → funil global', () => {
     renderIndex();
-    const nsm = screen.getByText('NSM encaminhamentos por aluno ativo');
-    expect(nsm.compareDocumentPosition(screen.getByLabelText('Total de Mensagens')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const order = [screen.getByLabelText('Total de Mensagens'), screen.getByText('Central de Ações'), screen.getByTestId('activity-period'),
+      screen.getByTestId('users-period'), screen.getByTestId('global-funnel')];
+    for (let i = 1; i < order.length; i++)
+      expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it('funil global recebe o período e o recorte first-touch do Command Center', () => {
+    renderIndex();
+    const funnel = JSON.parse(screen.getByTestId('global-funnel').textContent ?? '{}');
+    expect(Object.keys(funnel).sort()).toEqual(['attribution', 'range']);
+    expect(funnel.range.from).toBe(vi.mocked(useDashboardStats).mock.calls.at(-1)?.[0]?.from?.toISOString());
+    expect(funnel.attribution).toEqual({});
   });
   it('rodapé do Command Center sem "Cloudinha Analytics"', () => {
     renderIndex();
@@ -111,11 +121,12 @@ describe('Command Center enxuto (NUB-RD-89)', () => {
 });
 
 describe('Command Center selected period', () => {
-  it('passes today and a custom day to stats, activity and top users', () => {
+  it('passes today and a custom day to stats, activity, top users and the global funnel', () => {
     renderIndex();
     fireEvent.click(screen.getByText('Hoje'));
     const today = new Date(); today.setHours(0, 0, 0, 0);
     for (const panel of ['activity-period', 'users-period']) expect(screen.getByTestId(panel)).toHaveTextContent(today.toISOString());
+    expect(JSON.parse(screen.getByTestId('global-funnel').textContent ?? '{}').range.from).toBe(today.toISOString());
     expect(vi.mocked(useDashboardStats).mock.calls.at(-1)?.[0]?.from).toEqual(today);
     fireEvent.click(screen.getByText('Data específica'));
     const custom = new Date(2026, 8, 2);

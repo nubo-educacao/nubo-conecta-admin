@@ -1,11 +1,6 @@
-import { LucideIcon, HelpCircle } from "lucide-react";
+import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { InfoTooltip } from "@/components/analytics/InfoTooltip";
 
 interface StatCardProps {
   title: string;
@@ -49,18 +44,7 @@ export function StatCard({
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            {tooltip && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="text-xs">{tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+            {tooltip && <InfoTooltip label={title}>{tooltip}</InfoTooltip>}
           </div>
           <p className="text-3xl font-bold font-display tracking-tight">
             {value}

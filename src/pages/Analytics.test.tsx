@@ -15,6 +15,8 @@ const { rpc, probe } = vi.hoisted(() => ({
   ),
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc } }));
+vi.mock("@/components/analytics/NsmCard", () => ({ NsmCard: probe("NsmCard") }));
+// O funil global foi para o Command Center (PO, 20/10): se voltar a ser montado aqui, o probe aparece.
 vi.mock("@/components/analytics/GlobalFunnelSection", () => ({ GlobalFunnelSection: probe("GlobalFunnelSection") }));
 vi.mock("@/components/analytics/OpportunityInterestChart", () => ({ OpportunityInterestChart: probe("OpportunityInterestChart") }));
 vi.mock("@/components/analytics/MatchHealthChart", () => ({ MatchHealthChart: probe("MatchHealthChart") }));
@@ -74,48 +76,52 @@ beforeEach(() => {
 });
 
 describe("Analytics de Produto — seções", () => {
-  it("mostra funil global, L1, L2, interesse por cliques e os gráficos movidos do Command Center", async () => {
+  it("mostra NSM, L1, L2, interesse por cliques e os retratos atuais, nesta ordem; sem funil global", async () => {
     renderAt();
     expect(screen.getByRole("heading", { level: 1, name: "Analytics de Produto" })).toBeInTheDocument();
-    expect(screen.getByTestId("GlobalFunnelSection")).toBeInTheDocument();
-    expect(await screen.findByRole("region", { name: /L1 — valor da feature/ })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /L2 — qualidade do motor/ })).toBeInTheDocument();
-    expect(screen.getByTestId("OpportunityInterestChart")).toBeInTheDocument();
+    const nsm = screen.getByTestId("NsmCard");
+    const l1 = await screen.findByRole("region", { name: /L1 — valor da feature/ });
+    const l2 = screen.getByRole("region", { name: /L2 — qualidade do motor/ });
+    const interest = screen.getByRole("region", { name: "Interesse por cliques" });
+    expect(within(interest).getByTestId("OpportunityInterestChart")).toBeInTheDocument();
     const snap = screen.getByRole("region", { name: /Retrato atual \/ histórico disponível/ });
     expect(snap).toHaveTextContent("não limitado pelo período de atividade");
     for (const id of SNAPSHOTS) expect(within(snap).getByTestId(id)).toBeInTheDocument();
+    const order = [nsm, l1, l2, interest, snap];
+    for (let i = 1; i < order.length; i++)
+      expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByTestId("GlobalFunnelSection")).not.toBeInTheDocument();
   });
 
-  it("período vai para funil, L1, L2 e interesse; snapshots recebem só first-touch", async () => {
+  it("período vai para L1, L2 e interesse; NSM e snapshots recebem só first-touch", async () => {
     renderAt();
     await screen.findByRole("region", { name: /L1 — valor da feature/ });
-    const funnel = props("GlobalFunnelSection");
-    expect(Object.keys(funnel).sort()).toEqual(["attribution", "range"]);
-    expect(funnel.range.from).toBeTruthy();
-    expect(funnel.range.to).toBeTruthy();
-    expect(Object.keys(props("OpportunityInterestChart")).sort()).toEqual(["attribution", "dateRange"]);
-    for (const id of SNAPSHOTS) expect(Object.keys(props(id))).toEqual(["attribution"]);
-    expect(callsOf("get_product_l1_metrics").at(-1)).toEqual({ p_from: funnel.range.from, p_to: funnel.range.to });
-    expect(callsOf("get_product_l2_metrics").at(-1)).toEqual({ p_from: funnel.range.from, p_to: funnel.range.to });
+    const interest = props("OpportunityInterestChart");
+    expect(Object.keys(interest).sort()).toEqual(["attribution", "dateRange"]);
+    expect(interest.dateRange.from).toBeTruthy();
+    expect(interest.dateRange.to).toBeTruthy();
+    for (const id of ["NsmCard", ...SNAPSHOTS]) expect(Object.keys(props(id))).toEqual(["attribution"]);
+    const range = { p_from: interest.dateRange.from, p_to: interest.dateRange.to };
+    expect(callsOf("get_product_l1_metrics").at(-1)).toEqual(range);
+    expect(callsOf("get_product_l2_metrics").at(-1)).toEqual(range);
   });
 
-  it("mudar o período refaz funil, L1, L2 e interesse e não toca os snapshots", async () => {
+  it("mudar o período refaz L1, L2 e interesse e não toca a NSM nem os snapshots", async () => {
     renderAt();
     await screen.findByRole("region", { name: /L1 — valor da feature/ });
-    const before = SNAPSHOTS.map((id) => screen.getByTestId(id).textContent);
+    const before = ["NsmCard", ...SNAPSHOTS].map((id) => screen.getByTestId(id).textContent);
     fireEvent.click(screen.getByText("Hoje"));
     const today = startOfToday().toISOString();
     await waitFor(() => expect(callsOf("get_product_l1_metrics").at(-1)?.p_from).toBe(today));
     expect(callsOf("get_product_l2_metrics").at(-1)?.p_from).toBe(today);
-    expect(props("GlobalFunnelSection").range.from).toBe(today);
     expect(props("OpportunityInterestChart").dateRange.from).toBe(today);
-    expect(SNAPSHOTS.map((id) => screen.getByTestId(id).textContent)).toEqual(before);
+    expect(["NsmCard", ...SNAPSHOTS].map((id) => screen.getByTestId(id).textContent)).toEqual(before);
   });
 
   it("first-touch vem da URL, chega a todas as seções e é gravado na URL", async () => {
     renderAt(`/analytics?campaignId=${CAMPAIGN}`);
     await screen.findByRole("region", { name: /L1 — valor da feature/ });
-    for (const id of ["GlobalFunnelSection", "OpportunityInterestChart", ...SNAPSHOTS])
+    for (const id of ["NsmCard", "OpportunityInterestChart", ...SNAPSHOTS])
       expect(props(id).attribution).toEqual({ campaignId: CAMPAIGN });
     expect(callsOf("get_product_l1_metrics").at(-1)).toMatchObject({ p_filter_campaign_id: CAMPAIGN });
     expect(callsOf("get_product_l2_metrics").at(-1)).toMatchObject({ p_filter_campaign_id: CAMPAIGN });

@@ -23,11 +23,12 @@ vi.mock("@/hooks/useAnalyticsData", () => ({
 const { probe } = vi.hoisted(() => ({
   probe: (name: string) => ({ attribution }: any) => <div data-testid={name}>{JSON.stringify(attribution ?? null)}</div>,
 }));
-// Desde NUB-RD-89 o CC só tem Atividade, Top usuários e a NSM; os demais painéis estão em Analytics.
-const PANELS = ["ActivityChart", "TopUsersChart", "NsmCard"] as const;
+// Desde NUB-RD-89 (composição do PO, 20/10) o CC tem Atividade, Top usuários e o funil global;
+// a NSM e os demais painéis estão em Analytics.
+const PANELS = ["ActivityChart", "TopUsersChart", "GlobalFunnelSection"] as const;
 vi.mock("@/components/analytics/ActivityChart", () => ({ ActivityChart: probe("ActivityChart") }));
 vi.mock("@/components/analytics/TopUsersChart", () => ({ TopUsersChart: probe("TopUsersChart") }));
-vi.mock("@/components/analytics/NsmCard", () => ({ NsmCard: probe("NsmCard") }));
+vi.mock("@/components/analytics/GlobalFunnelSection", () => ({ GlobalFunnelSection: probe("GlobalFunnelSection") }));
 vi.mock("@/components/analytics/PowerUsersCard", () => ({ PowerUsersCard: () => null }));
 vi.mock("@/components/analytics/TotalUsersCard", () => ({ TotalUsersCard: () => null }));
 vi.mock("@/components/action-center/ActionCenter", () => ({ ActionCenter: () => <div data-testid="ActionCenter" /> }));
@@ -67,7 +68,7 @@ describe("Command Center — recorte por campanha/divulgador", () => {
     expect(screen.queryByText(/Recorte por campanha\/divulgador/)).not.toBeInTheDocument();
   });
 
-  it("lê o recorte da URL e o passa ao header, aos stats, à NSM e aos painéis de pessoas", () => {
+  it("lê o recorte da URL e o passa ao header, aos stats, ao funil global e aos painéis de pessoas", () => {
     renderAt(`/?campaignId=${CAMPAIGN}`);
     const expected = JSON.stringify({ campaignId: CAMPAIGN });
     expect(screen.getByTestId("header-attribution")).toHaveTextContent(expected);
