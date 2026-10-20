@@ -1,15 +1,16 @@
 // Analytics de Produto (NUB-RD-89). Consome só o contrato congelado do TP-D
-// (productAnalyticsService) e a GlobalFunnelSection do TP-E.
+// (productAnalyticsService) e o NsmCard. O funil global (TP-E) fica no Command Center.
 //
-// Período de atividade: funil global, L1, L2 (coorte de ativos/encaminhamentos)
-// e interesse por cliques. Saúde do Match, demografia, cursos, preferências e
-// localizações são snapshots atuais / todo o histórico: recebem só first-touch.
+// A NSM usa o semestre escolhido no próprio card. Período de atividade: L1, L2
+// (coorte de ativos/encaminhamentos) e interesse por cliques. Saúde do Match,
+// demografia, cursos, preferências e localizações são snapshots atuais / todo o
+// histórico: recebem só first-touch.
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PieChart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangeFilter, type DateRangeValue } from "@/components/analytics/DateRangeFilter";
-import { GlobalFunnelSection } from "@/components/analytics/GlobalFunnelSection";
+import { NsmCard } from "@/components/analytics/NsmCard";
 import { OpportunityInterestChart } from "@/components/analytics/OpportunityInterestChart";
 import { MatchHealthChart } from "@/components/analytics/MatchHealthChart";
 import { DemographicsCharts } from "@/components/analytics/DemographicsCharts";
@@ -44,7 +45,6 @@ const Analytics = () => {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const dateRange = useMemo(() => commandCenterDateRange(selectedRange, lastUpdate, customDate), [selectedRange, lastUpdate, customDate]);
-  const funnelRange = dateRange.from && dateRange.to ? { from: dateRange.from, to: dateRange.to } : null;
 
   const [attribution, setAttribution] = useAttributionUrlState();
 
@@ -73,7 +73,7 @@ const Analytics = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold font-display tracking-tight">Analytics de Produto</h1>
-              <p className="text-xs text-muted-foreground">Funil global, valor da feature (L1) e qualidade do motor (L2).</p>
+              <p className="text-xs text-muted-foreground">North Star, valor da feature (L1) e qualidade do motor (L2).</p>
             </div>
           </div>
           <DateRangeFilter
@@ -88,8 +88,8 @@ const Analytics = () => {
           <AttributionUrlFilter value={attribution} onChange={setAttribution} />
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          O período de atividade filtra o funil global, a L1, a coorte de ativos e os encaminhamentos da L2 e o interesse por
-          cliques. Os retratos atuais no fim da página não mudam com o período.
+          A NSM usa o semestre escolhido no próprio card. O período de atividade filtra a L1, a coorte de ativos e os
+          encaminhamentos da L2 e o interesse por cliques. Os retratos atuais no fim da página não mudam com o período.
         </p>
         {hasAttributionFilter(attribution) && (
           <p className="text-sm text-muted-foreground">
@@ -99,7 +99,8 @@ const Analytics = () => {
       </header>
 
       <main className="py-4 sm:py-6 space-y-4 sm:space-y-6">
-        <GlobalFunnelSection range={funnelRange} attribution={attribution} />
+        {/* North Star Metric (NUB-RD-89): semestre próprio, recorte first-touch */}
+        <NsmCard attribution={attribution} />
         <L1Section range={dateRange} attribution={attribution} />
         <L2Section range={dateRange} attribution={attribution} />
 

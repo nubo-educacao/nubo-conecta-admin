@@ -8,7 +8,7 @@ import { PowerUsersCard } from "@/components/analytics/PowerUsersCard";
 import { TotalUsersCard } from "@/components/analytics/TotalUsersCard";
 import { ActivityChart } from "@/components/analytics/ActivityChart";
 import { TopUsersChart } from "@/components/analytics/TopUsersChart";
-import { NsmCard } from "@/components/analytics/NsmCard";
+import { GlobalFunnelSection } from "@/components/analytics/GlobalFunnelSection";
 import { useDashboardStats } from "@/hooks/useAnalyticsData";
 import { ActionCenter } from "@/components/action-center/ActionCenter";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,10 +27,11 @@ const Index = () => {
   const queryClient = useQueryClient();
   const [customDate, setCustomDate] = useState<Date>();
   const dateRange = useMemo(() => commandCenterDateRange(selectedRange, lastUpdate, customDate), [selectedRange, lastUpdate, customDate]);
+  const funnelRange = dateRange.from && dateRange.to ? { from: dateRange.from, to: dateRange.to } : null;
 
   // Recorte por campanha/divulgador (first-touch, TP-7). Mora na URL com as
   // mesmas chaves de Estudantes/Inscrições, para o link ser compartilhável, e
-  // chega à NSM e aos painéis de pessoas. A Central de Ações não é por pessoa.
+  // chega aos painéis de pessoas e ao funil. A Central de Ações não é por pessoa.
   const [attribution, setAttribution] = useAttributionUrlState();
   // O link para Analytics leva o recorte junto (mesmas chaves de URL).
   const { search } = useLocation();
@@ -66,9 +67,6 @@ const Index = () => {
       />
 
       <main className="container py-4 sm:py-6 space-y-4 sm:space-y-6 px-3 sm:px-4 lg:px-8">
-        {/* North Star Metric (NUB-RD-89): semestre próprio, recorte first-touch */}
-        <NsmCard attribution={attribution} />
-
         {/* Stats Overview */}
         <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {statsLoading ? (
@@ -112,8 +110,8 @@ const Index = () => {
           )}
         </section>
 
-        <p className="text-sm text-muted-foreground">O período filtra mensagens, atividade, recorrência, favoritos e top usuários. Cadastros totais mostram o estado atual; a NSM usa o semestre escolhido no próprio card. Saúde do Match, demografia, interesse por cliques, cursos, preferências e localização estão em <Link to={{ pathname: "/analytics", search }} className="font-medium text-primary underline-offset-4 hover:underline">Analytics de Produto</Link>.</p>
-        {attributionActive && <p className="text-sm text-muted-foreground">Recorte por campanha/divulgador (first-touch) aplicado a cadastros, mensagens, atividade, top usuários e NSM.</p>}
+        <p className="text-sm text-muted-foreground">O período filtra mensagens, atividade, recorrência, favoritos, top usuários e o funil global. Cadastros totais mostram o estado atual. NSM, L1, L2, Saúde do Match, demografia, interesse por cliques, cursos, preferências e localização estão em <Link to={{ pathname: "/analytics", search }} className="font-medium text-primary underline-offset-4 hover:underline">Analytics de Produto</Link>.</p>
+        {attributionActive && <p className="text-sm text-muted-foreground">Recorte por campanha/divulgador (first-touch) aplicado a cadastros, mensagens, atividade, top usuários e funil global.</p>}
         {statsError && <p role="alert" className="text-sm text-destructive">Não foi possível carregar os indicadores. Use Atualizar para tentar novamente.</p>}
 
         {/* Action Center */}
@@ -124,6 +122,9 @@ const Index = () => {
           <ActivityChart key={`${dateRange.from?.toISOString()}-${dateRange.to?.toISOString()}`} dateRange={dateRange} attribution={attribution} />
           <TopUsersChart dateRange={dateRange} attribution={attribution} />
         </section>
+
+        {/* Funil global (TP-E): mesmo período e recorte first-touch do Command Center */}
+        <GlobalFunnelSection range={funnelRange} attribution={attribution} />
       </main>
 
       {/* Footer */}
