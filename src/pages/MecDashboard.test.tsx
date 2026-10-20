@@ -6,6 +6,8 @@ import { getMecDashboard, getMecOpportunityVolumes, getMecVolumeInstitutions } f
 import type { MecVolumeRow, MecVolumes } from "@/types/productAnalytics";
 
 vi.mock("@/components/ui/select", () => import("@/test/selectShim"));
+// importOriginal below loads the real service, which imports the client: keep it off the env (VITE_SUPABASE_*).
+vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 vi.mock("@/services/mecDashboardService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/mecDashboardService")>()),
   getMecDashboard: vi.fn(),
