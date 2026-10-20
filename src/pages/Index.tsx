@@ -1,27 +1,22 @@
 import { useState, useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
-import { MessageSquare, Heart, TrendingUp, Clock, MapPin } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { MessageSquare, Heart } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { StatCard } from "@/components/analytics/StatCard";
 import { PowerUsersCard } from "@/components/analytics/PowerUsersCard";
 import { TotalUsersCard } from "@/components/analytics/TotalUsersCard";
 import { ActivityChart } from "@/components/analytics/ActivityChart";
-import { TopCoursesChart } from "@/components/analytics/TopCoursesChart";
-import { MatchHealthChart } from "@/components/analytics/MatchHealthChart";
-import { DemographicsCharts } from "@/components/analytics/DemographicsCharts";
-import { LocationPreferenceChart } from "@/components/analytics/LocationPreferenceChart";
 import { TopUsersChart } from "@/components/analytics/TopUsersChart";
-import { LocationChart } from "@/components/analytics/LocationChart";
+import { NsmCard } from "@/components/analytics/NsmCard";
 import { useDashboardStats } from "@/hooks/useAnalyticsData";
 import { ActionCenter } from "@/components/action-center/ActionCenter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangeValue } from "@/components/analytics/DateRangeFilter";
+import { useAttributionUrlState } from "@/components/filters/AttributionUrlFilter";
 
-import { OpportunityInterestChart } from '@/components/analytics/OpportunityInterestChart';
-import { UserPreferencesChart } from '@/components/analytics/UserPreferencesChart';
 import { commandCenterDateRange } from '@/lib/commandCenterDateRange';
-import { hasAttributionFilter, readAttributionParams, writeAttributionParams, type AttributionFilter } from '@/lib/attributionFilter';
+import { hasAttributionFilter } from '@/lib/attributionFilter';
 import { attributionArg } from '@/lib/commandCenterAttribution';
 
 const Index = () => {
@@ -35,16 +30,11 @@ const Index = () => {
 
   // Recorte por campanha/divulgador (first-touch, TP-7). Mora na URL com as
   // mesmas chaves de Estudantes/Inscrições, para o link ser compartilhável, e
-  // chega a todos os painéis de pessoas. A Central de Ações não é por pessoa.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const attribution = useMemo(() => readAttributionParams(searchParams), [searchParams]);
+  // chega à NSM e aos painéis de pessoas. A Central de Ações não é por pessoa.
+  const [attribution, setAttribution] = useAttributionUrlState();
+  // O link para Analytics leva o recorte junto (mesmas chaves de URL).
+  const { search } = useLocation();
   const attributionActive = hasAttributionFilter(attribution);
-  const setAttribution = useCallback((next: AttributionFilter) => {
-    const params = new URLSearchParams(searchParams);
-    ["campaignId", "channelId", "unattributed"].forEach((k) => params.delete(k));
-    writeAttributionParams(params, next);
-    setSearchParams(params, { replace: true });
-  }, [searchParams, setSearchParams]);
 
   const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats(dateRange, ...attributionArg(attribution));
 
@@ -76,6 +66,9 @@ const Index = () => {
       />
 
       <main className="container py-4 sm:py-6 space-y-4 sm:space-y-6 px-3 sm:px-4 lg:px-8">
+        {/* North Star Metric (NUB-RD-89): semestre próprio, recorte first-touch */}
+        <NsmCard attribution={attribution} />
+
         {/* Stats Overview */}
         <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {statsLoading ? (
@@ -119,80 +112,17 @@ const Index = () => {
           )}
         </section>
 
-        <p className="text-sm text-muted-foreground">O período filtra mensagens, atividade, recorrência, favoritos e cliques. Cadastros totais, Match, demografia e preferências mostram o estado atual dos perfis, sem filtro de período.</p>
-        {attributionActive && <p className="text-sm text-muted-foreground">Recorte por campanha/divulgador (first-touch) aplicado a cadastros, mensagens, atividade, rankings, interesse, preferências, localização, Match e demografia.</p>}
+        <p className="text-sm text-muted-foreground">O período filtra mensagens, atividade, recorrência, favoritos e top usuários. Cadastros totais mostram o estado atual; a NSM usa o semestre escolhido no próprio card. Saúde do Match, demografia, interesse por cliques, cursos, preferências e localização estão em <Link to={{ pathname: "/analytics", search }} className="font-medium text-primary underline-offset-4 hover:underline">Analytics de Produto</Link>.</p>
+        {attributionActive && <p className="text-sm text-muted-foreground">Recorte por campanha/divulgador (first-touch) aplicado a cadastros, mensagens, atividade, top usuários e NSM.</p>}
         {statsError && <p role="alert" className="text-sm text-destructive">Não foi possível carregar os indicadores. Use Atualizar para tentar novamente.</p>}
 
         {/* Action Center */}
         <ActionCenter />
 
-        {/* Charts Row 1 */}
+        {/* Atividade e Top usuários — os demais gráficos estão em Analytics de Produto */}
         <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           <ActivityChart key={`${dateRange.from?.toISOString()}-${dateRange.to?.toISOString()}`} dateRange={dateRange} attribution={attribution} />
-          <MatchHealthChart attribution={attribution} />
-        </section>
-
-        {/* Charts Row 2 - Rankings */}
-        <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           <TopUsersChart dateRange={dateRange} attribution={attribution} />
-          <TopCoursesChart attribution={attribution} />
-        </section>
-
-        {/* Interesse observado e declarado */}
-        <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <OpportunityInterestChart dateRange={dateRange} attribution={attribution} />
-          <UserPreferencesChart attribution={attribution} />
-        </section>
-
-        {/* Charts Row 3 - Location */}
-        <section className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-          <LocationChart attribution={attribution} />
-          <LocationPreferenceChart attribution={attribution} />
-        </section>
-
-        {/* Charts Row 5 - Demografia (TP-1 1B) */}
-        <DemographicsCharts attribution={attribution} />
-
-        {/* Quick Insights */}
-        <section className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="stat-card">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="rounded-lg bg-success/10 p-2">
-                <TrendingUp className="h-4 w-4 text-success" />
-              </div>
-              <h4 className="font-semibold text-sm sm:text-base">Dados em Tempo Real</h4>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Clique em <span className="font-semibold text-foreground">atualizar</span> para ver os dados mais recentes.
-              Métricas temporais usam o período selecionado.
-            </p>
-          </div>
-
-          <div className="stat-card">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="rounded-lg bg-warning/10 p-2">
-                <Clock className="h-4 w-4 text-warning" />
-              </div>
-              <h4 className="font-semibold text-sm sm:text-base">Período de Análise</h4>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Comparações são feitas entre o <span className="font-semibold text-foreground">período selecionado</span> e o
-              período anterior de mesma duração para identificar tendências.
-            </p>
-          </div>
-
-          <div className="stat-card sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="rounded-lg bg-primary/10 p-2">
-                <MapPin className="h-4 w-4 text-primary" />
-              </div>
-              <h4 className="font-semibold text-sm sm:text-base">Conectado ao Supabase</h4>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Dashboard conectado ao <span className="font-semibold text-foreground">ambiente configurado</span> com
-              dados reais da plataforma Cloudinha.
-            </p>
-          </div>
         </section>
       </main>
 
@@ -200,7 +130,7 @@ const Index = () => {
       <footer className="border-t border-border bg-card/50 mt-6 sm:mt-8">
         <div className="container py-4 sm:py-6 px-3 sm:px-4 lg:px-8">
           <p className="text-center text-xs sm:text-sm text-muted-foreground">
-            Cloudinha Analytics · Nubo Educação © 2026
+            Nubo Conecta · Command Center © 2026
           </p>
         </div>
       </footer>

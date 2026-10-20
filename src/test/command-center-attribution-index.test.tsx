@@ -9,6 +9,8 @@ import { useDashboardStats } from "@/hooks/useAnalyticsData";
 const CAMPAIGN = "11111111-1111-1111-1111-111111111111";
 const CHANNEL = "22222222-2222-2222-2222-222222222222";
 
+// Sem .env: nenhum import pode criar o client real.
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: vi.fn(), from: vi.fn(), functions: { invoke: vi.fn() } } }));
 vi.mock("@/hooks/useAnalyticsData", () => ({
   useDashboardStats: vi.fn(() => ({
     data: { totalRegistered: 0, activeUsers: 0, activeUsersWithMessages: 0, catalogUsers: 0, powerUsers: 0,
@@ -21,17 +23,11 @@ vi.mock("@/hooks/useAnalyticsData", () => ({
 const { probe } = vi.hoisted(() => ({
   probe: (name: string) => ({ attribution }: any) => <div data-testid={name}>{JSON.stringify(attribution ?? null)}</div>,
 }));
-const PANELS = ["ActivityChart", "MatchHealthChart", "TopUsersChart", "TopCoursesChart", "OpportunityInterestChart",
-  "UserPreferencesChart", "LocationChart", "LocationPreferenceChart", "DemographicsCharts"] as const;
+// Desde NUB-RD-89 o CC só tem Atividade, Top usuários e a NSM; os demais painéis estão em Analytics.
+const PANELS = ["ActivityChart", "TopUsersChart", "NsmCard"] as const;
 vi.mock("@/components/analytics/ActivityChart", () => ({ ActivityChart: probe("ActivityChart") }));
-vi.mock("@/components/analytics/MatchHealthChart", () => ({ MatchHealthChart: probe("MatchHealthChart") }));
 vi.mock("@/components/analytics/TopUsersChart", () => ({ TopUsersChart: probe("TopUsersChart") }));
-vi.mock("@/components/analytics/TopCoursesChart", () => ({ TopCoursesChart: probe("TopCoursesChart") }));
-vi.mock("@/components/analytics/OpportunityInterestChart", () => ({ OpportunityInterestChart: probe("OpportunityInterestChart") }));
-vi.mock("@/components/analytics/UserPreferencesChart", () => ({ UserPreferencesChart: probe("UserPreferencesChart") }));
-vi.mock("@/components/analytics/LocationChart", () => ({ LocationChart: probe("LocationChart") }));
-vi.mock("@/components/analytics/LocationPreferenceChart", () => ({ LocationPreferenceChart: probe("LocationPreferenceChart") }));
-vi.mock("@/components/analytics/DemographicsCharts", () => ({ DemographicsCharts: probe("DemographicsCharts") }));
+vi.mock("@/components/analytics/NsmCard", () => ({ NsmCard: probe("NsmCard") }));
 vi.mock("@/components/analytics/PowerUsersCard", () => ({ PowerUsersCard: () => null }));
 vi.mock("@/components/analytics/TotalUsersCard", () => ({ TotalUsersCard: () => null }));
 vi.mock("@/components/action-center/ActionCenter", () => ({ ActionCenter: () => <div data-testid="ActionCenter" /> }));
@@ -71,7 +67,7 @@ describe("Command Center — recorte por campanha/divulgador", () => {
     expect(screen.queryByText(/Recorte por campanha\/divulgador/)).not.toBeInTheDocument();
   });
 
-  it("lê o recorte da URL e o passa ao header, aos stats e a todos os painéis de pessoas", () => {
+  it("lê o recorte da URL e o passa ao header, aos stats, à NSM e aos painéis de pessoas", () => {
     renderAt(`/?campaignId=${CAMPAIGN}`);
     const expected = JSON.stringify({ campaignId: CAMPAIGN });
     expect(screen.getByTestId("header-attribution")).toHaveTextContent(expected);
