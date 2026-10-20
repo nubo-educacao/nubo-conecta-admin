@@ -64,6 +64,7 @@ FROM snapshot s LEFT JOIN public.partners_click pc
 -- An anonymous event later attached to a user still retains its original event_id.
 -- Therefore all-time legacy counters and the expanded event population cannot be equated.
 -- This categorization proves provenance, not the exact cause of each extra legacy increment.
+-- Live clicks carry source 'card' (before Sprint 9.1) or 'click:<surface>' (TP-H onwards).
 WITH snapshot AS (
  SELECT user_id, entity_id, SUM(event_count)::bigint AS n
  FROM public.engagement_events WHERE source = 'legacy_partners_click_aggregate' GROUP BY 1, 2
@@ -73,7 +74,7 @@ WITH snapshot AS (
           WHERE anonymous_id IS NOT NULL AND event_id LIKE 'card_click:' || anonymous_id || ':%'
         ), 0)::bigint AS originally_anonymous
  FROM public.engagement_events
- WHERE source = 'card' AND entity_type = 'partner_opportunity'
+ WHERE (source = 'card' OR source LIKE 'click:%') AND entity_type = 'partner_opportunity'
    AND event_type = 'card_click' AND user_id IS NOT NULL GROUP BY 1, 2
 ), old AS (
  SELECT user_id, partner_id, SUM(clicks)::bigint AS n FROM public.partners_click GROUP BY 1, 2
