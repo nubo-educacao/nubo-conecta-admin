@@ -33,13 +33,9 @@ const HATCH =
 const NOT_BY_SURFACE = "não instrumentado por superfície";
 const STEP_ORDER: FunnelStepKey[] = ["card_view", "card_click", "terminal"];
 
-// FunnelChart (contrato congelado do TP-D) pinta as barras com `bg-nubo-primary` e
-// `bg-nubo-primary-dark`, classes que não existem no tailwind.config. Sem alterar o
-// chart, o escopo abaixo dá a elas as cores do design: MEC = primary, Parceiro = primary-dark.
-const MEC_CHART_SCOPE =
-  "[&_.bg-nubo-primary]:bg-[#3092bb] [&_.bg-nubo-primary-dark]:bg-[#024F86]";
-const PARTNER_CHART_SCOPE =
-  "[&_.bg-nubo-primary]:bg-[#024F86] [&_.bg-nubo-primary-dark]:bg-[#024F86]";
+// FunnelChart pinta a barra de cada etapa com `bg-nubo-primary` (MEC = primary). O painel
+// Parceiro usa a cor primary-dark, já que o chart não tem prop de cor.
+const PARTNER_CHART_SCOPE = "[&_.bg-nubo-primary]:bg-nubo-primary-dark";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 const fmtDate = (iso?: string | null) =>
@@ -304,7 +300,7 @@ function DomainPanel({
   note?: string;
   domain: DomainFunnel;
   unit: Unit;
-  scope: string;
+  scope?: string;
 }) {
   return (
     <section data-testid={testId} className="space-y-2" aria-label={title}>
@@ -478,7 +474,6 @@ function Body({ data }: { data: GlobalFunnel }) {
               title="MEC"
               domain={mec}
               unit={unit}
-              scope={MEC_CHART_SCOPE}
               note="Encaminhamento = redirect oficial para o site do MEC."
             />
             <DomainPanel

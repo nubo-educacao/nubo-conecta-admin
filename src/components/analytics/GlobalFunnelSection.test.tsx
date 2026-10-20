@@ -10,6 +10,8 @@ import type {
   InstrumentationCoverage,
 } from "@/types/productAnalytics";
 
+// O serviço importa o client real, que exige VITE_SUPABASE_*; o teste não depende de .env.
+vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 vi.mock("@/services/productAnalyticsService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/productAnalyticsService")>()),
   fetchGlobalFunnel: vi.fn(),
