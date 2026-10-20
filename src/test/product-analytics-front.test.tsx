@@ -112,3 +112,28 @@ describe("TP-D consumers", () => {
     expect(screen.getByText("0")).toBeInTheDocument();
   });
 });
+
+it("stacks disjoint events but keeps people composition as separate counts", () => {
+  const steps = [
+    {
+      key: "terminal",
+      label: "Terminal",
+      value: 5,
+      composition: [
+        { label: "MEC", value: 2 },
+        { label: "Parceiro", value: 3 },
+      ],
+    },
+  ];
+  const { unmount } = render(
+    <FunnelChart mode="observed_volumes" unitLabel="eventos" steps={steps} />,
+  );
+  expect(screen.getByTitle("MEC: 2")).toHaveStyle({ width: "40%" });
+  expect(screen.getByTitle("Parceiro: 3")).toHaveStyle({ width: "60%" });
+  unmount();
+  render(
+    <FunnelChart mode="observed_volumes" unitLabel="pessoas" steps={steps} />,
+  );
+  expect(screen.queryByTitle("MEC: 2")).not.toBeInTheDocument();
+  expect(screen.getByText("MEC: 2")).toBeInTheDocument();
+});

@@ -175,3 +175,16 @@ BEGIN
  r:=public.get_product_l1_metrics('2026-10-01','2026-10-02');
  ASSERT NOT EXISTS(SELECT 1 FROM jsonb_array_elements(r->'retention_by_semester') s WHERE s->>'semester'='2026-S1'),'retention starts in selected semester';
 END $families$;
+
+-- L1 quantiles use application start, independently from terminal snapshot time.
+DO $quantiles$
+DECLARE r jsonb;
+BEGIN
+ UPDATE public.user_profiles SET created_at='2000-01-01' WHERE id::text IN ('91dd0000-0000-4000-8000-000000000001','91dd0000-0000-4000-8000-000000000002');
+ UPDATE public.student_applications SET created_at='2000-01-11' WHERE id='91dd0000-0000-4000-8000-00000000000a';
+ UPDATE public.student_applications SET created_at='2000-01-21' WHERE user_id='91dd0000-0000-4000-8000-000000000002';
+ r:=public.get_product_l1_metrics('2000-01-01','2000-02-01');
+ ASSERT (r#>>'{time_to_first_application,n}')::int=2,'L1 first-start cohort size';
+ ASSERT (r#>>'{time_to_first_application,median_days}')::numeric=15,'L1 median start days';
+ ASSERT (r#>>'{time_to_first_application,p75_days}')::numeric=17.5,'L1 p75 start days';
+END $quantiles$;
