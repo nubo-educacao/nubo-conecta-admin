@@ -30,7 +30,7 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Verify types, tests, build and migration manifest
         run: |
-          pnpm exec vitest run
+          pnpm exec vitest run --maxWorkers=2
           pnpm exec tsc -b
           pnpm exec vite build
           node scripts/migration-checksums.mjs
@@ -68,5 +68,5 @@ jobs:
           cd "$REPLAY_ROOT"
           supabase db query --local --file "$RUNNER_TEMP/tpd-assert.sql"
       - name: Stop disposable database
-        if: always()
+        if: always() && env.REPLAY_ROOT != ''
         run: cd "$REPLAY_ROOT" && supabase stop --no-backup
