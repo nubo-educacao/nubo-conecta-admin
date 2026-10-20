@@ -30,7 +30,7 @@ export default function Students() {
     const [sortOrder, setSortOrder] = useState("desc");
     const pageSize = 20;
 
-    const { data, isLoading } = useQuery({
+    const { data, isLoading, isError, refetch, isFetching } = useQuery({
         queryKey: ["students", page, pageSize, filters, sortBy, sortOrder],
         queryFn: () => getStudents({ page, pageSize, filters, sortBy, sortOrder }),
         placeholderData: (previousData) => previousData,
@@ -155,13 +155,18 @@ export default function Students() {
                         </Button>
                     </div>
                 </div>
-                <StudentTable
+                {isError ? (
+                    <div role="alert" className="space-y-3 rounded-lg border p-4">
+                        <p>Não foi possível carregar os estudantes. Tente novamente.</p>
+                        <Button variant="outline" disabled={isFetching} onClick={() => refetch()}>Tentar novamente</Button>
+                    </div>
+                ) : <StudentTable
                     students={students}
                     onViewDetails={handleViewDetails}
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={handleSort}
-                />
+                />}
             </div>
 
             <div className="flex items-center justify-end space-x-2 py-4">
@@ -169,18 +174,18 @@ export default function Students() {
                     variant="outline"
                     size="sm"
                     onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={page === 0}
+                    disabled={isError || isFetching || page === 0}
                 >
                     Anterior
                 </Button>
                 <div className="text-sm text-muted-foreground">
-                    Página {page + 1} de {totalPages || 1}
+                    {isError ? "Listagem indisponível" : `Página ${page + 1} de ${totalPages || 1}`}
                 </div>
                 <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={page >= totalPages - 1}
+                    disabled={isError || isFetching || page >= totalPages - 1}
                 >
                     Próxima
                 </Button>

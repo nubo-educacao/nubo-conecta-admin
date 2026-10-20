@@ -100,7 +100,6 @@ export default function Sidebar() {
       isGroup: true,
       items: [
         { to: "/", icon: LayoutDashboard, label: "Command Center", permission: "Dashboard" },
-        { to: "/analytics", icon: PieChart, label: "Analytics de Produto", permission: "Dashboard" },
         { to: "/ai-insights", icon: Sparkles, label: "Insights AI", permission: "Insights AI" },
       ],
     },
