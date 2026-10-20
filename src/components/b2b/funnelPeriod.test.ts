@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatBrt, funnelPeriodLabel, resolveFunnelPeriod } from "@/components/b2b/funnelPeriod";
+import { funnelPeriodLabel, resolveFunnelPeriod } from "@/components/b2b/funnelPeriod";
+import { formatBrt } from "@/lib/brtTime";
 
 const now = new Date("2026-10-20T15:00:00Z"); // 12:00 BRT
 

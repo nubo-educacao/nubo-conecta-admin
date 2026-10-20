@@ -65,6 +65,17 @@ describe("B2B partner funnel card", () => {
     expect(screen.getByText(/01\/03\/2026 00:00 até 01\/05\/2026 00:00/)).toBeInTheDocument();
   });
 
+  it("an inverted custom range is announced as an alert and never reaches the RPC", async () => {
+    renderPage();
+    await screen.findByText("Funil por Parceiro Institucional");
+    fireEvent.change(screen.getByLabelText("Período do funil"), { target: { value: "custom" } });
+    fireEvent.change(screen.getByLabelText("Início do período do funil"), { target: { value: "2026-05-02" } });
+    fireEvent.change(screen.getByLabelText("Fim do período do funil"), { target: { value: "2026-05-01" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Período inválido");
+    // The last request is the valid start-only window typed before the end; the inverted one is never sent.
+    expect(vi.mocked(getPartnerFunnel).mock.lastCall?.[1]).toEqual({ from: new Date("2026-05-02T03:00:00Z") });
+  });
+
   it("draws click → started → completed as observed user volumes, without an invented view step", async () => {
     renderPage();
     const chart = await screen.findByRole("img", { name: /Funil de volumes observados/ });

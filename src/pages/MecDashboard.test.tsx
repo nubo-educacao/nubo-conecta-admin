@@ -120,6 +120,14 @@ describe("MEC funnel (sequential cohort)", () => {
     expect(screen.getByText(/Janela: Todo o histórico/)).toBeInTheDocument();
   });
 
+  it("shows every date on the page in Brasília time, whatever the browser zone", async () => {
+    vi.mocked(getMecDashboard).mockResolvedValue(dashboard({ coverage: { first_observed_at: "2026-10-01T02:30:00Z", first_view_at: null, legacy_events: 0, redirect: instrumented } }) as never);
+    renderPage();
+    expect(await screen.findByText(/Primeiro evento MEC observado: 30\/09\/2026 23:30/)).toBeInTheDocument();
+    expect(screen.getByText(/Janela: 20\/09\/2026 12:00 até 20\/10\/2026 12:00 \(horário de Brasília\)/)).toBeInTheDocument();
+    expect(screen.getByText(/verificado desde 01\/10\/2026 09:00/)).toBeInTheDocument();
+  });
+
   it("shows denied/network failure as an error, with retry, never as an empty dataset", async () => {
     vi.mocked(getMecDashboard).mockRejectedValue(new Error("denied"));
     renderPage();
@@ -141,6 +149,7 @@ describe("MEC volumes by opportunity", () => {
     expect(document.body.textContent).not.toContain(UUID_B);
     expect(screen.getByText("Usuários e eventos não são aditivos entre oportunidades.")).toBeInTheDocument();
     expect(screen.getByText("1–2 de 2")).toBeInTheDocument();
+    expect(screen.getByTestId("mec-volumes-range")).toHaveAttribute("aria-live", "polite");
   });
 
   it("paginates on the server and shows 26–50 de N", async () => {

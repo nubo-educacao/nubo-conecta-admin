@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FunnelChart, type FunnelChartStep } from "@/components/analytics/FunnelChart";
 import { getPartnerFunnel, type PartnerFunnelData } from "@/services/passportDashboardService";
+import { formatBrt } from "@/lib/brtTime";
 import {
   FUNNEL_PERIOD_OPTIONS,
-  formatBrt,
   funnelPeriodLabel,
   resolveFunnelPeriod,
   type FunnelPeriod,
@@ -84,9 +84,9 @@ export function PartnerFunnelCard({ institutions }: PartnerFunnelCardProps) {
             </>
           )}
         </div>
-        <p className="text-sm font-medium">
-          {range === null ? "Período inválido: o início precisa ser anterior ao fim." : `Período: ${funnelPeriodLabel(range)}`}
-        </p>
+        {range === null
+          ? <p className="text-sm font-medium text-destructive" role="alert">Período inválido: o início precisa ser anterior ao fim.</p>
+          : <p className="text-sm font-medium">Período: {funnelPeriodLabel(range)}</p>}
       </CardHeader>
       <CardContent className="space-y-6">
         {isLoading && range !== null && (

@@ -19,10 +19,16 @@ type FilterKey = Exclude<keyof typeof PARAM, "page">;
 const MODALITY_LABEL: Record<string, string> = { sisu: "SiSU", prouni: "ProUni" };
 export const modalityLabel = (type: string | null) => (type ? MODALITY_LABEL[type] ?? type : "—");
 
+type LabelFields = Pick<MecVolumeRow, "course_title" | "institution_name" | "in_catalog">;
+
+/** The course name only while the opportunity is in the current catalog; null means "fora do catálogo atual". */
+export const catalogCourseTitle = (row: LabelFields): string | null => (row.in_catalog && row.course_title ? row.course_title : null);
+
 /** Course + institution, never the UUID (NUB-RD-91a/d). */
-export function mecOpportunityLabel(row: Pick<MecVolumeRow, "course_title" | "institution_name" | "in_catalog">): string {
-  if (!row.in_catalog || !row.course_title) return "Oportunidade fora do catálogo atual";
-  return row.institution_name ? `${row.course_title} — ${row.institution_name}` : row.course_title;
+export function mecOpportunityLabel(row: LabelFields): string {
+  const course = catalogCourseTitle(row);
+  if (!course) return "Oportunidade fora do catálogo atual";
+  return row.institution_name ? `${course} — ${row.institution_name}` : course;
 }
 
 const rangeKey = (range: AnalyticsRange | null) => [range?.from?.toISOString() ?? null, range?.to?.toISOString() ?? null];
@@ -178,7 +184,7 @@ export function MecVolumesTable({ volumes, redirectMeasured }: MecVolumesTablePr
               <TableBody>
                 {rows.map((row) => (
                   <TableRow key={row.unified_opportunity_id}>
-                    <TableCell className="font-medium">{row.in_catalog && row.course_title ? row.course_title : "fora do catálogo atual"}</TableCell>
+                    <TableCell className="font-medium">{catalogCourseTitle(row) ?? "fora do catálogo atual"}</TableCell>
                     <TableCell>{row.institution_name ?? "—"}</TableCell>
                     <TableCell>{row.location ?? "—"}</TableCell>
                     <TableCell>{modalityLabel(row.type)}</TableCell>
@@ -198,7 +204,7 @@ export function MecVolumesTable({ volumes, redirectMeasured }: MecVolumesTablePr
               </TableBody>
             </Table>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>
+              <span aria-live="polite" data-testid="mec-volumes-range">
                 {rows.length > 0
                   ? `${data.offset + 1}–${data.offset + rows.length} de ${data.total_count}`
                   : data.total_count > 0 ? `Nenhuma linha nesta página · ${data.total_count} no total` : "0 de 0"}

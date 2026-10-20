@@ -1,4 +1,5 @@
 import type { AnalyticsRange } from "@/types/productAnalytics";
+import { formatBrt } from "@/lib/brtTime";
 
 /** Funnel-only period (TP-G 90a). Brasília has no DST since 2019, so BRT is a fixed UTC-3. */
 export type FunnelPeriodPreset = "7d" | "30d" | "90d" | "semester" | "all" | "custom";
@@ -44,12 +45,6 @@ export function resolveFunnelPeriod(period: FunnelPeriod, now = new Date()): Ana
       return range;
     }
   }
-}
-
-export function formatBrt(value: Date | string): string {
-  return new Date(value)
-    .toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
-    .replace(",", "");
 }
 
 export function funnelPeriodLabel(range: AnalyticsRange): string {

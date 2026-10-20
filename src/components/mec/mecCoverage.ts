@@ -1,7 +1,7 @@
 import type { FunnelChartStep } from "@/components/analytics/FunnelChart";
 import type { MecDashboardData } from "@/services/mecDashboardService";
 import type { InstrumentationCoverage } from "@/types/productAnalytics";
-import { formatBrt } from "@/components/b2b/funnelPeriod";
+import { formatBrt } from "@/lib/brtTime";
 
 /**
  * Redirect coverage (D-i/D-m) decides whether a zero redirect is a measurement.

@@ -9,8 +9,9 @@ import { FunnelChart } from "@/components/analytics/FunnelChart";
 import { MecVolumesTable, mecOpportunityLabel, useMecVolumes } from "@/components/mec/MecVolumesTable";
 import { isRedirectUnmeasured, mecCohortSteps, redirectCoverageText } from "@/components/mec/mecCoverage";
 import { getMecDashboard, cohortRate, mecRangeFromDashboard } from "@/services/mecDashboardService";
+import { formatBrt } from "@/lib/brtTime";
 
-const dateLabel = (date: string | null) => date ? new Date(date).toLocaleString("pt-BR") : "Sem observação";
+const dateLabel = (date: string | null) => date ? formatBrt(date) : "Sem observação";
 const rateLabel = (n: number, d: number) => {
   const rate = cohortRate(n, d);
   return rate === null ? "Sem denominador elegível" : rate.toFixed(1) + "%";
@@ -82,7 +83,7 @@ export default function MecDashboard() {
         <p>{data.totals.distinct_users} usuários autenticados distintos · {data.totals.distinct_identities} identidades observadas (usuário ou sessão anônima).</p>
         <p>Primeiro evento MEC observado: {dateLabel(data.coverage.first_observed_at)}. Primeira visualização observada: {dateLabel(data.coverage.first_view_at)}.</p>
         <p>{redirectCoverageText(data.coverage.redirect)}</p>
-        <p>Janela: {data.period.from ? dateLabel(data.period.from) : "Todo o histórico"} até {dateLabel(data.period.to)}.</p>
+        <p>Janela: {data.period.from ? dateLabel(data.period.from) : "Todo o histórico"} até {dateLabel(data.period.to)} (horário de Brasília).</p>
         <p className="text-muted-foreground">Volumes incluem {data.coverage.legacy_events} eventos históricos agregados no recorte. A cobertura observada pode ser parcial. Acesso direto ao detalhe e histórico sem visualizações podem produzir volumes não monotônicos.</p>
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Funil MEC — coorte sequencial</CardTitle>
