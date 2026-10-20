@@ -29,7 +29,7 @@ REPLAY=(
 emit() { sed -E '/^[[:space:]]*(BEGIN|COMMIT)[[:space:]]*;[[:space:]]*$/Id' "$1"; }
 q() { npx -y supabase@2.121.0 db query --linked --project-ref "$REF" -o json "$@"; }
 
-target=$(q "select count(*) as n from cron.job" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).rows[0].n))')
+target=$(q "select CASE WHEN (SELECT count(*) FROM public.user_profiles)>1000 OR NOT EXISTS(SELECT 1 FROM auth.users WHERE id='781fe878-3d24-4061-8496-ac0ef3b627a5' AND email='backoffice@qa-s9.invalid') OR NOT coalesce((SELECT array_agg(jobname ORDER BY jobname) IN (ARRAY['check-program-deadlines']::text[],ARRAY['check-program-deadlines','user-activity-days-daily']::text[]) FROM cron.job),false) THEN 0 ELSE 1 END n" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).rows[0].n))')
 if [ "$target" != "1" ]; then echo "ABORTADO: alvo não é o DEV (cron.job=$target)" >&2; exit 2; fi
 
 applied=$(q "select version from supabase_migrations.schema_migrations" 2>/dev/null \
@@ -52,13 +52,15 @@ fp="SELECT p.oid::regprocedure::text AS obj, md5(replace(p.prosrc, chr(13), '') 
      WHERE c.relnamespace = 'public'::regnamespace AND c.relname = 'vw_partner_funnel'"
 {
   echo "BEGIN;"
-  echo "DO \$\$ BEGIN IF (SELECT count(*) FROM cron.job) <> 1 THEN RAISE EXCEPTION 'S9_ABORT: não é o DEV'; END IF; END \$\$;"
+  echo "DO \$\$ BEGIN IF (SELECT count(*) FROM public.user_profiles)>1000 OR NOT EXISTS(SELECT 1 FROM auth.users WHERE id='781fe878-3d24-4061-8496-ac0ef3b627a5' AND email='backoffice@qa-s9.invalid') OR NOT coalesce((SELECT array_agg(jobname ORDER BY jobname) IN (ARRAY['check-program-deadlines']::text[],ARRAY['check-program-deadlines','user-activity-days-daily']::text[]) FROM cron.job),false) THEN RAISE EXCEPTION 'S9_ABORT: não é o DEV'; END IF; END \$\$;"
   for f in "${pending[@]}"; do
     if [ "$MODE" = red ] && grep -qE "$RED_SKIP" <<<"$f"; then continue; fi
     echo "-- >>> $f"; emit "$f"; echo
   done
   echo "CREATE TEMP TABLE s9_fp_before ON COMMIT DROP AS $fp;"
   for f in "${REPLAY[@]}"; do echo "-- >>> replay $f"; emit "$f"; echo; done
+  # Restore the additive TP-D MEC contract after replaying the published baseline.
+  for f in supabase/migrations/*_tpd_partner_mec.sql; do [ ! -f "$f" ] || emit "$f"; done
   echo "DO \$\$ DECLARE v text; BEGIN
     SELECT string_agg(coalesce(b.obj, a.obj), ', ') INTO v
       FROM s9_fp_before b FULL JOIN ($fp) a USING (obj) WHERE b.h IS DISTINCT FROM a.h;
