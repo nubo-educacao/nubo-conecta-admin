@@ -68,7 +68,7 @@ BEGIN
  ASSERT NOT has_function_privilege('authenticated','public.capture_user_activity_days(date,date)','EXECUTE'),'internal helper closed';
  ASSERT NOT has_table_privilege('authenticated','public.analytics_conversion_capture_failures','SELECT'),'failure audit API closed';
  ASSERT NOT has_function_privilege('service_role','public.active_user_ids(timestamptz,timestamptz)','EXECUTE'),'unused helper service grant revoked';
- ASSERT NOT has_function_privilege('service_role','public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean)','EXECUTE'),'D-l keeps the ACL of main';
+ ASSERT has_function_privilege('authenticated','public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean)','EXECUTE'),'D-l keeps authenticated EXECUTE (guard is is_backoffice_admin)';
  ASSERT (SELECT pg_get_triggerdef(oid) LIKE '% WHEN (%' FROM pg_trigger WHERE tgname='tpd_mec_conversion'),'hot-path trigger filtered by WHEN';
  ASSERT (SELECT bool_and(relrowsecurity) FROM pg_class WHERE oid IN ('public.user_activity_days'::regclass,'public.conversion_match_links'::regclass,'public.analytics_instrumentation_coverage'::regclass,'public.analytics_conversion_capture_failures'::regclass)),'RLS';
 END $test$;
