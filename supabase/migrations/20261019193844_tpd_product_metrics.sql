@@ -33,15 +33,19 @@ CREATE FUNCTION public.get_product_global_funnel(p_from timestamptz DEFAULT NULL
  p_filter_campaign_id uuid DEFAULT NULL,p_filter_channel_id uuid DEFAULT NULL,p_filter_unattributed boolean DEFAULT NULL)
  RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE result jsonb; filtered boolean:=p_filter_campaign_id IS NOT NULL OR p_filter_channel_id IS NOT NULL OR p_filter_unattributed IS TRUE;
+ cov_mec jsonb; cov_click jsonb;
 BEGIN
  PERFORM public.analytics_assert_admin(); PERFORM public.analytics_assert_period(p_from,p_to);
  PERFORM public.assert_attribution_filter(p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed);
+ -- Each coverage call scans engagement_events for first_observed_at: resolve once per request, not per row.
+ cov_mec:=public.analytics_source_coverage('mec_redirect',p_from,p_to);
+ cov_click:=public.analytics_source_coverage('click_surface',p_from,p_to);
  WITH observations AS MATERIALIZED (
  SELECT * FROM public.analytics_observations(p_from,p_to) o WHERE NOT filtered OR
  (o.user_id IS NOT NULL AND public.matches_first_touch_attribution(o.user_id,p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed))
  ), slots AS (
  SELECT d.domain,s.key,s.label,s.ord,
- CASE WHEN d.domain='mec' AND s.key='terminal' THEN public.analytics_source_coverage('mec_redirect',p_from,p_to)
+ CASE WHEN d.domain='mec' AND s.key='terminal' THEN cov_mec
  ELSE jsonb_build_object('status','observed','reason','Volumes observados; não representam coorte sequencial') END coverage
  FROM (VALUES('mec'),('partner')) d(domain) CROSS JOIN (VALUES('card_view','Visualizações',1),('card_click','Cliques',2),('terminal','Encaminhamentos',3)) s(key,label,ord)
  ), counts AS (
@@ -59,17 +63,17 @@ BEGIN
  FROM counts c GROUP BY c.domain
  )
  SELECT jsonb_build_object('period',jsonb_build_object('from',p_from,'to',least(coalesce(p_to,now()),now())),
- 'unit_note','Eventos são somáveis. Pessoas únicas usam união com namespace user:/anon:. Razões de volumes observados não são conversão de coorte.',
+ 'unit_note','Eventos são somáveis. Pessoas únicas usam união com namespace user:/anon:. Razões de volumes observados não são conversão de coorte. Candidaturas anteriores à captura usam created_at como proxy de data, não a data de submissão.',
  'domains',(SELECT jsonb_object_agg(domain,data) FROM domains),
  'totals_by_step',(SELECT jsonb_agg(jsonb_build_object('key',s.key,'events',(SELECT coalesce(sum(o.n),0) FROM observations o WHERE o.step=s.key),
  'distinct_identities',(SELECT count(DISTINCT o.identity_key) FROM observations o WHERE o.step=s.key),
  'domain_identity_sum',(SELECT sum(c.users) FROM counts c WHERE c.key=s.key),'people_composition_additive',false,
- 'coverage',jsonb_build_object('status','observed','mec_redirect',public.analytics_source_coverage('mec_redirect',p_from,p_to))) ORDER BY s.ord)
+ 'coverage',jsonb_build_object('status','observed','mec_redirect',cov_mec)) ORDER BY s.ord)
  FROM (VALUES('card_view',1),('card_click',2),('terminal',3)) s(key,ord)),
  'by_surface',(SELECT coalesce(jsonb_agg(to_jsonb(s)),'[]'::jsonb) FROM
  (SELECT o.surface,o.domain,coalesce(sum(n) FILTER(WHERE step='card_view'),0) views,coalesce(sum(n) FILTER(WHERE step='card_click'),0) clicks,
  coalesce(sum(n) FILTER(WHERE step='card_click' AND surface<>'não instrumentado por superfície' AND surface NOT LIKE 'legacy_%'),0) clicks_instrumented,
- public.analytics_source_coverage('click_surface',p_from,p_to) coverage FROM observations o WHERE step<>'terminal' GROUP BY surface,domain ORDER BY domain,surface) s))
+ cov_click coverage FROM observations o WHERE step<>'terminal' GROUP BY surface,domain ORDER BY domain,surface) s))
  INTO result; RETURN result;
 END $$;
 

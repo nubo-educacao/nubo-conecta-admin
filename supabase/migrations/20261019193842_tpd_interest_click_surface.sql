@@ -61,4 +61,7 @@ END;
 $function$
 ;
 
-REVOKE ALL ON FUNCTION public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean) FROM PUBLIC,anon,partner; GRANT EXECUTE ON FUNCTION public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean) TO authenticated,service_role;
+-- ACL identical to main (20261016140000): the guard is is_backoffice_admin(), so service_role never needed EXECUTE.
+REVOKE ALL ON FUNCTION public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean) FROM PUBLIC,anon,partner; GRANT EXECUTE ON FUNCTION public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean) TO authenticated;
+COMMENT ON FUNCTION public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean) IS
+  'TP-1 / handoff TP-2 0cb07420: ranking por SUM(event_count), apenas card_click de fonte card ou click:<surface> (TP-D D-l); período [from,to), sem legado dual-write, favoritos, views ou redirects. Recorte opcional por campanha/divulgador first-touch (p_filter_*); com recorte ativo só entram cliques de usuários logados.';

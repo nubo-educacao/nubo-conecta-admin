@@ -145,8 +145,9 @@ CREATE FUNCTION public.get_mec_volume_institutions(p_from timestamptz DEFAULT NU
  RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE result jsonb;
 BEGIN
- -- Reuse the same authorization and period checks, not its paginated rows.
- PERFORM public.get_mec_opportunity_volumes(p_from,p_to,p_limit=>1);
+ -- Same authorization and period checks as get_mec_opportunity_volumes, without aggregating its rows just to discard them.
+ IF NOT (coalesce(auth.role(),'')='service_role' OR coalesce(public.is_backoffice_admin(),false) OR EXISTS(SELECT 1 FROM public.user_permissions WHERE user_id=auth.uid() AND permission='Dashboard')) THEN RAISE EXCEPTION 'Access denied' USING ERRCODE='42501'; END IF;
+ PERFORM public.analytics_assert_period(p_from,p_to);
  SELECT coalesce(jsonb_agg(to_jsonb(i) ORDER BY i.name,i.id),'[]'::jsonb) INTO result FROM (
  SELECT DISTINCT u.institution_id id,u.provider_name name FROM public.engagement_events e
  JOIN public.v_unified_opportunities u ON u.unified_id='mec_'||coalesce(e.entity_id::text,regexp_replace(e.unified_opportunity_id,'^mec_',''))
@@ -157,3 +158,6 @@ REVOKE ALL ON FUNCTION public.get_tp2_partner_funnel_v2(uuid,timestamptz,timesta
  public.get_mec_opportunity_volumes(timestamptz,timestamptz,text,uuid,text,text,integer,integer),public.get_mec_volume_institutions(timestamptz,timestamptz) FROM PUBLIC,anon,partner;
 GRANT EXECUTE ON FUNCTION public.get_tp2_partner_funnel_v2(uuid,timestamptz,timestamptz),public.get_mec_engagement_dashboard(text,integer),
  public.get_mec_opportunity_volumes(timestamptz,timestamptz,text,uuid,text,text,integer,integer),public.get_mec_volume_institutions(timestamptz,timestamptz) TO authenticated,service_role;
+-- DROP+CREATE discarded the TP-2 comment; restore it and mention the additive coverage.redirect.
+COMMENT ON FUNCTION public.get_mec_engagement_dashboard(text,integer) IS
+'TP-2: raw weighted events and distinct users are separate from causal identity+opportunity pairs. Cohort requires strict view<click<redirect inside selected period, excludes legacy aggregates. Redirect is terminal, not a completed application. Match is not a step. TP-D: coverage.redirect (additive) reports instrumentation status of the redirect source for the window.';

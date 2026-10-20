@@ -68,6 +68,8 @@ BEGIN
  ASSERT NOT has_function_privilege('authenticated','public.capture_user_activity_days(date,date)','EXECUTE'),'internal helper closed';
  ASSERT NOT has_table_privilege('authenticated','public.analytics_conversion_capture_failures','SELECT'),'failure audit API closed';
  ASSERT NOT has_function_privilege('service_role','public.active_user_ids(timestamptz,timestamptz)','EXECUTE'),'unused helper service grant revoked';
+ ASSERT NOT has_function_privilege('service_role','public.get_command_center_opportunity_interest(timestamptz,timestamptz,integer,uuid,uuid,boolean)','EXECUTE'),'D-l keeps the ACL of main';
+ ASSERT (SELECT pg_get_triggerdef(oid) LIKE '% WHEN (%' FROM pg_trigger WHERE tgname='tpd_mec_conversion'),'hot-path trigger filtered by WHEN';
  ASSERT (SELECT bool_and(relrowsecurity) FROM pg_class WHERE oid IN ('public.user_activity_days'::regclass,'public.conversion_match_links'::regclass,'public.analytics_instrumentation_coverage'::regclass,'public.analytics_conversion_capture_failures'::regclass)),'RLS';
 END $test$;
 
@@ -108,6 +110,7 @@ BEGIN
  BEGIN PERFORM public.get_product_l1_metrics();RAISE EXCEPTION 'nonadmin L1 allowed';EXCEPTION WHEN SQLSTATE '42501' THEN NULL;END;
  BEGIN PERFORM public.get_product_l2_metrics();RAISE EXCEPTION 'nonadmin L2 allowed';EXCEPTION WHEN SQLSTATE '42501' THEN NULL;END;
  BEGIN PERFORM public.get_mec_opportunity_volumes();RAISE EXCEPTION 'nonadmin MEC allowed';EXCEPTION WHEN SQLSTATE '42501' THEN NULL;END;
+ BEGIN PERFORM public.get_mec_volume_institutions();RAISE EXCEPTION 'nonadmin MEC institutions allowed';EXCEPTION WHEN SQLSTATE '42501' THEN NULL;END;
  BEGIN PERFORM public.get_tp2_partner_funnel_v2();RAISE EXCEPTION 'nonpartner B2B allowed';EXCEPTION WHEN SQLSTATE '42501' THEN NULL;END;
  INSERT INTO public.partners_users(user_id,partner_id) VALUES(u,inst);
  ASSERT NOT EXISTS(SELECT 1 FROM public.get_tp2_partner_funnel_v2() f WHERE f.partner_id<>inst),'partners_users institution isolation';
@@ -151,6 +154,8 @@ BEGIN
  ASSERT row->>'in_catalog'='false','out-of-catalog opportunity retained';
  r:=public.get_mec_opportunity_volumes('2001-01-01','2001-01-02',p_search=>'%');
  ASSERT r->'rows'='[]'::jsonb,'literal percent is not wildcard';
+ ASSERT jsonb_typeof(public.get_mec_volume_institutions('2001-01-01','2001-01-02'))='array','institutions list is an array';
+ BEGIN PERFORM public.get_mec_volume_institutions(now(),now()-interval '1 day');RAISE EXCEPTION 'invalid institutions period accepted';EXCEPTION WHEN SQLSTATE '22023' THEN NULL;END;
  r:=public.get_product_global_funnel('2001-01-01','2001-01-02',p_filter_campaign_id=>'91dd0000-0000-4000-8000-0000000000cc');
  ASSERT (r#>>'{totals_by_step,0,events}')::int=0,'first-touch and anonymous exclusion';
 END $volumes$;

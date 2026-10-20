@@ -137,7 +137,10 @@ EXCEPTION WHEN OTHERS THEN
  RETURN NEW;
 END $$;
 CREATE TRIGGER tpd_application_conversion AFTER INSERT OR UPDATE OF status ON public.student_applications FOR EACH ROW EXECUTE FUNCTION public.capture_conversion_match();
-CREATE TRIGGER tpd_mec_conversion AFTER INSERT ON public.engagement_events FOR EACH ROW EXECUTE FUNCTION public.capture_conversion_match();
+-- engagement_events is the hottest write path: WHEN keeps card_view/card_click rows out of the function (and its EXCEPTION subtransaction).
+CREATE TRIGGER tpd_mec_conversion AFTER INSERT ON public.engagement_events FOR EACH ROW
+ WHEN (NEW.event_type='redirect' AND NEW.entity_type='mec_opportunity' AND NEW.user_id IS NOT NULL)
+ EXECUTE FUNCTION public.capture_conversion_match();
 
 INSERT INTO public.analytics_instrumentation_coverage(source,verified_since,capture_started_at,evidence_ref) VALUES
  ('application_terminal',clock_timestamp(),clock_timestamp(),'TP-D database trigger installation'),
