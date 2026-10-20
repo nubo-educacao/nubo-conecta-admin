@@ -33,7 +33,22 @@ export function FunnelChart({
   return (
     <div
       role="img"
-      aria-label={title + " — " + unitLabel}
+      aria-label={
+        title +
+        " — " +
+        unitLabel +
+        ": " +
+        steps
+          .map(
+            (step) =>
+              step.label +
+              ": " +
+              (step.value === null
+                ? "indisponível"
+                : step.value.toLocaleString("pt-BR")),
+          )
+          .join("; ")
+      }
       style={height ? { minHeight: height } : undefined}
       className="space-y-4"
     >

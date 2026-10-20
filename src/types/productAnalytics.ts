@@ -62,7 +62,9 @@ export interface GlobalFunnel {
     distinct_identities: number;
     domain_identity_sum: number;
     people_composition_additive: false;
-    coverage: InstrumentationCoverage;
+    coverage: InstrumentationCoverage & {
+      mec_redirect: InstrumentationCoverage;
+    };
   }[];
   by_surface: {
     surface: string | null;
@@ -135,6 +137,7 @@ export interface L1Metrics {
       from: string | null;
       to: string | null;
       granularity: "day";
+      timezone: "America/Sao_Paulo";
     };
     rates_unit: "fraction";
   };

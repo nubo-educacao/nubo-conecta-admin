@@ -60,7 +60,7 @@ jobs:
             echo 'BEGIN;'
             echo "INSERT INTO public.institutions(id,name,is_partner) VALUES('91dd0000-0000-4000-8000-000000000011','TPD QA',true);"
             echo "INSERT INTO public.partner_institutions(institution_id) VALUES('91dd0000-0000-4000-8000-000000000011');"
-            echo "INSERT INTO public.partner_opportunities(id,institution_id,name,opportunity_type) VALUES('91dd0000-0000-4000-8000-000000000012','91dd0000-0000-4000-8000-000000000011','TPD QA','scholarship');"
+            echo "INSERT INTO public.partner_opportunities(id,institution_id,name,opportunity_type) VALUES('91dd0000-0000-4000-8000-000000000012','91dd0000-0000-4000-8000-000000000011','TPD QA','programa de bolsa');"
             cat supabase/tests/sprint91_contracts/assert.sql
             cat supabase/tests/sprint91_contracts/cleanup.sql
             echo 'ROLLBACK;'

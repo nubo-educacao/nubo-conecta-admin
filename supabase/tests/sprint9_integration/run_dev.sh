@@ -60,7 +60,10 @@ fp="SELECT p.oid::regprocedure::text AS obj, md5(replace(p.prosrc, chr(13), '') 
   echo "CREATE TEMP TABLE s9_fp_before ON COMMIT DROP AS $fp;"
   for f in "${REPLAY[@]}"; do echo "-- >>> replay $f"; emit "$f"; echo; done
   # Restore the additive TP-D MEC contract after replaying the published baseline.
-  for f in supabase/migrations/*_tpd_partner_mec.sql; do [ ! -f "$f" ] || emit "$f"; done
+  for f in supabase/migrations/*_tpd_partner_mec.sql; do
+    [ ! -f "$f" ] || awk '/^DROP FUNCTION IF EXISTS public.get_mec_engagement_dashboard/{p=1} /^CREATE FUNCTION public.get_mec_opportunity_volumes/{p=0} p {print}' "$f"
+  done
+  echo "REVOKE ALL ON FUNCTION public.get_mec_engagement_dashboard(text,integer) FROM PUBLIC,anon,partner; GRANT EXECUTE ON FUNCTION public.get_mec_engagement_dashboard(text,integer) TO authenticated,service_role;"
   echo "DO \$\$ DECLARE v text; BEGIN
     SELECT string_agg(coalesce(b.obj, a.obj), ', ') INTO v
       FROM s9_fp_before b FULL JOIN ($fp) a USING (obj) WHERE b.h IS DISTINCT FROM a.h;
