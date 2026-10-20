@@ -41,12 +41,12 @@ const COLUMNS: Record<string, string[]> = {
 
 export type Tables = Record<string, Record<string, unknown>[]>;
 
-export async function aggregatesDb(tables: Tables) {
-  if (!AGGREGATES_MIGRATION) throw new Error('migration *_cc_attribution_sql_aggregates.sql ausente');
-  const db = new PGlite();
-  await db.exec(SCHEMA);
-  await db.exec(tp7Helpers);
-  await db.exec(file(AGGREGATES_MIGRATION));
+// Substitui o conteúdo das tabelas de fixture. Permite reutilizar uma única instância:
+// subir um PGlite (WASM + schema + migrations) custa ~0,5 s localmente e bem mais num
+// runner de CI de 2 vCPUs, então uma instância por chamada estoura o timeout de 5 s
+// dos testes que a usam várias vezes (ex.: 4 rankings no mesmo `it`).
+export async function seedAggregates(db: PGlite, tables: Tables) {
+  await db.exec(`TRUNCATE ${Object.keys(COLUMNS).map(table => 'public.' + table).join(', ')}`);
   for (const [table, rows] of Object.entries(tables)) {
     const columns = COLUMNS[table];
     if (!columns) continue;
@@ -56,6 +56,15 @@ export async function aggregatesDb(tables: Tables) {
         present.map(column => row[column]));
     }
   }
+}
+
+export async function aggregatesDb(tables: Tables) {
+  if (!AGGREGATES_MIGRATION) throw new Error('migration *_cc_attribution_sql_aggregates.sql ausente');
+  const db = new PGlite();
+  await db.exec(SCHEMA);
+  await db.exec(tp7Helpers);
+  await db.exec(file(AGGREGATES_MIGRATION));
+  await seedAggregates(db, tables);
   // As Edges chamam com o service client.
   await db.exec("SET test.role = 'service_role'");
   return db;

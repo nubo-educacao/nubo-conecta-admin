@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface PartnerFunnelData {
+  legacy_external_redirects: number;
+  last_activity_at: string | null;
   partner_id: string;
   partner_name: string;
   total_unique_clicks: number;
@@ -36,10 +38,13 @@ export async function getAdminFunnelUsers(): Promise<FunnelUserData[]> {
   return data as FunnelUserData[];
 }
 
-export async function getPartnerFunnel(partnerId?: string, daysAgo: number | null = null): Promise<PartnerFunnelData[]> {
-  const { data, error } = await supabase.rpc('get_tp2_partner_funnel' as any, {
+/** Numeric days remain accepted until TP-G updates the published screen. New consumers use a range. */
+export async function getPartnerFunnel(partnerId?: string, range?: import('@/types/productAnalytics').AnalyticsRange | number | null): Promise<PartnerFunnelData[]> {
+  const normalized = typeof range === 'number' ? { from: new Date(Date.now()-range*86400000) } : range;
+  const { data, error } = await supabase.rpc('get_tp2_partner_funnel_v2' as any, {
     p_partner_id: partnerId === 'all' ? null : partnerId || null,
-    p_days_ago: daysAgo,
+    p_from: normalized?.from?.toISOString() ?? null,
+    p_to: normalized?.to?.toISOString() ?? null,
   });
   if (error) throw error;
   return data as PartnerFunnelData[];
