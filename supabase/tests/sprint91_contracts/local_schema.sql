@@ -10,7 +10,7 @@ CREATE TABLE auth.sessions(id uuid DEFAULT gen_random_uuid(),user_id uuid,create
 CREATE TABLE public.user_profiles(id uuid PRIMARY KEY,full_name text,created_at timestamptz DEFAULT now(),isdependent boolean DEFAULT false,parent_user_id uuid);
 CREATE TABLE public.chat_messages(id uuid DEFAULT gen_random_uuid(),user_id uuid,sender text,content text,workflow text,created_at timestamptz DEFAULT now());
 CREATE TABLE public.engagement_events(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),event_id text,event_type text,entity_type text,entity_id uuid,unified_opportunity_id text,destination_url text,source text,event_count int DEFAULT 1,user_id uuid,anonymous_id text,occurred_at timestamptz DEFAULT now(),created_at timestamptz DEFAULT now());
-CREATE TABLE public.student_applications(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,partner_id uuid,status text,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now());
+CREATE TABLE public.student_applications(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,partner_id uuid,status text,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now(),UNIQUE(user_id,partner_id));
 CREATE TABLE public.user_opportunity_matches(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),profile_id uuid,unified_opportunity_id text,match_score numeric,generated_at timestamptz DEFAULT now());
 CREATE TABLE public.institutions(id uuid PRIMARY KEY,name text,is_partner boolean DEFAULT true);
 CREATE TABLE public.partner_opportunities(id uuid PRIMARY KEY,institution_id uuid,name text);

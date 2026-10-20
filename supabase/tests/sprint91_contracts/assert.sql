@@ -73,8 +73,10 @@ END $test$;
 
 -- R1/R2 fail-open: constraint failure is forced only inside a subtransaction.
 DO $failure$
-DECLARE u uuid:='91dd0000-0000-4000-8000-000000000001';po uuid;app uuid:=gen_random_uuid();event uuid:=gen_random_uuid();
+DECLARE u uuid:='91dd0000-0000-4000-8000-000000000005';po uuid;app uuid:=gen_random_uuid();event uuid:=gen_random_uuid();
 BEGIN
+ INSERT INTO auth.users(id,email) VALUES(u,'tpd-5@qa-s9.invalid');
+ INSERT INTO public.user_profiles(id,full_name) VALUES(u,'TPD failure case') ON CONFLICT(id) DO NOTHING;
  SELECT id INTO po FROM public.partner_opportunities ORDER BY id LIMIT 1;
  BEGIN
   ALTER TABLE public.conversion_match_links ADD CONSTRAINT tpd_force_failure CHECK(false) NOT VALID;
