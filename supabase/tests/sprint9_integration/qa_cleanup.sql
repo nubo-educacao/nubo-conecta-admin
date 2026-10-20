@@ -7,6 +7,7 @@ END $$;
 
 DO $ BEGIN
  IF to_regclass('public.conversion_match_links') IS NOT NULL THEN
+ DELETE FROM public.analytics_conversion_capture_failures WHERE user_id::text LIKE '5e9a0000-%';
  DELETE FROM public.conversion_match_links WHERE user_id::text LIKE '5e9a0000-%';
  DELETE FROM public.user_activity_days WHERE user_id::text LIKE '5e9a0000-%';
  END IF;

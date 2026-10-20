@@ -66,7 +66,7 @@ jobs:
             echo 'ROLLBACK;'
           } > "$RUNNER_TEMP/tpd-assert.sql"
           cd "$REPLAY_ROOT"
-          supabase db query --local --file "$RUNNER_TEMP/tpd-assert.sql"
+          docker exec -i supabase_db_nubo-conecta-admin psql -U postgres -d postgres -v ON_ERROR_STOP=1 < "$RUNNER_TEMP/tpd-assert.sql"
       - name: Stop disposable database
         if: always() && env.REPLAY_ROOT != ''
         run: cd "$REPLAY_ROOT" && supabase stop --no-backup

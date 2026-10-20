@@ -8,9 +8,9 @@ CREATE FUNCTION public.analytics_observations(p_from timestamptz,p_to timestampt
  SELECT l.user_id,l.converted_at at_time,l.terminal_path path,'captured_terminal'::text basis
  FROM public.conversion_match_links l WHERE l.conversion_kind='application'
  UNION ALL
- SELECT s.user_id,s.created_at,CASE lower(s.status) WHEN 'redirected' THEN 'partner_redirected' ELSE 'partner_submitted' END,
- CASE WHEN s.created_at<(SELECT started FROM activation) THEN 'created_at_proxy' ELSE 'post_capture_missing_snapshot' END
- FROM public.student_applications s WHERE lower(s.status) IN ('redirected','submitted')
+ SELECT s.user_id,coalesce(f.converted_at,s.created_at),coalesce(f.terminal_path,CASE lower(s.status) WHEN 'redirected' THEN 'partner_redirected' ELSE 'partner_submitted' END),
+ CASE WHEN f.conversion_id IS NULL AND s.created_at<(SELECT started FROM activation) THEN 'created_at_proxy' ELSE 'post_capture_missing_snapshot' END
+ FROM public.student_applications s LEFT JOIN public.analytics_conversion_capture_failures f ON f.conversion_kind='application' AND f.conversion_id=s.id WHERE (f.conversion_id IS NOT NULL OR lower(s.status) IN ('redirected','submitted'))
  AND NOT EXISTS(SELECT 1 FROM public.conversion_match_links l WHERE l.conversion_kind='application' AND l.conversion_id=s.id)
  ), observations AS (
  SELECT CASE e.entity_type WHEN 'mec_opportunity' THEN 'mec' ELSE 'partner' END domain,
@@ -101,8 +101,8 @@ BEGIN
  'active_users_source',jsonb_build_object('activity_days',(SELECT count(DISTINCT d.user_id) FROM public.user_activity_days d JOIN active a USING(user_id) WHERE d.activity_date>=(f AT TIME ZONE 'America/Sao_Paulo')::date AND d.activity_date<(t AT TIME ZONE 'America/Sao_Paulo')::date),
  'live_fallback',(SELECT count(DISTINCT l.user_id) FROM public.analytics_live_activity(f,t) l JOIN active a USING(user_id)),'deduplicated_total',v.active),
  'referrals',jsonb_build_object('total',v.referrals,'composition',jsonb_build_object('mec_redirect',v.mec,'partner_redirected',v.redirected,'partner_submitted',v.submitted,'legacy_external_redirect',v.legacy)),
- 'per_active_user',CASE WHEN v.active>0 AND mec_coverage->>'status'='instrumented' THEN v.referrals::numeric/v.active END,
- 'coverage',jsonb_build_object('activity',public.analytics_activity_coverage(),'mec_redirect',mec_coverage,'reason',CASE WHEN v.active=0 THEN 'zero_denominator' WHEN mec_coverage->>'status'<>'instrumented' THEN 'incomplete_mec_coverage' END,
+ 'per_active_user',CASE WHEN v.active>0 AND mec_coverage->>'status'='instrumented' AND NOT EXISTS(SELECT 1 FROM public.analytics_conversion_capture_failures err WHERE err.converted_at>=f AND err.converted_at<least(t,now()) AND public.matches_first_touch_attribution(err.user_id,p_campaign,p_channel,p_unattributed)) THEN v.referrals::numeric/v.active END,
+ 'coverage',jsonb_build_object('activity',public.analytics_activity_coverage(),'mec_redirect',mec_coverage,'reason',CASE WHEN v.active=0 THEN 'zero_denominator' WHEN EXISTS(SELECT 1 FROM public.analytics_conversion_capture_failures err WHERE err.converted_at>=f AND err.converted_at<least(t,now()) AND public.matches_first_touch_attribution(err.user_id,p_campaign,p_channel,p_unattributed)) THEN 'capture_failure' WHEN mec_coverage->>'status'<>'instrumented' THEN 'incomplete_mec_coverage' END,
  'application_time_basis',(SELECT jsonb_build_object('captured_terminal',count(*) FILTER(WHERE time_basis='captured_terminal'),'created_at_proxy',count(*) FILTER(WHERE time_basis='created_at_proxy'),'post_capture_missing_snapshot',count(*) FILTER(WHERE time_basis='post_capture_missing_snapshot')) FROM obs WHERE domain='partner')))
  INTO result FROM values v; RETURN result;
 END $$;
@@ -128,12 +128,13 @@ BEGIN
  WITH active AS MATERIALIZED (SELECT a.user_id FROM public.active_user_ids(p_from,p_to) a WHERE public.matches_first_touch_attribution(a.user_id,p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed)),
  talked AS (SELECT count(DISTINCT l.user_id) n FROM public.analytics_live_activity(p_from,p_to) l JOIN active a USING(user_id) WHERE l.source='chat'),
  first_apps AS (SELECT s.user_id,min(s.created_at) at_time FROM public.student_applications s GROUP BY s.user_id),
- durations AS (SELECT extract(epoch FROM (a.at_time-p.created_at))/86400 days FROM first_apps a JOIN public.user_profiles p ON p.id=a.user_id AND NOT coalesce(p.isdependent,false)
+ durations AS (SELECT extract(epoch FROM (a.at_time-p.created_at))/86400 days FROM first_apps a JOIN public.user_profiles p ON p.id=a.user_id AND NOT coalesce(p.isdependent,false) AND p.parent_user_id IS NULL
  WHERE a.at_time>=coalesce(p_from,'-infinity') AND a.at_time<least(coalesce(p_to,now()),now()) AND a.at_time>=p.created_at AND public.matches_first_touch_attribution(a.user_id,p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed)),
+ bounds AS (SELECT coalesce(p_from AT TIME ZONE 'America/Sao_Paulo',(SELECT min(activity_date)::timestamp FROM public.user_activity_days),now() AT TIME ZONE 'America/Sao_Paulo') anchor),
  semesters AS (
  SELECT g.start_at,(g.start_at+interval '6 months') next_at,(g.start_at+interval '12 months') end_at,
  to_char(g.start_at,'YYYY')||'-S'||CASE WHEN extract(month FROM g.start_at)=1 THEN '1' ELSE '2' END semester
- FROM generate_series(date_trunc('year',coalesce(p_from,(SELECT min(activity_date)::timestamptz FROM public.user_activity_days),now()) AT TIME ZONE 'America/Sao_Paulo'),
+ FROM bounds b CROSS JOIN LATERAL generate_series(date_trunc('year',b.anchor)+CASE WHEN extract(month FROM b.anchor)>6 THEN interval '6 months' ELSE interval '0 months' END,
  least(coalesce(p_to,now()),now()) AT TIME ZONE 'America/Sao_Paulo',interval '6 months') g(start_at)
  ), retention AS (
  SELECT s.semester,s.end_at AT TIME ZONE 'America/Sao_Paulo'<=now() complete,count(a.user_id) active,count(b.user_id) retained_next
@@ -147,7 +148,7 @@ BEGIN
  'time_to_first_application',(SELECT jsonb_build_object('n',count(*),'median_days',percentile_cont(.5) WITHIN GROUP(ORDER BY days),'p75_days',percentile_cont(.75) WITHIN GROUP(ORDER BY days),'basis','profile_created_to_application_started') FROM durations),
  'retention_by_semester',(SELECT coalesce(jsonb_agg(jsonb_build_object('semester',r.semester,'active',r.active,'retained_next',r.retained_next,'rate',CASE WHEN r.complete THEN r.retained_next::numeric/nullif(r.active,0) END,'complete',r.complete) ORDER BY r.semester),'[]'::jsonb) FROM retention r),
  'coverage',jsonb_build_object('activity',public.analytics_activity_coverage(),'excluded_negative_durations',(SELECT count(*) FROM first_apps a JOIN public.user_profiles p ON p.id=a.user_id WHERE a.at_time<p.created_at AND a.at_time>=coalesce(p_from,'-infinity') AND a.at_time<least(coalesce(p_to,now()),now()) AND public.matches_first_touch_attribution(a.user_id,p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed)),
- 'activity_period',jsonb_build_object('from',date_trunc('day',p_from AT TIME ZONE 'America/Sao_Paulo'),'to',p_to,'granularity','day'),'rates_unit','fraction'))
+ 'activity_period',public.analytics_activity_period(p_from,p_to),'rates_unit','fraction'))
  INTO result FROM talked; RETURN result;
 END $$;
 
@@ -173,15 +174,15 @@ BEGIN
  SELECT jsonb_build_object('engine_reach',(SELECT jsonb_object_agg(domain,jsonb_build_object('active_with_match',n,'active',total,'rate',n::numeric/nullif(total,0))) FROM reach),
  'catalog_coverage',(SELECT jsonb_object_agg(domain,jsonb_build_object('recommended',n,'catalog',total,'rate',n::numeric/nullif(total,0))) FROM catalog),
  'match_contribution',jsonb_build_object('temporal',(SELECT jsonb_build_object('conversions_with_prior_match',matched,'conversions_total',total,'rate',matched::numeric/nullif(total,0),'since',started,
- 'coverage',jsonb_build_object('status','observed','note','Taxa dos snapshots capturados; falhas e perfis não comprovados limitam cobertura')) FROM temporal),
+ 'coverage',jsonb_build_object('status','observed','capture_failures',(SELECT count(*) FROM public.analytics_conversion_capture_failures err WHERE err.converted_at>=coalesce(p_from,'-infinity') AND err.converted_at<=now() AND err.converted_at<coalesce(p_to,'infinity') AND public.matches_first_touch_attribution(err.user_id,p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed)),'note','Taxa observada dos snapshots capturados; falhas registradas e perfis não comprovados limitam cobertura, sem reconstrução posterior')) FROM temporal),
  'untimed_association',jsonb_build_object('count',(SELECT n FROM untimed)+(SELECT count(*) FROM public.engagement_events e WHERE e.event_type='redirect' AND e.entity_type='mec_opportunity' AND coalesce(e.source,'') NOT LIKE 'legacy_%' AND e.occurred_at<started AND e.occurred_at>=coalesce(p_from,'-infinity') AND e.occurred_at<least(coalesce(p_to,now()),now()) AND public.matches_first_touch_attribution(e.user_id,p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed) AND NOT EXISTS(SELECT 1 FROM public.conversion_match_links l WHERE l.conversion_kind='redirect' AND l.conversion_id=e.id) AND EXISTS(SELECT 1 FROM matches m WHERE m.profile_id=e.user_id AND m.unified_opportunity_id=coalesce(e.unified_opportunity_id,'mec_'||e.entity_id::text))),'label','associação sem ordem temporal','scope','Conversões anteriores ao ledger com associação atual; conjunto disjunto do temporal')),
  'scope',jsonb_build_object('snapshot_at',now(),'engine_reach','ativos no período com resultado atual','catalog_coverage','catálogo e recomendações atuais do segmento first-touch; sem reconstrução histórica','identity','auth user = perfil titular comprovado; dependentes não são atribuídos ao titular'),
- 'coverage',jsonb_build_object('activity',public.analytics_activity_coverage(),
+ 'coverage',jsonb_build_object('activity',public.analytics_activity_coverage(),'activity_period',public.analytics_activity_period(p_from,p_to),
  'excluded_unresolved_profile',(SELECT count(*) FROM public.user_opportunity_matches m JOIN public.user_profiles p ON p.id=m.profile_id WHERE (coalesce(p.isdependent,false) OR p.parent_user_id IS NOT NULL) AND public.matches_first_touch_attribution(p.id,p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed)),
  'post_capture_missing_snapshot',(SELECT count(*) FROM public.analytics_observations(p_from,p_to) o WHERE o.time_basis='post_capture_missing_snapshot' AND public.matches_first_touch_attribution(o.user_id,p_filter_campaign_id,p_filter_channel_id,p_filter_unattributed))))
  INTO result; RETURN result;
 END $$;
-REVOKE ALL ON FUNCTION public.analytics_observations(timestamptz,timestamptz),public.analytics_semester_range(text),public.analytics_nsm_window(text,uuid,uuid,boolean) FROM PUBLIC,anon,authenticated,partner;
+REVOKE ALL ON FUNCTION public.analytics_observations(timestamptz,timestamptz),public.analytics_semester_range(text),public.analytics_nsm_window(text,uuid,uuid,boolean) FROM PUBLIC,anon,authenticated,partner,service_role;
 REVOKE ALL ON FUNCTION public.get_product_global_funnel(timestamptz,timestamptz,uuid,uuid,boolean),public.get_command_center_nsm(text,text,uuid,uuid,boolean),
  public.get_product_l1_metrics(timestamptz,timestamptz,uuid,uuid,boolean),public.get_product_l2_metrics(timestamptz,timestamptz,uuid,uuid,boolean) FROM PUBLIC,anon,partner;
 GRANT EXECUTE ON FUNCTION public.get_product_global_funnel(timestamptz,timestamptz,uuid,uuid,boolean),public.get_command_center_nsm(text,text,uuid,uuid,boolean),

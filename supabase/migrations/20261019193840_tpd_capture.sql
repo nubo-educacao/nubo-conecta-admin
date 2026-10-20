@@ -22,6 +22,15 @@ CREATE TABLE public.conversion_match_links(
     OR (link_status<>'matched' AND match_id IS NULL AND match_score IS NULL AND match_generated_at IS NULL))
 );
 CREATE INDEX conversion_match_links_period_idx ON public.conversion_match_links(converted_at,user_id);
+-- Operational failures, not a second conversion denominator. A lost snapshot must never be retried with a later match.
+CREATE TABLE public.analytics_conversion_capture_failures(
+ conversion_kind text NOT NULL CHECK(conversion_kind IN ('application','redirect')),
+ conversion_id uuid NOT NULL,user_id uuid,terminal_path text NOT NULL,
+ converted_at timestamptz NOT NULL,failed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ sqlstate text NOT NULL,PRIMARY KEY(conversion_kind,conversion_id)
+);
+ALTER TABLE public.analytics_conversion_capture_failures ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.analytics_conversion_capture_failures FROM PUBLIC,anon,authenticated,service_role;
 ALTER TABLE public.analytics_instrumentation_coverage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_activity_days ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversion_match_links ENABLE ROW LEVEL SECURITY;
@@ -50,6 +59,15 @@ CREATE FUNCTION public.analytics_live_activity(p_from timestamptz,p_to timestamp
  AND c.workflow IS DISTINCT FROM 'system_intent' AND coalesce(c.content,'') !~ '^system_intent:'
  AND coalesce(c.content,'') !~ '"intent_type"\s*:\s*"system_intent"'
  AND c.created_at>=coalesce(p_from,'-infinity') AND c.created_at<=now() AND c.created_at<coalesce(p_to,'infinity')
+ $$;
+
+
+CREATE FUNCTION public.analytics_activity_period(p_from timestamptz,p_to timestamptz) RETURNS jsonb
+ LANGUAGE sql STABLE SET search_path=public,pg_temp AS $$
+ SELECT jsonb_build_object('from',date_trunc('day',p_from AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo',
+ 'to',CASE WHEN p_to IS NULL THEN NULL WHEN p_to=(date_trunc('day',p_to AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo') THEN p_to
+ ELSE (date_trunc('day',p_to AT TIME ZONE 'America/Sao_Paulo')+interval '1 day') AT TIME ZONE 'America/Sao_Paulo' END,
+ 'granularity','day','timezone','America/Sao_Paulo')
  $$;
 
 CREATE FUNCTION public.active_user_ids(p_from timestamptz,p_to timestamptz) RETURNS TABLE(user_id uuid)
@@ -82,7 +100,7 @@ BEGIN
 END $$;
 
 CREATE FUNCTION public.capture_conversion_match() RETURNS trigger LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=public,pg_temp AS $$
-DECLARE u uuid; pid uuid; opportunity text; path text; kind text; at_time timestamptz; m public.user_opportunity_matches%ROWTYPE;
+DECLARE u uuid; pid uuid; opportunity text; path text; kind text; at_time timestamptz; m public.user_opportunity_matches%ROWTYPE; failure_code text;
 BEGIN
  IF TG_TABLE_NAME='student_applications' THEN
   IF lower(NEW.status) NOT IN ('redirected','submitted') OR NEW.status IS NULL THEN RETURN NEW; END IF;
@@ -95,6 +113,7 @@ BEGIN
   u:=NEW.user_id; opportunity:=coalesce(NEW.unified_opportunity_id,'mec_'||NEW.entity_id::text); kind:='redirect';path:='mec_redirect';at_time:=NEW.occurred_at;
  END IF;
  IF u IS NULL OR opportunity IS NULL OR at_time IS NULL THEN RETURN NEW; END IF;
+ IF EXISTS(SELECT 1 FROM public.analytics_conversion_capture_failures f WHERE f.conversion_kind=kind AND f.conversion_id=NEW.id) THEN RETURN NEW; END IF;
  SELECT p.id INTO pid FROM public.user_profiles p WHERE p.id=u AND NOT coalesce(p.isdependent,false) AND p.parent_user_id IS NULL;
  IF pid IS NOT NULL THEN
   SELECT * INTO m FROM public.user_opportunity_matches x WHERE x.profile_id=pid AND x.unified_opportunity_id=opportunity
@@ -107,7 +126,14 @@ BEGIN
  RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
  -- No identifiers, payloads, SQLERRM or PII in warning. Missing snapshots remain observable by readers.
- RAISE WARNING 'analytics conversion capture failed SQLSTATE=%',SQLSTATE;
+ failure_code:=SQLSTATE;
+ BEGIN
+  INSERT INTO public.analytics_conversion_capture_failures(conversion_kind,conversion_id,user_id,terminal_path,converted_at,sqlstate)
+  VALUES(kind,NEW.id,u,path,at_time,failure_code) ON CONFLICT DO NOTHING;
+ EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'analytics failure audit unavailable SQLSTATE=%',SQLSTATE;
+ END;
+ RAISE WARNING 'analytics conversion capture failed SQLSTATE=%',failure_code;
  RETURN NEW;
 END $$;
 CREATE TRIGGER tpd_application_conversion AFTER INSERT OR UPDATE OF status ON public.student_applications FOR EACH ROW EXECUTE FUNCTION public.capture_conversion_match();
@@ -145,7 +171,7 @@ CREATE FUNCTION public.analytics_activity_coverage() RETURNS jsonb LANGUAGE sql 
 REVOKE ALL ON FUNCTION public.analytics_assert_period(timestamptz,timestamptz),public.analytics_assert_admin(),
  public.analytics_live_activity(timestamptz,timestamptz),public.active_user_ids(timestamptz,timestamptz),
  public.capture_user_activity_days(date,date),public.capture_conversion_match(),public.analytics_source_coverage(text,timestamptz,timestamptz),
- public.analytics_activity_coverage() FROM PUBLIC,anon,authenticated,partner;
+ public.analytics_activity_period(timestamptz,timestamptz),public.analytics_activity_coverage() FROM PUBLIC,anon,authenticated,partner,service_role;
 GRANT EXECUTE ON FUNCTION public.capture_user_activity_days(date,date) TO service_role;
 -- Only real surviving evidence is consolidated, never interpolated session days.
 SELECT public.capture_user_activity_days(

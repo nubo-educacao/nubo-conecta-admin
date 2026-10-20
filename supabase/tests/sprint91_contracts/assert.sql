@@ -66,7 +66,9 @@ BEGIN
  BEGIN PERFORM public.get_mec_opportunity_volumes(p_order=>'injection'); RAISE EXCEPTION 'invalid order accepted'; EXCEPTION WHEN SQLSTATE '22023' THEN NULL; END;
  ASSERT NOT has_function_privilege('anon','public.get_product_global_funnel(timestamptz,timestamptz,uuid,uuid,boolean)','EXECUTE'),'anon denied';
  ASSERT NOT has_function_privilege('authenticated','public.capture_user_activity_days(date,date)','EXECUTE'),'internal helper closed';
- ASSERT (SELECT bool_and(relrowsecurity) FROM pg_class WHERE oid IN ('public.user_activity_days'::regclass,'public.conversion_match_links'::regclass,'public.analytics_instrumentation_coverage'::regclass)),'RLS';
+ ASSERT NOT has_table_privilege('authenticated','public.analytics_conversion_capture_failures','SELECT'),'failure audit API closed';
+ ASSERT NOT has_function_privilege('service_role','public.active_user_ids(timestamptz,timestamptz)','EXECUTE'),'unused helper service grant revoked';
+ ASSERT (SELECT bool_and(relrowsecurity) FROM pg_class WHERE oid IN ('public.user_activity_days'::regclass,'public.conversion_match_links'::regclass,'public.analytics_instrumentation_coverage'::regclass,'public.analytics_conversion_capture_failures'::regclass)),'RLS';
 END $test$;
 
 -- R1/R2 fail-open: constraint failure is forced only inside a subtransaction.
@@ -84,6 +86,10 @@ BEGIN
   ASSERT EXISTS(SELECT 1 FROM public.engagement_events WHERE id=event),'fail-open INSERT original retained';
   ASSERT NOT EXISTS(SELECT 1 FROM public.conversion_match_links WHERE conversion_id IN(app,event)),'failed snapshots never fabricated';
   ALTER TABLE public.conversion_match_links DROP CONSTRAINT tpd_force_failure;
+  ASSERT EXISTS(SELECT 1 FROM public.analytics_conversion_capture_failures WHERE conversion_id=app),'capture failure observable';
+  UPDATE public.student_applications SET status='DRAFT' WHERE id=app;
+  UPDATE public.student_applications SET status='SUBMITTED' WHERE id=app;
+  ASSERT NOT EXISTS(SELECT 1 FROM public.conversion_match_links WHERE conversion_id=app),'failed snapshot never reconstructed from current match';
  END;
 END $failure$;
 
@@ -146,3 +152,26 @@ BEGIN
  r:=public.get_product_global_funnel('2001-01-01','2001-01-02',p_filter_campaign_id=>'91dd0000-0000-4000-8000-0000000000cc');
  ASSERT (r#>>'{totals_by_step,0,events}')::int=0,'first-touch and anonymous exclusion';
 END $volumes$;
+
+-- R3/R9: UTC timestamps cross BRT midnight; dependent matches never become parent reach.
+DO $families$
+DECLARE u uuid:='91dd0000-0000-4000-8000-000000000001';u2 uuid:='91dd0000-0000-4000-8000-000000000002';
+ d1 uuid:='91dd0000-0000-4000-8000-000000000003';d2 uuid:='91dd0000-0000-4000-8000-000000000004';
+ before_metrics jsonb; after_metrics jsonb; r jsonb;
+BEGIN
+ PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
+ PERFORM set_config('request.jwt.claim.role','service_role',true);
+ before_metrics:=public.get_product_l2_metrics();
+ INSERT INTO auth.users(id,email) VALUES(d1,'tpd-3@qa-s9.invalid'),(d2,'tpd-4@qa-s9.invalid');
+ INSERT INTO public.user_profiles(id,full_name,isdependent,parent_user_id) VALUES(d1,'TPD dependent A',true,u),(d2,'TPD dependent B',true,u2) ON CONFLICT(id) DO UPDATE SET isdependent=true,parent_user_id=excluded.parent_user_id;
+ INSERT INTO public.user_opportunity_matches(profile_id,unified_opportunity_id,match_score,generated_at)
+ VALUES(d1,'mec_tpd_dependent',99,now()-interval '1 day'),(d2,'partner_tpd_dependent',98,now()-interval '1 day');
+ after_metrics:=public.get_product_l2_metrics();
+ ASSERT after_metrics->'engine_reach'=before_metrics->'engine_reach','R9 dependents excluded from both family numerators';
+ ASSERT (after_metrics#>>'{coverage,excluded_unresolved_profile}')::int=(before_metrics#>>'{coverage,excluded_unresolved_profile}')::int+2,'R9 excluded profile coverage';
+ INSERT INTO auth.sessions(id,user_id,created_at,refreshed_at) VALUES(gen_random_uuid(),u2,'2026-01-02 02:59Z','2026-01-02 03:01');
+ PERFORM public.capture_user_activity_days('2026-01-01','2026-01-02');
+ ASSERT (SELECT count(*)=2 FROM public.user_activity_days WHERE user_id=u2 AND activity_date IN ('2026-01-01','2026-01-02') AND 'session'=ANY(sources)),'refreshed_at UTC before BRT day';
+ r:=public.get_product_l1_metrics('2026-10-01','2026-10-02');
+ ASSERT NOT EXISTS(SELECT 1 FROM jsonb_array_elements(r->'retention_by_semester') s WHERE s->>'semester'='2026-S1'),'retention starts in selected semester';
+END $families$;
