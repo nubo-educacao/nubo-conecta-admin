@@ -3,7 +3,8 @@
 // Edges delegam a agregação às RPCs cc_*_aggregate, executadas aqui no PGlite
 // com a migration real; os valores esperados são os de antes da mudança.
 import { edgeHarness, edgeRequest } from './edgeHarness';
-import { aggregatesDb, aggregatesClient, type Tables } from './ccAggregatesDb';
+import type { PGlite } from '@electric-sql/pglite';
+import { aggregatesDb, aggregatesClient, seedAggregates, type Tables } from './ccAggregatesDb';
 
 const range = { from: '2026-06-15T03:00:00.000Z', to: '2026-06-16T03:00:00.000Z' };
 const A = 'cccccccc-0000-4000-8000-00000000000a', B = 'cccccccc-0000-4000-8000-00000000000b', C = 'cccccccc-0000-4000-8000-00000000000c';
@@ -20,21 +21,24 @@ const tables: Tables = { chat_messages: messages,
   user_favorites: Array.from({ length: 20 }, () => ({ user_id: B, created_at: range.from })),
 };
 
+// Uma única instância PGlite por arquivo; cada `run` só troca as linhas das tabelas.
+// Subir uma instância por chamada (38 vezes aqui, 4 num único `it`) estourava o timeout
+// de 5 s no runner de CI de 2 vCPUs quando outros arquivos PGlite rodavam em paralelo.
+let sharedDb: PGlite;
+beforeAll(async () => { sharedDb = await aggregatesDb({}); }, 60000);
+afterAll(async () => { await sharedDb?.close(); });
+
 async function run(entry: string, body: unknown, data: Tables = tables, options: { admin?: boolean; failRpc?: string } = {}) {
-  const db = await aggregatesDb(data);
-  try {
-    const { client, rpcCalls, tableCalls } = aggregatesClient(db, { admin: options.admin ?? true });
-    if (options.failRpc) client.rpc = async (fn: string) => fn === 'is_backoffice_admin'
-      ? { data: true, error: null } : { data: null, error: { message: options.failRpc } };
-    const app = edgeHarness('supabase/functions/' + entry + '/index.ts', client);
-    const request = typeof body === 'string'
-      ? new Request('https://example.test', { method: 'POST', headers: { Authorization: 'Bearer test-only' }, body })
-      : edgeRequest(body);
-    const response = await app.handler(request);
-    return { response, text: await response.text(), rpcCalls, tableCalls, createClient: app.createClient };
-  } finally {
-    await db.close();
-  }
+  await seedAggregates(sharedDb, data);
+  const { client, rpcCalls, tableCalls } = aggregatesClient(sharedDb, { admin: options.admin ?? true });
+  if (options.failRpc) client.rpc = async (fn: string) => fn === 'is_backoffice_admin'
+    ? { data: true, error: null } : { data: null, error: { message: options.failRpc } };
+  const app = edgeHarness('supabase/functions/' + entry + '/index.ts', client);
+  const request = typeof body === 'string'
+    ? new Request('https://example.test', { method: 'POST', headers: { Authorization: 'Bearer test-only' }, body })
+    : edgeRequest(body);
+  const response = await app.handler(request);
+  return { response, text: await response.text(), rpcCalls, tableCalls, createClient: app.createClient };
 }
 const json = (result: { text: string }) => JSON.parse(result.text);
 
