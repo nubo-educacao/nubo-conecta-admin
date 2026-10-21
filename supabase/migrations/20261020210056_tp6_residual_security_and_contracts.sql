@@ -124,9 +124,18 @@ BEGIN
     WHERE po.institution_id=p_institution_id
       AND jsonb_typeof(sa.eligibility_results)='array'
       AND jsonb_array_length(CASE WHEN jsonb_typeof(sa.eligibility_results)='array' THEN sa.eligibility_results ELSE '[]'::jsonb END)>0
-      AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(
+      -- Match the existing UI contract: grouped criteria belong to this
+      -- opportunity; flat legacy criteria must each contain boolean true.
+      AND CASE WHEN sa.eligibility_results->0 ? 'partner_id' THEN
+        EXISTS (SELECT 1 FROM jsonb_array_elements(
+          CASE WHEN jsonb_typeof(sa.eligibility_results)='array' THEN sa.eligibility_results ELSE '[]'::jsonb END
+        ) elem WHERE elem->>'partner_id'=sa.partner_id::text
+          AND jsonb_typeof(elem->'total_criteria')='number'
+          AND elem->'total_criteria'>'0'::jsonb
+          AND elem->'met_criteria'=elem->'total_criteria')
+      ELSE NOT EXISTS (SELECT 1 FROM jsonb_array_elements(
         CASE WHEN jsonb_typeof(sa.eligibility_results)='array' THEN sa.eligibility_results ELSE '[]'::jsonb END
-      ) elem WHERE (elem->>'met')::boolean=false));
+      ) elem WHERE elem->'met' IS DISTINCT FROM 'true'::jsonb) END);
 END;
 $$;
 REVOKE ALL ON FUNCTION public.get_eligible_count_by_institution(uuid) FROM PUBLIC,anon,authenticated;

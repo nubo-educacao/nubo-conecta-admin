@@ -114,3 +114,26 @@ it('prevents ordinary users from modifying agent examples and allows admins', as
   await asUser('authenticated',id(1),'INSERT INTO learning_examples VALUES (gen_random_uuid(),false)');
   expect((await asUser('authenticated',id(1),'SELECT * FROM learning_examples')).rows).toHaveLength(3);
 });
+
+it('counts only explicitly satisfied flat or own-partner grouped criteria', async () => {
+  const cases: Array<[unknown[], number]> = [
+    [[{ met: true }], 1], [[{ met: false }], 0], [[{ met: null }], 0], [[{}], 0],
+    [[{ met: 'true' }], 0], [[{ met: true }, { met: null }], 0], [[], 0],
+    [[{ partner_id: id(10), total_criteria: 3, met_criteria: 0 }], 0],
+    [[{ partner_id: id(10), total_criteria: 3, met_criteria: 3 }], 1],
+    [[{ partner_id: id(11), total_criteria: 3, met_criteria: 3 }], 0],
+    [[{ partner_id: id(10), total_criteria: 0, met_criteria: 0 }], 0],
+    [[{ partner_id: id(10), total_criteria: null, met_criteria: null }], 0],
+    [[{ partner_id: id(10), total_criteria: 3, met_criteria: 2 },
+      { partner_id: id(11), total_criteria: 3, met_criteria: 3 }], 0],
+  ];
+  await db.exec('BEGIN');
+  try {
+    for (const [results, expected] of cases) {
+      await db.query('UPDATE student_applications SET eligibility_results=$1 WHERE id=$2',
+        [JSON.stringify(results), id(30)]);
+      expect((await asUser('authenticated',id(2),`SELECT get_eligible_count_by_institution('${id(20)}') n`)).rows[0],
+        JSON.stringify(results)).toMatchObject({ n: expected });
+    }
+  } finally { await db.exec('ROLLBACK'); }
+});
