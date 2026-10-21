@@ -1,18 +1,19 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Activity, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { StudentProfile } from "@/services/studentsService";
 
 interface StudentTableProps {
     students: StudentProfile[];
     onViewDetails: (student: StudentProfile) => void;
+    onViewActivity?: (student: StudentProfile) => void;
     sortBy?: string;
     sortOrder?: string;
     onSort?: (field: string) => void;
 }
 
-export function StudentTable({ students, onViewDetails, sortBy, sortOrder, onSort }: StudentTableProps) {
+export function StudentTable({ students, onViewDetails, onViewActivity, sortBy, sortOrder, onSort }: StudentTableProps) {
     const renderSortIcon = (field: string) => {
         if (sortBy !== field) return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/30" />;
         return sortOrder === "asc" ? (
@@ -120,6 +121,9 @@ export function StudentTable({ students, onViewDetails, sortBy, sortOrder, onSor
                                         <Eye className="h-4 w-4" />
                                         Ver detalhes
                                     </Button>
+                                    {onViewActivity && <Button variant="ghost" size="sm" className="gap-2" onClick={() => onViewActivity(student)}>
+                                        <Activity className="h-4 w-4" /> Ver atividade
+                                    </Button>}
                                 </TableCell>
                             </TableRow>
                         ))

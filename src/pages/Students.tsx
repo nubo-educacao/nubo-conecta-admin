@@ -5,6 +5,7 @@ import { Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StudentTable } from "@/components/students/StudentTable";
 import { StudentDetailsModal } from "@/components/students/StudentDetailsModal";
+import { StudentActivityModal } from "@/components/students/StudentActivityModal";
 import { StudentFilterModal } from "@/components/students/StudentFilterModal";
 import { StudentStats } from "@/components/students/StudentStats";
 import { getStudents, getStudentStats, StudentProfile, importNuboStudents, StudentFilters } from "@/services/studentsService";
@@ -17,6 +18,8 @@ import { StudentExportButton } from "@/components/students/StudentExportButton";
 export default function Students() {
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+    const [activityStudent, setActivityStudent] = useState<StudentProfile | null>(null);
 
     // Filter State
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -163,6 +166,7 @@ export default function Students() {
                 ) : <StudentTable
                     students={students}
                     onViewDetails={handleViewDetails}
+                    onViewActivity={setActivityStudent}
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={handleSort}
@@ -195,6 +199,13 @@ export default function Students() {
                 isOpen={isDialogOpen}
                 onOpenChange={setIsDialogOpen}
                 studentId={selectedStudentId}
+            />
+
+            <StudentActivityModal
+                isOpen={activityStudent !== null}
+                onOpenChange={open => { if (!open) setActivityStudent(null); }}
+                studentId={activityStudent?.id ?? null}
+                studentName={activityStudent?.full_name}
             />
 
             <StudentFilterModal
