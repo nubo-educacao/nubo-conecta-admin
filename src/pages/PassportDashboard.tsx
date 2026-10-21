@@ -17,23 +17,15 @@ import {
   Line,
   LabelList
 } from "recharts";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getPartnersList, getInstitutionsList } from "@/services/applicationsService";
 import {
-  getPartnerFunnel,
   getPartnerApplicationBuckets,
   getStudentApplicationsOverTime,
   getAdminFunnelUsers
 } from "@/services/passportDashboardService";
 import { Loader2, Download } from "lucide-react";
+import { PartnerFunnelCard } from "@/components/b2b/PartnerFunnelCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -75,7 +67,6 @@ const CustomDropBadge = (props: any) => {
 export default function PassportDashboard() {
   const [partnerFilter, setPartnerFilter] = React.useState<string>("all");
   const [daysFilter, setDaysFilter] = React.useState<number | null>(30);
-  const [funnelInstitutionFilter, setFunnelInstitutionFilter] = React.useState("all");
   const [isExporting, setIsExporting] = React.useState(false);
 
   const { data: partnersData } = useQuery({
@@ -84,11 +75,6 @@ export default function PassportDashboard() {
   });
 
   const { data: institutionsData } = useQuery({ queryKey: ["partnerInstitutionsList"], queryFn: getInstitutionsList });
-
-  const { data: partnerFunnelData, isLoading: isLoadingPartnerFunnel, isError: isFunnelError } = useQuery({
-    queryKey: ["partnerFunnel", "admin", funnelInstitutionFilter, daysFilter],
-    queryFn: () => getPartnerFunnel(funnelInstitutionFilter, daysFilter),
-  });
 
   const { data: bucketsData, isLoading: isLoadingBuckets } = useQuery({
     queryKey: ["partnerApplicationBuckets"],
@@ -174,7 +160,7 @@ export default function PassportDashboard() {
     }
   };
 
-  if (isLoadingPartnerFunnel || isLoadingBuckets || isLoadingOverTime) {
+  if (isLoadingBuckets || isLoadingOverTime) {
     return (
       <div className="flex justify-center items-center h-full min-h-[500px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -275,56 +261,7 @@ export default function PassportDashboard() {
           </CardContent>
         </Card>
 
-        {/* Tabela de Conversão de Parceiros */}
-        <Card className="col-span-1 lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Funil por Parceiro Institucional</CardTitle>
-            <CardDescription>Volumes por instituição no período selecionado. Conclusão reflete candidaturas submetidas ou redirecionadas; cliques e pessoas são métricas distintas. A taxa mede a conclusão das candidaturas iniciadas, sem presumir sequência de aquisição por clique.</CardDescription>
-            <Select value={funnelInstitutionFilter} onValueChange={setFunnelInstitutionFilter}>
-              <SelectTrigger className="w-[250px]" aria-label="Instituição do funil"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">Todas as instituições parceiras</SelectItem>
-                {institutionsData?.map(i => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Parceiro</TableHead>
-                  <TableHead className="text-right">Cliques (eventos)</TableHead>
-                  <TableHead className="text-right">Usuários que clicaram</TableHead>
-                  <TableHead className="text-right">Iniciadas</TableHead>
-                  <TableHead className="text-right">Concluídas</TableHead>
-                  <TableHead className="text-right">Tx Conversão (Iniciada ➔ Concluída)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {partnerFunnelData?.map((row) => (
-                  <TableRow key={row.partner_id}>
-                    <TableCell className="font-medium">{row.partner_name || 'Desconhecido'}</TableCell>
-                    <TableCell className="text-right">{row.total_card_clicks}</TableCell>
-                    <TableCell className="text-right">{row.total_unique_clicks}</TableCell>
-                    <TableCell className="text-right">{row.total_applications_started}</TableCell>
-                    <TableCell className="text-right">{row.total_applications_completed}</TableCell>
-                    <TableCell className="text-right">
-                      {row.total_applications_started > 0
-                        ? `${((row.total_applications_completed / row.total_applications_started) * 100).toFixed(1)}%`
-                        : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {(!partnerFunnelData || partnerFunnelData.length === 0) && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground" role={isFunnelError ? "alert" : undefined}>
-                      {isFunnelError ? "Não foi possível carregar o funil. Verifique seu acesso e tente novamente." : "Nenhum dado encontrado."}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <PartnerFunnelCard institutions={institutionsData} />
       </div>
     </div>
   );

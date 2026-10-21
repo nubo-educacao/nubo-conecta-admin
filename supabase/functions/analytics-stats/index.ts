@@ -1,9 +1,20 @@
 // Restored from deployed v106; corrected user-only activity and real period comparisons.
+// NUB-RD-93: counts and the first-touch cut run in SQL (cc_stats_aggregate); this
+// Edge only authorizes, validates and shapes the response (same keys and math).
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { authorizeBackoffice, corsHeaders, jsonResponse, periods, change, fetchRows, sessionCounts,
-  type AnalyticsRange, type UserMessage } from '../_shared/command-center.ts'
-import { fetchUserMessageStats } from './user-message-stats.ts'
-import { parseAttributionFilter, resolveAttributedUserIds, keepAllowed, isAttributionFilterError } from '../_shared/attribution-filter.ts'
+import { authorizeBackoffice, corsHeaders, jsonResponse, periods, change, callAggregate,
+  type AnalyticsRange } from '../_shared/command-center.ts'
+import { parseAttributionFilter, attributionRpcArgs, isAttributionFilterError } from '../_shared/attribution-filter.ts'
+
+interface StatsAggregate {
+  total_registered: number | null
+  current_messages: number; previous_messages: number; history_messages: number | null
+  message_users: number; previous_message_users: number
+  catalog_users: number; previous_catalog_users: number
+  current_favorites: number; previous_favorites: number; history_favorites: number | null
+  power_users: number; previous_power_users: number
+  power_users_list: { user_id: string; user_name: string; access_count: number }[]
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -14,60 +25,30 @@ Deno.serve(async (req: Request) => {
     const { from, to, previousFrom } = periods(payload?.dateRange)
     const attribution = parseAttributionFilter(payload)
     const db = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
-    // Recorte first-touch: null = sem filtro, e tudo abaixo segue exatamente como antes.
-    const allowed = await resolveAttributedUserIds(db, attribution)
-    const [registered, rawMessages, rawFavorites, rawPreferences, profiles, unfilteredVolume, allTimeMessages] = await Promise.all([
-      allowed ? Promise.resolve(null) : db.auth.admin.listUsers({ page: 1, perPage: 1 }),
-      fetchRows<UserMessage>(db, 'chat_messages', 'user_id, created_at', query =>
-        query.eq('sender', 'user').gte('created_at', previousFrom.toISOString()).lt('created_at', to.toISOString())),
-      fetchRows<{ user_id: string; created_at: string }>(db, 'user_favorites', 'user_id, created_at'),
-      fetchRows<{ user_id: string; updated_at: string }>(db, 'user_preferences', 'user_id, updated_at', query =>
-        query.gte('updated_at', previousFrom.toISOString()).lt('updated_at', to.toISOString())),
-      fetchRows<{ id: string; full_name: string }>(db, 'user_profiles', 'id, full_name'),
-      allowed ? Promise.resolve(null) : fetchUserMessageStats(db, payload?.dateRange),
-      // Sem período, "Total de Mensagens" é o histórico; com recorte, o histórico do recorte.
-      allowed && !payload?.dateRange
-        ? fetchRows<UserMessage>(db, 'chat_messages', 'user_id, created_at', query => query.eq('sender', 'user'))
-        : Promise.resolve(null),
+    // Sem recorte, "cadastros" continua vindo do Auth; com recorte, perfis do recorte.
+    const [registered, stats] = await Promise.all([
+      attribution ? Promise.resolve(null) : db.auth.admin.listUsers({ page: 1, perPage: 1 }),
+      callAggregate<StatsAggregate>(db, 'cc_stats_aggregate', {
+        p_from: from.toISOString(), p_to: to.toISOString(), p_prev_from: previousFrom.toISOString(),
+        // Sem período, "Total de Mensagens/Favoritos" é o histórico (do recorte, se houver).
+        p_with_history: !payload?.dateRange,
+        ...attributionRpcArgs(attribution),
+      }),
     ])
-    if (!allowed && (registered?.error || typeof registered?.data?.total !== 'number')) throw new Error('Contagem de usuários indisponível')
-    const messages = keepAllowed(rawMessages, allowed, 'user_id')
-    const favorites = keepAllowed(rawFavorites, allowed, 'user_id')
-    const preferences = keepAllowed(rawPreferences, allowed, 'user_id')
-    const inWindow = (timestamp: string, start: Date, end: Date) => Date.parse(timestamp) >= start.getTime() && Date.parse(timestamp) < end.getTime()
-    const currentMessages = messages.filter(message => inWindow(message.created_at, from, to))
-    const previousMessages = messages.filter(message => inWindow(message.created_at, previousFrom, from))
-    const activity = (rows: UserMessage[], start: Date, end: Date) => {
-      const messageUsers = new Set(rows.map(row => row.user_id).filter(Boolean))
-      const catalogUsers = new Set<string>()
-      for (const row of favorites) if (row.user_id && inWindow(row.created_at, start, end) && !messageUsers.has(row.user_id)) catalogUsers.add(row.user_id)
-      for (const row of preferences) if (row.user_id && inWindow(row.updated_at, start, end) && !messageUsers.has(row.user_id)) catalogUsers.add(row.user_id)
-      return { messageUsers: messageUsers.size, catalogUsers: catalogUsers.size, active: messageUsers.size + catalogUsers.size }
-    }
-    const current = activity(currentMessages, from, to), previous = activity(previousMessages, previousFrom, from)
-    const currentSessions = sessionCounts(currentMessages), previousSessions = sessionCounts(previousMessages)
-    const names = new Map(profiles.map(profile => [profile.id, profile.full_name]))
-    const powerUsersList = [...currentSessions].filter(([, count]) => count >= 2)
-      .map(([id, count]) => ({ userId: id, userName: names.get(id) || 'Usuário sem perfil', userPhone: '', accessCount: count }))
-      .sort((a, b) => b.accessCount - a.accessCount || a.userId.localeCompare(b.userId))
-    const previousPowerUsers = [...previousSessions.values()].filter(count => count >= 2).length
-    const currentFavorites = favorites.filter(row => inWindow(row.created_at, from, to)).length
-    const previousFavorites = favorites.filter(row => inWindow(row.created_at, previousFrom, from)).length
-    // Com recorte: cadastros = perfis do recorte; volume de mensagens contado nas
-    // linhas já recortadas (mesma regra sender=user e mesma janela do helper).
-    const volume = !allowed ? unfilteredVolume : {
-      totalMessages: payload?.dateRange ? currentMessages.length : keepAllowed(allTimeMessages ?? [], allowed, 'user_id').length,
-      messagesChange: change(currentMessages.length, previousMessages.length),
-    }
-    const totalRegistered = allowed ? profiles.filter(profile => allowed.has(profile.id)).length : registered.data.total
+    if (!attribution && (registered?.error || typeof registered?.data?.total !== 'number')) throw new Error('Contagem de usuários indisponível')
+    const active = stats.message_users + stats.catalog_users
+    const previousActive = stats.previous_message_users + stats.previous_catalog_users
     return jsonResponse({
-      totalRegistered,
-      activeUsers: current.active, activeUsersWithMessages: current.messageUsers, catalogUsers: current.catalogUsers,
-      activeUsersChange: change(current.active, previous.active), catalogUsersChange: change(current.catalogUsers, previous.catalogUsers),
-      ...volume, totalFavorites: payload?.dateRange ? currentFavorites : favorites.length,
-      favoritesChange: change(currentFavorites, previousFavorites),
-      powerUsers: powerUsersList.length, powerUsersChange: change(powerUsersList.length, previousPowerUsers),
-      powerUsersList: powerUsersList.slice(0, 50),
+      totalRegistered: attribution ? stats.total_registered : registered.data.total,
+      activeUsers: active, activeUsersWithMessages: stats.message_users, catalogUsers: stats.catalog_users,
+      activeUsersChange: change(active, previousActive), catalogUsersChange: change(stats.catalog_users, stats.previous_catalog_users),
+      totalMessages: payload?.dateRange ? stats.current_messages : stats.history_messages,
+      messagesChange: change(stats.current_messages, stats.previous_messages),
+      totalFavorites: payload?.dateRange ? stats.current_favorites : stats.history_favorites,
+      favoritesChange: change(stats.current_favorites, stats.previous_favorites),
+      powerUsers: stats.power_users, powerUsersChange: change(stats.power_users, stats.previous_power_users),
+      powerUsersList: stats.power_users_list.map(user =>
+        ({ userId: user.user_id, userName: user.user_name, userPhone: '', accessCount: user.access_count })),
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Consulta indisponível'
