@@ -1,371 +1,85 @@
-import React, { useState } from "react";
-import { useFewShotExamples } from "@/hooks/useAgentConfig";
-import { useCloudinhaStarters } from "@/hooks/useAgentConfig";
-import { FewShotExample, CreateFewShotDTO } from "@/services/fewShotService";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { BookOpen, Plus, Pencil, Trash2, Loader2, Eye } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState } from 'react';
+import { useFewShotExamples } from '@/hooks/useAgentConfig';
+import type { FewShotExample, CreateFewShotDTO } from '@/services/fewShotService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Loader2, Pencil, Trash2, Plus } from 'lucide-react';
 
-const CATEGORIES = ["geral", "prouni", "sisu", "match", "candidatura", "perfil", "parceiro"];
-const AVAILABLE_TOOLS = [
-  "query_educational_catalog",
-  "get_student_context",
-  "download_knowledge_document",
-];
-
-const EMPTY_FORM: CreateFewShotDTO = {
-  starter_id: null,
-  category: "geral",
-  user_message: "",
-  expected_tools: [],
-  expected_response: "",
-  is_active: true,
-  sort_order: 0,
+const empty: CreateFewShotDTO = {
+  intent_category: '', input_query: '', ideal_output: '', reasoning: '', is_active: true,
 };
 
-function formatPreview(example: CreateFewShotDTO, index = 1): string {
-  const tools = example.expected_tools.length > 0
-    ? example.expected_tools.join(", ")
-    : "(nenhuma)";
-  return `### Exemplo ${index}
-**Usuário:** "${example.user_message}"
-**Ferramentas:** ${tools}
-**Resposta esperada:** "${example.expected_response}"`;
-}
-
 export default function FewShotManager() {
-  const { examples, isLoading, isError, createExample, updateExample, deleteExample } =
-    useFewShotExamples();
-  const { starters } = useCloudinhaStarters();
-
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const { examples, isLoading, isError, refetch, createExample, updateExample, deleteExample } = useFewShotExamples();
+  const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<CreateFewShotDTO>(EMPTY_FORM);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const openCreate = () => {
-    setEditingId(null);
-    setForm({ ...EMPTY_FORM, sort_order: examples.length });
-    setDialogOpen(true);
-  };
-
-  const openEdit = (ex: FewShotExample) => {
-    setEditingId(ex.id);
-    setForm({
-      starter_id: ex.starter_id,
-      category: ex.category,
-      user_message: ex.user_message,
-      expected_tools: ex.expected_tools,
-      expected_response: ex.expected_response,
-      is_active: ex.is_active,
-      sort_order: ex.sort_order,
-    });
-    setDialogOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.user_message.trim() || !form.expected_response.trim()) return;
-    setIsSaving(true);
+  const [form, setForm] = useState<CreateFewShotDTO>(empty);
+  const [saving, setSaving] = useState(false);
+  function edit(example?: FewShotExample) {
+    setEditingId(example?.id ?? null);
+    setForm(example ? {
+      intent_category: example.intent_category, input_query: example.input_query,
+      ideal_output: example.ideal_output, reasoning: example.reasoning, is_active: example.is_active,
+    } : { ...empty });
+    setOpen(true);
+  }
+  async function save() {
+    if (!form.input_query.trim() || !form.ideal_output.trim()) return;
+    setSaving(true);
     try {
-      if (editingId) {
-        await updateExample({ id: editingId, dto: form });
-      } else {
-        await createExample(form);
-      }
-      setDialogOpen(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Excluir este few-shot example?")) return;
-    await deleteExample(id);
-  };
-
-  const toggleTool = (tool: string) => {
-    setForm((prev) => ({
-      ...prev,
-      expected_tools: prev.expected_tools.includes(tool)
-        ? prev.expected_tools.filter((t) => t !== tool)
-        : [...prev.expected_tools, tool],
-    }));
-  };
-
-  const starterLabel = (id: string | null) => {
-    if (!id) return "Nenhum";
-    const s = starters.find((s) => s.id === id);
-    return s ? s.page_route : id;
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+      if (editingId) await updateExample({ id: editingId, dto: form });
+      else await createExample(form);
+      setOpen(false);
+    } catch {
+      // The mutation hook reports the error; keep the unsaved form available.
+    } finally { setSaving(false); }
   }
-
-  if (isError) {
-    return (
-      <div className="text-red-500 p-4 border border-red-200 bg-red-50 rounded-lg">
-        Erro ao carregar few-shot examples. Tente atualizar a página.
-      </div>
-    );
+  async function remove(id: string) {
+    if (!confirm('Excluir este exemplo?')) return;
+    try { await deleteExample(id); } catch { /* mutation hook reports failure */ }
   }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-6 w-6 text-primary" />
-          <h2 className="text-lg font-semibold">Few-Shot Examples</h2>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Example
-        </Button>
-      </div>
-
-      <p className="text-sm text-muted-foreground">
-        Examples de conversação injetados no system prompt para calibrar o comportamento da
-        Cloudinha. Limitado a ~10 examples (cap de ~2000 tokens). Ordenados por{" "}
-        <code className="text-xs bg-muted px-1 rounded">sort_order</code>.
-      </p>
-
-      {/* List */}
-      <div className="grid gap-3">
-        {examples.map((ex, i) => (
-          <Card
-            key={ex.id}
-            className={cn("transition-all hover:border-primary/50", !ex.is_active && "opacity-50")}
-          >
-            <CardHeader className="py-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className="text-xs bg-primary/5">
-                    {ex.category}
-                  </Badge>
-                  {ex.starter_id && (
-                    <Badge variant="secondary" className="text-xs">
-                      ↗ {starterLabel(ex.starter_id)}
-                    </Badge>
-                  )}
-                  {ex.expected_tools.map((t) => (
-                    <Badge key={t} variant="outline" className="text-xs font-mono text-muted-foreground">
-                      {t}
-                    </Badge>
-                  ))}
-                  {!ex.is_active && (
-                    <Badge variant="secondary" className="text-xs">Inativo</Badge>
-                  )}
-                  <span className="text-xs text-muted-foreground">#{i + 1}</span>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(ex)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(ex.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 pb-3 border-t bg-muted/10">
-              <p className="text-sm font-medium text-foreground/80 truncate">
-                👤 {ex.user_message}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                🤖 {ex.expected_response}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-        {examples.length === 0 && (
-          <div className="text-center p-8 border border-dashed rounded-lg text-muted-foreground">
-            Nenhum few-shot example cadastrado. Adicione ao menos 1 por categoria de starter.
-          </div>
-        )}
-      </div>
-
-      {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingId ? "Editar Few-Shot Example" : "Novo Few-Shot Example"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {/* Category + Starter */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Starter Vinculado (opcional)</Label>
-                <Select
-                  value={form.starter_id ?? "none"}
-                  onValueChange={(v) =>
-                    setForm((p) => ({ ...p, starter_id: v === "none" ? null : v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
-                    {starters.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.page_route}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* User message */}
-            <div className="space-y-2">
-              <Label>Mensagem do Usuário</Label>
-              <Textarea
-                rows={2}
-                placeholder="Ex: Quais bolsas do ProUni estão abertas?"
-                value={form.user_message}
-                onChange={(e) => setForm((p) => ({ ...p, user_message: e.target.value }))}
-              />
-            </div>
-
-            {/* Tools */}
-            <div className="space-y-2">
-              <Label>Ferramentas Esperadas</Label>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_TOOLS.map((tool) => (
-                  <button
-                    key={tool}
-                    type="button"
-                    onClick={() => toggleTool(tool)}
-                    className={cn(
-                      "text-xs font-mono px-3 py-1.5 rounded-full border transition-colors",
-                      form.expected_tools.includes(tool)
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted-foreground border-border hover:border-primary/50"
-                    )}
-                  >
-                    {tool}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Expected response */}
-            <div className="space-y-2">
-              <Label>Resposta Esperada</Label>
-              <Textarea
-                rows={4}
-                placeholder="Descreva como a Cloudinha deve responder..."
-                value={form.expected_response}
-                onChange={(e) => setForm((p) => ({ ...p, expected_response: e.target.value }))}
-              />
-            </div>
-
-            {/* Sort order + Active */}
-            <div className="grid grid-cols-2 gap-4 items-center">
-              <div className="space-y-2">
-                <Label>Sort Order</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.sort_order}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="flex items-center gap-2 pt-6">
-                <Switch
-                  checked={form.is_active}
-                  onCheckedChange={(v) => setForm((p) => ({ ...p, is_active: v }))}
-                />
-                <Label>Ativo</Label>
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div className="pt-2 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onClick={() => setPreviewOpen((p) => !p)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                {previewOpen ? "Ocultar Preview" : "Preview no Prompt"}
-              </Button>
-              {previewOpen && (
-                <pre className="mt-3 text-xs bg-muted rounded-lg p-4 whitespace-pre-wrap font-mono">
-                  {formatPreview(form)}
-                </pre>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || !form.user_message.trim() || !form.expected_response.trim()}
-            >
-              {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+  if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (isError) return <div role="alert" className="space-y-3 p-4 border rounded-lg">
+    <p>Não foi possível carregar os exemplos.</p><Button onClick={() => refetch()}>Tentar novamente</Button>
+  </div>;
+  return <div className="space-y-6">
+    <div className="flex items-center justify-between gap-4">
+      <h2 className="text-lg font-semibold">Few-Shot Examples</h2>
+      <Button onClick={() => edit()}><Plus className="mr-2 h-4 w-4" />Novo exemplo</Button>
     </div>
-  );
+    <p className="text-sm text-muted-foreground">Exemplos de interação usados pela Cloudinha, do mais recente para o mais antigo.</p>
+    <div className="grid gap-3">{examples.map(example => <Card key={example.id}>
+      <CardContent className="pt-4 space-y-2">
+        <div className="flex justify-between gap-3">
+          <p className="text-sm text-muted-foreground">{example.intent_category || 'Sem categoria'} · {example.is_active ? 'Ativo' : 'Inativo'}</p>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" aria-label="Editar exemplo" onClick={() => edit(example)}><Pencil className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" aria-label="Excluir exemplo" onClick={() => remove(example.id)}><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        </div>
+        <p className="font-medium whitespace-pre-wrap">{example.input_query}</p>
+        <p className="text-sm whitespace-pre-wrap">{example.ideal_output}</p>
+        {example.reasoning && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{example.reasoning}</p>}
+      </CardContent>
+    </Card>)}</div>
+    {examples.length === 0 && <p className="p-8 border border-dashed rounded-lg text-muted-foreground">Nenhum exemplo cadastrado.</p>}
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogHeader><DialogTitle>{editingId ? 'Editar exemplo' : 'Novo exemplo'}</DialogTitle></DialogHeader>
+      <div className="space-y-4">
+        <div className="space-y-2"><Label htmlFor="example-category">Categoria</Label><Input id="example-category" value={form.intent_category ?? ''} onChange={e => setForm({ ...form, intent_category: e.target.value })} /></div>
+        <div className="space-y-2"><Label htmlFor="example-input">Mensagem do usuário</Label><Textarea id="example-input" rows={3} value={form.input_query} onChange={e => setForm({ ...form, input_query: e.target.value })} /></div>
+        <div className="space-y-2"><Label htmlFor="example-output">Resposta esperada</Label><Textarea id="example-output" rows={6} value={form.ideal_output} onChange={e => setForm({ ...form, ideal_output: e.target.value })} /></div>
+        <div className="space-y-2"><Label htmlFor="example-reasoning">Orientação do exemplo</Label><Textarea id="example-reasoning" rows={3} value={form.reasoning ?? ''} onChange={e => setForm({ ...form, reasoning: e.target.value })} /></div>
+        <div className="flex items-center gap-2"><Switch id="example-active" checked={form.is_active === true} onCheckedChange={is_active => setForm({ ...form, is_active })} /><Label htmlFor="example-active">Ativo</Label></div>
+      </div>
+      <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+        <Button onClick={save} disabled={saving || !form.input_query.trim() || !form.ideal_output.trim()}>Salvar</Button>
+      </DialogFooter>
+    </DialogContent></Dialog>
+  </div>;
 }

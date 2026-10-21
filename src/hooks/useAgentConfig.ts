@@ -13,7 +13,6 @@ import {
   createFewShotExample,
   updateFewShotExample,
   deleteFewShotExample,
-  reorderFewShotExamples,
   CreateFewShotDTO,
 } from "../services/fewShotService";
 import { toast } from "sonner";
@@ -88,14 +87,14 @@ export const useFewShotExamples = () => {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["few_shot_examples"],
+    queryKey: ["learning_examples"],
     queryFn: getFewShotExamples,
   });
 
   const createMutation = useMutation({
     mutationFn: (dto: CreateFewShotDTO) => createFewShotExample(dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
+      queryClient.invalidateQueries({ queryKey: ["learning_examples"] });
       toast.success("Few-shot example criado com sucesso.");
     },
     onError: (err: Error) => {
@@ -107,7 +106,7 @@ export const useFewShotExamples = () => {
     mutationFn: ({ id, dto }: { id: string; dto: Partial<CreateFewShotDTO> }) =>
       updateFewShotExample(id, dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
+      queryClient.invalidateQueries({ queryKey: ["learning_examples"] });
       toast.success("Few-shot example atualizado.");
     },
     onError: (err: Error) => {
@@ -118,21 +117,11 @@ export const useFewShotExamples = () => {
   const deleteMutation = useMutation({
     mutationFn: deleteFewShotExample,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
+      queryClient.invalidateQueries({ queryKey: ["learning_examples"] });
       toast.success("Few-shot example excluído.");
     },
     onError: (err: Error) => {
       toast.error("Erro ao excluir example: " + err.message);
-    },
-  });
-
-  const reorderMutation = useMutation({
-    mutationFn: reorderFewShotExamples,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["few_shot_examples"] });
-    },
-    onError: (err: Error) => {
-      toast.error("Erro ao reordenar: " + err.message);
     },
   });
 
@@ -143,6 +132,6 @@ export const useFewShotExamples = () => {
     createExample: createMutation.mutateAsync,
     updateExample: updateMutation.mutateAsync,
     deleteExample: deleteMutation.mutateAsync,
-    reorderExamples: reorderMutation.mutateAsync,
+    refetch: query.refetch,
   };
 };

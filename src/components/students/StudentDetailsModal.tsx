@@ -7,6 +7,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { getStudentDetails } from "@/services/studentsService";
 import { Loader2, User, Sparkles, Heart } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,11 +21,21 @@ interface StudentDetailsModalProps {
 }
 
 export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: StudentDetailsModalProps) {
-    const { data: details, isLoading } = useQuery({
-        queryKey: ["student-details", studentId],
-        queryFn: () => (studentId ? getStudentDetails(studentId) : Promise.reject("No ID")),
+    const [matchPage, setMatchPage] = useState(0);
+    const [activeTab, setActiveTab] = useState("perfil");
+    useEffect(() => { setMatchPage(0); setActiveTab("perfil"); }, [studentId, isOpen]);
+    const { data: details, isLoading, isFetching, refetch } = useQuery({
+        queryKey: ["student-details", studentId, matchPage],
+        queryFn: () => (studentId ? getStudentDetails(studentId, matchPage) : Promise.reject("No ID")),
         enabled: !!studentId && isOpen,
     });
+    const sourceWarning = (source: keyof NonNullable<NonNullable<typeof details>['source_errors']>) =>
+        details?.source_errors?.[source] ? (
+            <div role="alert" className="space-y-2 rounded-lg border p-3">
+                <p>{details.source_errors[source]}</p>
+                <Button variant="outline" size="sm" disabled={isFetching} onClick={() => refetch()}>Tentar novamente</Button>
+            </div>
+        ) : null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -40,16 +52,16 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                 ) : details ? (
-                    <Tabs defaultValue="perfil" className="w-full flex-1 flex flex-col overflow-hidden">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col overflow-hidden">
                         <TabsList className="grid w-full grid-cols-3 mb-6">
                             <TabsTrigger value="perfil" className="flex items-center justify-center gap-2 py-2.5">
                                 <User className="h-4 w-4" /> Perfil Geral
                             </TabsTrigger>
                             <TabsTrigger value="matchs" className="flex items-center justify-center gap-2 py-2.5">
-                                <Sparkles className="h-4 w-4 text-amber-500" /> Matchs ({details.total_matches || details.matches?.length || 0})
+                                <Sparkles className="h-4 w-4 text-amber-500" /> Matchs ({details.source_errors?.matches ? "?" : details.total_matches || details.matches?.length || 0})
                             </TabsTrigger>
                             <TabsTrigger value="favoritos" className="flex items-center justify-center gap-2 py-2.5">
-                                <Heart className="h-4 w-4 text-rose-500" /> Favoritos ({details.favorites?.length || 0})
+                                <Heart className="h-4 w-4 text-rose-500" /> Favoritos ({details.source_errors?.favorites ? "?" : details.favorites?.length || 0})
                             </TabsTrigger>
                         </TabsList>
 
@@ -59,6 +71,7 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                 {/* Profile Summary */}
                                 <section>
                                     <h3 className="text-base font-semibold mb-3 text-slate-800 dark:text-slate-200">Dados Pessoais</h3>
+                                    {sourceWarning('profile')}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-5 gap-x-6 p-5 border rounded-xl bg-slate-50/60 dark:bg-slate-900/40">
                                         <div>
                                             <span className="text-xs text-muted-foreground block mb-1">Nome</span>
@@ -94,6 +107,7 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                 {/* Preferences & Income */}
                                 <section>
                                     <h3 className="text-base font-semibold mb-3 text-slate-800 dark:text-slate-200">Preferências & Renda</h3>
+                                    {sourceWarning('preferences')}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-6 p-5 border rounded-xl bg-slate-50/60 dark:bg-slate-900/40">
                                         <div>
                                             <span className="text-xs text-muted-foreground block mb-1">Interesses de Curso</span>
@@ -161,7 +175,8 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                 {/* ENEM Scores */}
                                 <section>
                                     <h3 className="text-base font-semibold mb-3 text-slate-800 dark:text-slate-200">Notas do ENEM</h3>
-                                    {details.enem_scores.length === 0 ? (
+                                    {sourceWarning('enem_scores')}
+                                    {details.source_errors?.enem_scores ? null : details.enem_scores.length === 0 ? (
                                         <div className="p-4 border rounded-xl bg-slate-50/60 dark:bg-slate-900/40 text-sm text-muted-foreground">
                                             Nenhuma nota registrada.
                                         </div>
@@ -198,10 +213,11 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
 
                             {/* TAB 2: MATCHS */}
                             <TabsContent value="matchs" className="space-y-4 mt-0 pb-4">
+                                {sourceWarning('matches')}
                                 <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">Matchs Calculados</h3>
                                 <p className="text-sm text-muted-foreground">Oportunidades elegíveis calculadas pelo motor de recomendação.</p>
                                 <div className="p-5 border rounded-xl bg-slate-50/60 dark:bg-slate-900/40 text-sm">
-                                    {details.matches && details.matches.length > 0 ? (
+                                    {details.source_errors?.matches ? null : details.matches && details.matches.length > 0 ? (
                                         <div className="space-y-3">
                                             <p className="font-semibold text-emerald-600 dark:text-emerald-400">
                                                 {details.total_matches || details.matches.length} matchs encontrados
@@ -224,12 +240,20 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                                         <p className="text-muted-foreground">Nenhum match calculado no momento.</p>
                                     )}
                                 </div>
+                                {!details.source_errors?.matches && (
+                                    <div className="flex items-center justify-end gap-3">
+                                        <Button variant="outline" size="sm" disabled={matchPage === 0 || isFetching} onClick={() => setMatchPage(p => p - 1)}>Anterior</Button>
+                                        <span className="text-sm">Página {matchPage + 1} de {Math.max(1, Math.ceil(details.total_matches / 20))}</span>
+                                        <Button variant="outline" size="sm" disabled={(matchPage + 1) * 20 >= details.total_matches || isFetching} onClick={() => setMatchPage(p => p + 1)}>Próxima</Button>
+                                    </div>
+                                )}
                             </TabsContent>
 
                             {/* TAB 3: FAVORITOS */}
                             <TabsContent value="favoritos" className="space-y-4 mt-0 pb-4">
                                 <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">Oportunidades Favoritadas</h3>
-                                {details.favorites.length === 0 ? (
+                                {sourceWarning('favorites')}
+                                {details.source_errors?.favorites ? null : details.favorites.length === 0 ? (
                                     <div className="p-5 border rounded-xl bg-slate-50/60 dark:bg-slate-900/40 text-sm text-muted-foreground">
                                         Nenhum favorito registrado.
                                     </div>
@@ -253,8 +277,9 @@ export function StudentDetailsModal({ isOpen, onOpenChange, studentId }: Student
                         </ScrollArea>
                     </Tabs>
                 ) : (
-                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                    <div role="alert" className="flex h-full flex-col gap-3 items-center justify-center text-muted-foreground">
                         Não foi possível carregar os detalhes.
+                        <Button variant="outline" disabled={isFetching} onClick={() => refetch()}>Tentar novamente</Button>
                     </div>
                 )}
             </DialogContent>
