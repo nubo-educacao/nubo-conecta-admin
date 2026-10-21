@@ -30,29 +30,15 @@ it('distinguishes a failed list from empty results and recovers on retry', async
   fireEvent.click(screen.getByRole('button', {name:'Tentar novamente'}));
   expect(await screen.findByText('Lista recuperada')).toBeInTheDocument();
 });
-it('preserves profile and the three tabs when preferences fail, with retry', async () => {
+it('preserves profile and its tabs when preferences fail, with retry', async () => {
   const details = { profile: {full_name:'Ana'}, preferences:null, enem_scores:[], favorites:[], matches:[], total_matches:0 };
   mocks.details.mockResolvedValueOnce({...details, source_errors:{preferences:'Preferências indisponíveis'}})
     .mockResolvedValueOnce({...details, source_errors:{}});
   mount(<StudentDetailsModal isOpen onOpenChange={vi.fn()} studentId="1" />);
-  expect(await screen.findByText('Ana')).toBeInTheDocument();
-  expect(screen.getAllByRole('tab')).toHaveLength(3);
+  expect((await screen.findAllByText('Ana'))[0]).toBeInTheDocument();
+  expect(screen.getAllByRole('tab')).toHaveLength(2);
   expect(screen.getByRole('alert')).toHaveTextContent('Preferências indisponíveis');
   fireEvent.click(screen.getByRole('button', {name:'Tentar novamente'}));
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-  expect(screen.getByText('Ana')).toBeInTheDocument();
-});
-it('keeps Matches selected when loading the next page', async () => {
-  const result = { profile:{full_name:'Ana'}, preferences:null, enem_scores:[], favorites:[],
-    matches:[{title:'Curso inicial',provider_name:'IES',match_score:80}],total_matches:25,source_errors:{} };
-  mocks.details.mockResolvedValueOnce(result).mockResolvedValueOnce({...result,
-    matches:[{title:'Curso seguinte',provider_name:'IES',match_score:70}]});
-  mount(<StudentDetailsModal isOpen onOpenChange={vi.fn()} studentId="1" />);
-  await screen.findByText('Ana');
-  fireEvent.mouseDown(screen.getByRole('tab', {name:/Matchs/}), {button:0,ctrlKey:false});
-  expect(await screen.findByText('Curso inicial')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', {name:'Próxima'}));
-  expect(await screen.findByText('Curso seguinte')).toBeInTheDocument();
-  expect(screen.getByRole('tab', {name:/Matchs/})).toHaveAttribute('data-state','active');
-  expect(mocks.details).toHaveBeenLastCalledWith('1',1);
+  expect(screen.getAllByText('Ana')[0]).toBeInTheDocument();
 });

@@ -112,18 +112,18 @@ export function StudentTable({ students, onViewDetails, onViewActivity, sortBy, 
                                 <TableCell>{student.is_nubo_student ? "Sim" : "Não"}</TableCell>
                                 <TableCell>{student.created_at ? new Date(student.created_at).toLocaleDateString("pt-BR") : "N/A"}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => onViewDetails(student)}
-                                        className="gap-2"
-                                    >
-                                        <Eye className="h-4 w-4" />
-                                        Ver detalhes
-                                    </Button>
-                                    {onViewActivity && <Button variant="ghost" size="sm" className="gap-2" onClick={() => onViewActivity(student)}>
-                                        <Activity className="h-4 w-4" /> Ver atividade
-                                    </Button>}
+                                    <div className="flex flex-nowrap items-center justify-end gap-2">
+                                        <Button variant="outline" size="icon" aria-label="Ver perfil" title="Ver perfil"
+                                            className="h-9 w-9 shrink-0 rounded-lg border-border/80 text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                                            onClick={() => onViewDetails(student)}>
+                                            <Eye aria-hidden="true" className="h-4 w-4" />
+                                        </Button>
+                                        {onViewActivity && <Button variant="outline" size="icon" aria-label="Ver atividade" title="Ver atividade"
+                                            className="h-9 w-9 shrink-0 rounded-lg border-border/80 text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                                            onClick={() => onViewActivity(student)}>
+                                            <Activity aria-hidden="true" className="h-4 w-4" />
+                                        </Button>}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))

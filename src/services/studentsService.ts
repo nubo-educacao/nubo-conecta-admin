@@ -216,7 +216,7 @@ export interface StudentDetails {
 
 export type StudentDetailSource = 'profile' | 'preferences' | 'enem_scores' | 'favorites' | 'matches';
 
-export const getStudentDetails = async (userId: string, matchPage = 0): Promise<StudentDetails> => {
+export const getStudentDetails = async (userId: string, matchPage = 0, options: { includeMatches?: boolean } = {}): Promise<StudentDetails> => {
     const sources = ['profile', 'preferences', 'enem_scores', 'favorites', 'matches'] as const;
     const results = await Promise.allSettled([
         supabase.from("user_profiles").select("*").eq("id", userId).single(),
@@ -225,7 +225,8 @@ export const getStudentDetails = async (userId: string, matchPage = 0): Promise<
         supabase.from("user_favorites").select(`
             *, courses ( course_name ), partner_opportunities ( name ), institutions ( name )
         `).eq("user_id", userId),
-        supabase.rpc("get_student_matches_admin_page" as any, { p_profile_id: userId, p_page: matchPage, p_page_size: 20 }),
+        options.includeMatches === false ? Promise.resolve({ data: { matches: [], count: 0 }, error: null })
+            : supabase.rpc("get_student_matches_admin_page" as any, { p_profile_id: userId, p_page: matchPage, p_page_size: 20 }),
     ]);
     const source_errors: Partial<Record<StudentDetailSource, string>> = {};
     const values: Record<string, any> = {};

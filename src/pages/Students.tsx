@@ -16,7 +16,7 @@ import { useStudentFilters } from "@/hooks/useStudentFilters";
 import { StudentExportButton } from "@/components/students/StudentExportButton";
 
 export default function Students() {
-    const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const [activityStudent, setActivityStudent] = useState<StudentProfile | null>(null);
@@ -104,7 +104,7 @@ export default function Students() {
     };
 
     const handleViewDetails = (student: StudentProfile) => {
-        setSelectedStudentId(student.id);
+        setSelectedStudent(student);
         setIsDialogOpen(true);
     };
 
@@ -198,7 +198,9 @@ export default function Students() {
             <StudentDetailsModal
                 isOpen={isDialogOpen}
                 onOpenChange={setIsDialogOpen}
-                studentId={selectedStudentId}
+                studentId={selectedStudent?.id ?? null}
+                studentName={selectedStudent?.full_name}
+                onViewActivity={() => { setIsDialogOpen(false); setActivityStudent(selectedStudent); }}
             />
 
             <StudentActivityModal
@@ -206,6 +208,7 @@ export default function Students() {
                 onOpenChange={open => { if (!open) setActivityStudent(null); }}
                 studentId={activityStudent?.id ?? null}
                 studentName={activityStudent?.full_name}
+                onViewProfile={() => { setSelectedStudent(activityStudent); setActivityStudent(null); setIsDialogOpen(true); }}
             />
 
             <StudentFilterModal
