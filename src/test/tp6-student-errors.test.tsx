@@ -13,6 +13,7 @@ vi.mock('@/components/students/StudentTable', () => ({ StudentTable: ({students}
 vi.mock('@/components/students/StudentStats', () => ({ StudentStats: () => null }));
 vi.mock('@/components/students/StudentExportButton', () => ({ StudentExportButton: () => null }));
 vi.mock('@/components/students/StudentFilterModal', () => ({ StudentFilterModal: () => null }));
+vi.mock('@/components/students/StudentActivityModal', () => ({ StudentActivityModal: () => null }));
 beforeEach(() => {
   cleanup(); vi.clearAllMocks();
   mocks.stats.mockResolvedValue({});
