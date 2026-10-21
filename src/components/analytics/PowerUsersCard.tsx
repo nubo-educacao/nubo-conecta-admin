@@ -8,13 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { HelpCircle } from "lucide-react";
+import { InfoTooltip } from "@/components/analytics/InfoTooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -75,9 +69,10 @@ export function PowerUsersCard({ count, change, powerUsersList, dateRange }: Pow
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
+        {/* <button> centraliza o conteúdo na vertical; flex-col + justify-start alinha ao topo como os outros cards. */}
         <button type="button"
           className={cn(
-            "stat-card w-full text-left cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg",
+            "stat-card flex w-full flex-col justify-start text-left cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg",
             "before:bg-gradient-to-r before:from-chart-3 before:to-violet-400"
           )}
         >
@@ -85,16 +80,7 @@ export function PowerUsersCard({ count, change, powerUsersList, dateRange }: Pow
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
                 <p className="text-sm font-medium text-muted-foreground">Power Users</p>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs">
-                      <p className="text-xs">Usuários recorrentes com 2 ou mais sessões (no período selecionado; nova sessão após mais de 30 minutos sem mensagens do usuário). Clique para ver a lista.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <InfoTooltip label="Power Users">Usuários recorrentes com 2 ou mais sessões (no período selecionado; nova sessão após mais de 30 minutos sem mensagens do usuário). Clique no card para ver a lista.</InfoTooltip>
               </div>
               <p className="text-3xl font-bold font-display tracking-tight">
                 {count.toLocaleString()}

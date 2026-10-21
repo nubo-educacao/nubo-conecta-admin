@@ -3,13 +3,14 @@ import { Toaster as ToasterSonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import AdminLayout from "./components/layout/AdminLayout";
 import PartnerLayout from "./components/layout/PartnerLayout";
 
 // Pages — Visão Geral
 import Login from "./pages/Login";
 import Index from "./pages/Index";
+import Analytics from "./pages/Analytics";
 import AIInsights from "./pages/AIInsights";
 import NotFound from "./pages/NotFound";
 import AppCMS from "./pages/AppCMS";
@@ -58,6 +59,16 @@ import PartnerDashboard from "./pages/PartnerDashboard";
 
 const queryClient = new QueryClient();
 
+// A Sidebar só esconde o item; a rota confere a mesma permissão para que o
+// endereço digitado não conceda acesso a quem não a tem.
+function RequirePermission({ permission, children }: { permission: string; children: React.ReactNode }) {
+  const { permissions } = useAuth();
+  if (!permissions.includes(permission)) {
+    return <p role="alert" className="p-6 text-sm text-muted-foreground">Você não tem permissão para acessar esta página.</p>;
+  }
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -72,6 +83,7 @@ const App = () => (
             <Route element={<AdminLayout />}>
               {/* Visão Geral */}
               <Route path="/" element={<Index />} />
+              <Route path="/analytics" element={<RequirePermission permission="Dashboard"><Analytics /></RequirePermission>} />
               <Route path="/ai-insights" element={<AIInsights />} />
 
               {/* Inteligência (Cloudinha & Match) */}

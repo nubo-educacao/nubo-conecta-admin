@@ -7,6 +7,7 @@
 // = sem linha em user_attribution ou first_touch_link_id nulo, e é exclusivo
 // com campanha/divulgador. user_attribution tem PK em user_id: nunca multiplica.
 //
+// O recorte em si é feito em SQL pelas RPCs cc_*_aggregate (NUB-RD-93).
 // Sem import de propósito: roda em Deno e nos testes (vitest/edgeHarness).
 
 export interface AttributionFilterBody {
@@ -52,59 +53,11 @@ export function parseAttributionFilter(body: unknown): AttributionFilterBody | n
   return { ...(campaignId && { campaignId }), ...(channelId && { channelId }) }
 }
 
-// Paginação estável por coluna única; uma página com erro nunca vira recorte parcial.
-// deno-lint-ignore no-explicit-any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchAll<T>(db: any, table: string, fields: string, orderBy: string, filter?: (query: any) => any): Promise<T[]> {
-  const rows: T[] = []
-  for (let offset = 0; ; offset += 1000) {
-    let query = db.from(table).select(fields).order(orderBy, { ascending: true }).range(offset, offset + 999)
-    if (filter) query = filter(query)
-    const { data, error } = await query
-    if (error) throw new Error(error.message ?? 'Consulta indisponível')
-    if (!Array.isArray(data)) throw new Error('Resposta de consulta inválida')
-    rows.push(...data)
-    if (data.length < 1000) return rows
+/** Parâmetros p_filter_* das RPCs do Command Center (todos nulos = sem recorte). */
+export function attributionRpcArgs(filter: AttributionFilterBody | null) {
+  return {
+    p_filter_campaign_id: filter?.campaignId ?? null,
+    p_filter_channel_id: filter?.channelId ?? null,
+    p_filter_unattributed: filter?.unattributed ?? null,
   }
-}
-
-/**
- * Ids de usuário do recorte (service client), ou null quando não há filtro —
- * nesse caso nenhuma consulta é feita e o chamador mantém o comportamento atual.
- */
-// deno-lint-ignore no-explicit-any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function resolveAttributedUserIds(db: any, filter: AttributionFilterBody | null): Promise<Set<string> | null> {
-  if (!filter) return null
-  const firstTouches = () => fetchAll<{ user_id: string; first_touch_link_id: string | null }>(
-    db, 'user_attribution', 'user_id, first_touch_link_id', 'user_id',
-    query => query.not('first_touch_link_id', 'is', null))
-
-  if (filter.unattributed) {
-    const [attributed, profiles] = await Promise.all([
-      firstTouches(),
-      fetchAll<{ id: string }>(db, 'user_profiles', 'id', 'id'),
-    ])
-    const withFirstTouch = new Set(attributed.filter(row => row.first_touch_link_id).map(row => row.user_id))
-    return new Set(profiles.map(profile => profile.id).filter(id => !withFirstTouch.has(id)))
-  }
-
-  const links = await fetchAll<{ id: string }>(db, 'channel_links', 'id', 'id', query => {
-    if (filter.campaignId) query = query.eq('campaign_id', filter.campaignId)
-    if (filter.channelId) query = query.eq('channel_id', filter.channelId)
-    return query
-  })
-  if (links.length === 0) return new Set()
-  const linkIds = new Set(links.map(link => link.id))
-  const touches = await firstTouches()
-  return new Set(touches.filter(row => row.first_touch_link_id && linkIds.has(row.first_touch_link_id)).map(row => row.user_id))
-}
-
-/** Sem recorte devolve as mesmas linhas; com recorte, só as do conjunto (nulos saem). */
-export function keepAllowed<T>(rows: T[], allowed: Set<string> | null, key: keyof T): T[] {
-  if (!allowed) return rows
-  return rows.filter(row => {
-    const value = row[key]
-    return typeof value === 'string' && allowed.has(value)
-  })
 }
