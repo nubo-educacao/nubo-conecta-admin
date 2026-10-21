@@ -1,18 +1,19 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Activity, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { StudentProfile } from "@/services/studentsService";
 
 interface StudentTableProps {
     students: StudentProfile[];
     onViewDetails: (student: StudentProfile) => void;
+    onViewActivity?: (student: StudentProfile) => void;
     sortBy?: string;
     sortOrder?: string;
     onSort?: (field: string) => void;
 }
 
-export function StudentTable({ students, onViewDetails, sortBy, sortOrder, onSort }: StudentTableProps) {
+export function StudentTable({ students, onViewDetails, onViewActivity, sortBy, sortOrder, onSort }: StudentTableProps) {
     const renderSortIcon = (field: string) => {
         if (sortBy !== field) return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/30" />;
         return sortOrder === "asc" ? (
@@ -111,15 +112,18 @@ export function StudentTable({ students, onViewDetails, sortBy, sortOrder, onSor
                                 <TableCell>{student.is_nubo_student ? "Sim" : "Não"}</TableCell>
                                 <TableCell>{student.created_at ? new Date(student.created_at).toLocaleDateString("pt-BR") : "N/A"}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => onViewDetails(student)}
-                                        className="gap-2"
-                                    >
-                                        <Eye className="h-4 w-4" />
-                                        Ver detalhes
-                                    </Button>
+                                    <div className="flex flex-nowrap items-center justify-end gap-2">
+                                        <Button variant="outline" size="icon" aria-label="Ver perfil" title="Ver perfil"
+                                            className="h-9 w-9 shrink-0 rounded-lg border-border/80 text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                                            onClick={() => onViewDetails(student)}>
+                                            <Eye aria-hidden="true" className="h-4 w-4" />
+                                        </Button>
+                                        {onViewActivity && <Button variant="outline" size="icon" aria-label="Ver atividade" title="Ver atividade"
+                                            className="h-9 w-9 shrink-0 rounded-lg border-border/80 text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                                            onClick={() => onViewActivity(student)}>
+                                            <Activity aria-hidden="true" className="h-4 w-4" />
+                                        </Button>}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))

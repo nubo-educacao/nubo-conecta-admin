@@ -5,6 +5,7 @@ import { Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StudentTable } from "@/components/students/StudentTable";
 import { StudentDetailsModal } from "@/components/students/StudentDetailsModal";
+import { StudentActivityModal } from "@/components/students/StudentActivityModal";
 import { StudentFilterModal } from "@/components/students/StudentFilterModal";
 import { StudentStats } from "@/components/students/StudentStats";
 import { getStudents, getStudentStats, StudentProfile, importNuboStudents, StudentFilters } from "@/services/studentsService";
@@ -15,8 +16,10 @@ import { useStudentFilters } from "@/hooks/useStudentFilters";
 import { StudentExportButton } from "@/components/students/StudentExportButton";
 
 export default function Students() {
-    const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+    const [activityStudent, setActivityStudent] = useState<StudentProfile | null>(null);
 
     // Filter State
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -30,7 +33,7 @@ export default function Students() {
     const [sortOrder, setSortOrder] = useState("desc");
     const pageSize = 20;
 
-    const { data, isLoading } = useQuery({
+    const { data, isLoading, isError, refetch, isFetching } = useQuery({
         queryKey: ["students", page, pageSize, filters, sortBy, sortOrder],
         queryFn: () => getStudents({ page, pageSize, filters, sortBy, sortOrder }),
         placeholderData: (previousData) => previousData,
@@ -101,7 +104,7 @@ export default function Students() {
     };
 
     const handleViewDetails = (student: StudentProfile) => {
-        setSelectedStudentId(student.id);
+        setSelectedStudent(student);
         setIsDialogOpen(true);
     };
 
@@ -155,13 +158,19 @@ export default function Students() {
                         </Button>
                     </div>
                 </div>
-                <StudentTable
+                {isError ? (
+                    <div role="alert" className="space-y-3 rounded-lg border p-4">
+                        <p>Não foi possível carregar os estudantes. Tente novamente.</p>
+                        <Button variant="outline" disabled={isFetching} onClick={() => refetch()}>Tentar novamente</Button>
+                    </div>
+                ) : <StudentTable
                     students={students}
                     onViewDetails={handleViewDetails}
+                    onViewActivity={setActivityStudent}
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={handleSort}
-                />
+                />}
             </div>
 
             <div className="flex items-center justify-end space-x-2 py-4">
@@ -169,18 +178,18 @@ export default function Students() {
                     variant="outline"
                     size="sm"
                     onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={page === 0}
+                    disabled={isError || isFetching || page === 0}
                 >
                     Anterior
                 </Button>
                 <div className="text-sm text-muted-foreground">
-                    Página {page + 1} de {totalPages || 1}
+                    {isError ? "Listagem indisponível" : `Página ${page + 1} de ${totalPages || 1}`}
                 </div>
                 <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={page >= totalPages - 1}
+                    disabled={isError || isFetching || page >= totalPages - 1}
                 >
                     Próxima
                 </Button>
@@ -189,7 +198,17 @@ export default function Students() {
             <StudentDetailsModal
                 isOpen={isDialogOpen}
                 onOpenChange={setIsDialogOpen}
-                studentId={selectedStudentId}
+                studentId={selectedStudent?.id ?? null}
+                studentName={selectedStudent?.full_name}
+                onViewActivity={() => { setIsDialogOpen(false); setActivityStudent(selectedStudent); }}
+            />
+
+            <StudentActivityModal
+                isOpen={activityStudent !== null}
+                onOpenChange={open => { if (!open) setActivityStudent(null); }}
+                studentId={activityStudent?.id ?? null}
+                studentName={activityStudent?.full_name}
+                onViewProfile={() => { setSelectedStudent(activityStudent); setActivityStudent(null); setIsDialogOpen(true); }}
             />
 
             <StudentFilterModal

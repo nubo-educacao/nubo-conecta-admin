@@ -201,6 +201,7 @@ export interface UserMatch {
     match_score: number;
     title: string;
     provider_name: string;
+    match_details?: unknown;
 }
 
 export interface StudentDetails {
@@ -210,79 +211,55 @@ export interface StudentDetails {
     favorites: UserFavorite[];
     matches: UserMatch[];
     total_matches: number;
+    source_errors?: Partial<Record<StudentDetailSource, string>>;
 }
 
-export const getStudentDetails = async (userId: string): Promise<StudentDetails> => {
-    const { data: profile, error: profileError } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+export type StudentDetailSource = 'profile' | 'preferences' | 'enem_scores' | 'favorites' | 'matches';
 
-    if (profileError) throw profileError;
-
-    const { data: preferences, error: prefError } = await supabase
-        .from("user_preferences")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-    if (prefError) throw prefError;
-
-    const { data: enem_scores, error: enemError } = await supabase
-        .from("user_enem_scores")
-        .select("*")
-        .eq("user_id", userId)
-        .order("year", { ascending: false });
-
-    if (enemError) throw enemError;
-
-    const { data: favorites, error: favError } = await supabase
-        .from("user_favorites")
-        .select(`
-            *,
-            courses ( course_name ),
-            partner_opportunities ( name ),
-            institutions ( name )
-        `)
-        .eq("user_id", userId);
-
-    if (favError) throw favError;
-
-    // Fetch Matches & Total Count using RPC to bypass RLS for admin
-    const { data: matchesResponse, error: matchesError } = await supabase
-        .rpc("get_student_matches_admin", { p_profile_id: userId });
-
-    if (matchesError) throw matchesError;
-
-    const totalMatchesCount = matchesResponse?.count || 0;
-    const matches: UserMatch[] = matchesResponse?.matches?.map((m: any) => ({
+export const getStudentDetails = async (userId: string, matchPage = 0, options: { includeMatches?: boolean } = {}): Promise<StudentDetails> => {
+    const sources = ['profile', 'preferences', 'enem_scores', 'favorites', 'matches'] as const;
+    const results = await Promise.allSettled([
+        supabase.from("user_profiles").select("*").eq("id", userId).single(),
+        supabase.from("user_preferences").select("*").eq("user_id", userId).maybeSingle(),
+        supabase.from("user_enem_scores").select("*").eq("user_id", userId).order("year", { ascending: false }),
+        supabase.from("user_favorites").select(`
+            *, courses ( course_name ), partner_opportunities ( name ), institutions ( name )
+        `).eq("user_id", userId),
+        options.includeMatches === false ? Promise.resolve({ data: { matches: [], count: 0 }, error: null })
+            : supabase.rpc("get_student_matches_admin_page" as any, { p_profile_id: userId, p_page: matchPage, p_page_size: 20 }),
+    ]);
+    const source_errors: Partial<Record<StudentDetailSource, string>> = {};
+    const values: Record<string, any> = {};
+    results.forEach((result, index) => {
+        const source = sources[index];
+        const error = result.status === 'rejected' ? result.reason : result.value.error;
+        if (error) {
+            source_errors[source] = 'Não foi possível carregar esta seção.';
+            // No response payloads or profile data in diagnostics.
+            console.error(`[StudentDetails] fonte indisponível: ${source}`);
+        } else if (result.status === 'fulfilled') values[source] = result.value.data;
+    });
+    const profile = values.profile;
+    const matches: UserMatch[] = (values.matches?.matches ?? []).map((m: any) => ({
         unified_opportunity_id: m.unified_opportunity_id,
         match_score: Number(m.match_score) || 0,
+        match_details: m.match_details,
         title: m.title || "Oportunidade",
-        provider_name: m.provider_name || "-"
-    })) || [];
-
-    const matchesListStr = matches
-        .map(m => `${m.title} (${m.provider_name}) - ${Math.round(m.match_score)}%`)
-        .join("; ");
-
+        provider_name: m.provider_name || "-",
+    }));
+    const total_matches = values.matches?.count ?? 0;
     return {
-        profile: {
-            ...profile,
-            whatsapp: profile.phone || profile.whatsapp || null,
-            total_matches: totalMatchesCount || 0,
-            matches_list: matchesListStr
-        } as any as StudentProfile,
-        preferences,
-        enem_scores: enem_scores || [],
-        favorites: favorites?.map((f: any) => ({
-            ...f,
-            courses: f.courses ? { name: f.courses.course_name } : null,
-            partners: f.partner_opportunities ? { name: f.partner_opportunities.name } : f.institutions ? { name: f.institutions.name } : null
-        })) || [],
-        matches,
-        total_matches: totalMatchesCount || 0
+        profile: profile ? {
+            ...profile, whatsapp: profile.phone || profile.whatsapp || null,
+            total_matches, matches_list: matches.map(m => `${m.title} (${m.provider_name}) - ${Math.round(m.match_score)}%`).join("; "),
+        } : null,
+        preferences: values.preferences ?? null,
+        enem_scores: values.enem_scores ?? [],
+        favorites: (values.favorites ?? []).map((f: any) => ({
+            ...f, courses: f.courses ? { name: f.courses.course_name } : null,
+            partners: f.partner_opportunities ? { name: f.partner_opportunities.name } : f.institutions ? { name: f.institutions.name } : null,
+        })),
+        matches, total_matches, source_errors,
     };
 };
 
