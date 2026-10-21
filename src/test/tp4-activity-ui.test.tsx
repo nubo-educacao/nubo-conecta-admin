@@ -32,7 +32,7 @@ it('exposes separate actions even for a student with no activity', () => {
   const details=vi.fn(), activity=vi.fn();
   render(<StudentTable students={[{id:'a',full_name:'Ana'} as any]}
     onViewDetails={details} onViewActivity={activity} />);
-  fireEvent.click(screen.getByRole('button',{name:'Ver detalhes'}));
+  fireEvent.click(screen.getByRole('button',{name:'Ver perfil'}));
   expect(details).toHaveBeenCalledWith(expect.objectContaining({id:'a'}));
   expect(activity).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Ver atividade'}));

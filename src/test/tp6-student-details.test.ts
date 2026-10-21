@@ -3,6 +3,7 @@ import { getStudentDetails } from '@/services/studentsService';
 const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: mocks }));
 beforeEach(() => {
+  vi.clearAllMocks();
   mocks.from.mockImplementation((table: string) => {
     const result = table === 'user_favorites'
       ? { data: null, error: { message: 'missing relationship' } }
@@ -14,6 +15,10 @@ beforeEach(() => {
   mocks.rpc.mockResolvedValue({ data: { matches: [], count: 0 }, error: null });
 });
 describe('TP6 independent student sources', () => {
+  it('does not request Matches when the caller opens only the profile', async () => {
+    await getStudentDetails('student', 0, { includeMatches: false });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
   it('preserves profile and matches when the favorites relation fails', async () => {
     const result = await getStudentDetails('student');
     expect(result.profile?.full_name).toBe('Ana');
