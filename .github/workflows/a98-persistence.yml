@@ -1,0 +1,44 @@
+name: A98 persistence
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/migrations.sha256'
+      - 'supabase/tests/a98/**'
+      - 'src/test/a98-persistence-sql.test.ts'
+      - '.github/workflows/a98-persistence.yml'
+permissions:
+  contents: read
+jobs:
+  a98-contract-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm exec vitest run src/test/a98-persistence-sql.test.ts src/test/d99-prefill-sql.test.ts
+      - run: pnpm exec tsc -b
+      - run: pnpm exec eslint src/test/a98-persistence-sql.test.ts
+      - run: node scripts/migration-checksums.mjs
+      - run: node scripts/check-migration-versions.mjs
+  a98-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.98.2
+      - name: Baseline, foundation99f, A98 and concurrent SQL (disposable Docker only)
+        shell: pwsh
+        run: ./supabase/tests/a98/replay.ps1
