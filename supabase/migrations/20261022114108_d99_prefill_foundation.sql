@@ -246,8 +246,9 @@ BEGIN
  'text_version',e.text_version,'policy_version',e.policy_version,'recorded_at',e.recorded_at);
 END $$;
 
--- Same validation for external and manual values. Null/absent never erases a field.
-CREATE OR REPLACE FUNCTION cursinho_prefill.check_value(p_field text,p_value jsonb) RETURNS void
+-- RC2 external vocabulary stays closed. Manual-only options require a server-derived decision kind.
+-- Null/absent never erases a field.
+CREATE OR REPLACE FUNCTION cursinho_prefill.check_value(p_field text,p_value jsonb,p_manual boolean DEFAULT false) RETURNS void
 LANGUAGE plpgsql SET search_path='' AS $$
 DECLARE v text; d date; digits text; s integer; i integer; check_digit integer;
 BEGIN
@@ -268,7 +269,7 @@ BEGIN
  ELSIF p_field='school_type' THEN
   IF v NOT IN ('Escola pública','Escola particular sem bolsa','Escola particular com bolsa 100%','Escola particular com bolsa parcial') THEN RAISE EXCEPTION 'prefill_invalid_value' USING ERRCODE='22023'; END IF;
  ELSIF p_field='race' THEN
-  IF v NOT IN ('Parda','Branca','Preta','Amarela','Indígena','Prefiro não informar') THEN RAISE EXCEPTION 'prefill_invalid_value' USING ERRCODE='22023'; END IF;
+  IF v NOT IN ('Parda','Branca','Preta','Amarela','Indígena','Prefiro não informar') AND NOT (coalesce(p_manual,false) AND v='Outra') THEN RAISE EXCEPTION 'prefill_invalid_value' USING ERRCODE='22023'; END IF;
  ELSIF p_field='gender' THEN
   IF v NOT IN ('mulher_cis','homem_cis','pessoa_nao_binaria','mulher_transgenero','homem_transgenero','prefiro_nao_declarar') THEN RAISE EXCEPTION 'prefill_invalid_value' USING ERRCODE='22023'; END IF;
  ELSIF p_field='cpf' THEN
@@ -317,7 +318,7 @@ BEGIN
    IF d ?| ARRAY['value','origin_proof'] OR (d ? 'candidate_id' AND jsonb_typeof(d->'candidate_id') NOT IN ('string','null')) THEN RAISE EXCEPTION 'prefill_invalid_decision' USING ERRCODE='22023'; END IF;
    rejected:=array_append(rejected,f);
   ELSE
-   PERFORM cursinho_prefill.check_value(f,d->'value');
+   PERFORM cursinho_prefill.check_value(f,d->'value',kind='user_declared');
    IF kind='user_declared' THEN
     IF d ?| ARRAY['candidate_id','origin_proof'] THEN RAISE EXCEPTION 'prefill_invalid_decision' USING ERRCODE='22023'; END IF;
    ELSE

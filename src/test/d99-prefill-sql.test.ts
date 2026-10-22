@@ -172,3 +172,17 @@ it('replays all approved RC2 commit/consent payload fixtures against the real RP
   else await expect(call('record_consent_v1',body)).rejects.toThrow();
  }
 });
+
+it('D99-R1 saves manual race Outra without external certification and rejects unknown/manual-only external values',async()=>{
+ const b=batch('manual-race-outra',await revision(),[manual('race','Outra')]);
+ const r=await call('commit_prefill_v1',b);
+ expect(r.accepted_fields).toEqual([]);
+ expect((await db.query(`SELECT race FROM user_profiles WHERE id='${uid}'`)).rows[0]).toEqual({race:'Outra'});
+ expect((await db.query(`SELECT current_source,provenance_id FROM prefill_field_state WHERE profile_id='${uid}' AND field_key='race'`)).rows[0]).toEqual({current_source:'user_declared',provenance_id:null});
+ expect(await call('commit_prefill_v1',b)).toEqual(r);
+ await expect(call('commit_prefill_v1',batch('manual-race-unknown',await revision(),[manual('race','Desconhecida')]))).rejects.toThrow('prefill_invalid_value');
+ // The helper default remains the closed RC2 external vocabulary, even after 98f replaces the proof validator.
+ await expect(db.query("SELECT cursinho_prefill.check_value('race',$1::jsonb)",[JSON.stringify('Outra')])).rejects.toThrow('prefill_invalid_value');
+ await expect(call('commit_prefill_v1',{...batch('external-race-outra',await revision(),[{field:'race',offer_version:'external-v1',decision:'accepted',value:'Outra',candidate_id:'fixture-race',origin_proof:{token:'synthetic-only'}}]),operation_id:'fixture-operation'})).rejects.toThrow('prefill_invalid_value');
+ expect((await db.query(`SELECT race FROM user_profiles WHERE id='${uid}'`)).rows[0]).toEqual({race:'Outra'});
+});
