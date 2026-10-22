@@ -141,6 +141,9 @@ it('uses a TEST-ONLY validator in disposable PostgreSQL to verify full batch rol
  expect(await db.query('SELECT count(*)::int n FROM prefill_field_provenance')).toEqual(historyCount);
  await db.exec(`UPDATE user_income SET family_count=6 WHERE user_id='${uid}'`);
  expect((await db.query(`SELECT current_source,provenance_id FROM prefill_field_state WHERE profile_id='${uid}' AND field_key='family_count'`)).rows[0]).toEqual({current_source:'user_declared',provenance_id:null});
+ await call('commit_prefill_v1',batch('reject-accepted-offer',await revision(),[{field:'full_name',offer_version:'atomic-v1',decision:'rejected'}]));
+ expect((await db.query(`SELECT EXISTS(SELECT 1 FROM prefill_field_decisions WHERE profile_id='${uid}' AND field_key='full_name' AND offer_version='atomic-v1' AND decision='rejected') denied`)).rows[0]).toEqual({denied:true});
+ await expect(call('commit_prefill_v1',{...b,commit_id:'new-after-rejection',expected_profile_revision:await revision()})).rejects.toThrow('prefill_offer_rejected');
  const scope2=(await db.query<{r:Record<string,unknown>}>(`SELECT public.read_prefill_consent_v1('${uid}') r`)).rows[0].r;
  await call('record_consent_v1',consent('revoke',Number(scope2.consent_revision),[]));
  await expect(call('commit_prefill_v1',b)).rejects.toThrow('prefill_consent_required');

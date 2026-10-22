@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS cursinho_prefill.consent_head(
  consent_revision bigint NOT NULL,
  event_id uuid NOT NULL REFERENCES public.prefill_consent_events(event_id)
 );
+-- Append-only decision events: one per kind under the semantic offer key.
+-- A later rejection must not be lost just because the offer was previously accepted.
 CREATE TABLE IF NOT EXISTS public.prefill_field_decisions(
  profile_id uuid NOT NULL REFERENCES public.user_profiles(id),
  purpose text NOT NULL CHECK(purpose='cursinho_prefill'),
@@ -51,7 +53,7 @@ CREATE TABLE IF NOT EXISTS public.prefill_field_decisions(
  offer_version text NOT NULL CHECK(length(offer_version)>0),
  decision text NOT NULL CHECK(decision IN ('accepted','rejected','user_declared')),
  decided_at timestamptz NOT NULL DEFAULT clock_timestamp(),
- PRIMARY KEY(profile_id,purpose,field_key,offer_version)
+ PRIMARY KEY(profile_id,purpose,field_key,offer_version,decision)
 );
 CREATE TABLE IF NOT EXISTS public.prefill_field_provenance(
  provenance_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -62,6 +64,7 @@ CREATE TABLE IF NOT EXISTS public.prefill_field_provenance(
  commit_id text NOT NULL,
  operation_id text NOT NULL,
  candidate_id text NOT NULL,
+ decision text NOT NULL DEFAULT 'accepted' CHECK(decision='accepted'),
  observation_id text NOT NULL,
  source text NOT NULL CHECK(source='cursinho_nubo'),
  rule_version text NOT NULL,
@@ -69,7 +72,7 @@ CREATE TABLE IF NOT EXISTS public.prefill_field_provenance(
  consent_revision bigint NOT NULL,
  checked_at timestamptz NOT NULL,
  accepted_at timestamptz NOT NULL DEFAULT clock_timestamp(),
- FOREIGN KEY(profile_id,purpose,field_key,offer_version) REFERENCES public.prefill_field_decisions,
+ FOREIGN KEY(profile_id,purpose,field_key,offer_version,decision) REFERENCES public.prefill_field_decisions,
  UNIQUE(profile_id,commit_id,field_key)
 );
 -- Current attribution is separate from append-only offer/history records.
@@ -289,7 +292,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE p public.user_profiles; d jsonb; f text; kind text; patch jsonb:='{}'; metadata jsonb;
  verified jsonb:='{}'; consent jsonb; previous cursinho_prefill.commit_receipts;
  fingerprint bytea; accepted text[]:=ARRAY[]::text[]; rejected text[]:=ARRAY[]::text[];
- result jsonb; final_revision bigint; existing text; provenance uuid;
+ result jsonb; final_revision bigint; provenance uuid;
 BEGIN
  IF jsonb_typeof(p_request) IS DISTINCT FROM 'object' OR
  (p_request-ARRAY['commit_id','expected_profile_revision','operation_id','decisions'])<>'{}'::jsonb OR
@@ -327,8 +330,7 @@ BEGIN
       metadata->>'policy_version' IS DISTINCT FROM consent->>'policy_version' OR metadata->>'consent_revision' IS DISTINCT FROM consent->>'consent_revision' OR
       metadata->>'tier' IS DISTINCT FROM (CASE WHEN f IN ('cpf','race','gender','family_count') THEN 'T2' ELSE 'T1' END) OR
       NOT (consent->'effective_tiers' ? (metadata->>'tier')) THEN RAISE EXCEPTION 'prefill_invalid_proof' USING ERRCODE='42501'; END IF;
-    SELECT decision INTO existing FROM public.prefill_field_decisions WHERE profile_id=p.id AND purpose='cursinho_prefill' AND field_key=f AND offer_version=d->>'offer_version';
-    IF existing='rejected' THEN RAISE EXCEPTION 'prefill_offer_rejected' USING ERRCODE='42501'; END IF;
+    IF EXISTS(SELECT 1 FROM public.prefill_field_decisions WHERE profile_id=p.id AND purpose='cursinho_prefill' AND field_key=f AND offer_version=d->>'offer_version' AND decision='rejected') THEN RAISE EXCEPTION 'prefill_offer_rejected' USING ERRCODE='42501'; END IF;
     verified:=verified||jsonb_build_object(f,metadata);
     accepted:=array_append(accepted,f);
    END IF;
