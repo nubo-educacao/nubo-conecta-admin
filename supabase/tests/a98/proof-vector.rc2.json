@@ -1,0 +1,57 @@
+{
+  "synthetic": true,
+  "production_valid": false,
+  "notice": "Synthetic publicly documented test key only. Never configure this key in a runtime. SQL parity and authorization are not certified.",
+  "synthetic_key_hex": "0707070707070707070707070707070707070707070707070707070707070707",
+  "scope": {
+    "environment_id": "fixture-preview",
+    "contract_version": "1.0.0-rc.2",
+    "kid": "fixture-key",
+    "user_id": "fixture-user",
+    "profile_id": "fixture-profile",
+    "phone_version": "phone-v1",
+    "purpose": "cursinho_prefill",
+    "consent_revision": 3,
+    "text_version": "text-v1",
+    "tiers": [
+      "T1",
+      "T2"
+    ],
+    "policy_version": "policy-v1",
+    "rule_version": "rule-v1"
+  },
+  "operation_id": "fixture-operation",
+  "candidate": {
+    "field": "full_name",
+    "value": "Pessoa Sintética",
+    "candidate_id": "candidate-1",
+    "offer_version": "offer-v1",
+    "checked_at": "2026-10-22T10:00:00Z",
+    "partial": false,
+    "issued_at": "2026-10-22T10:00:01Z",
+    "expires_at": "2026-10-22T10:05:01Z"
+  },
+  "commit": {
+    "commit_id": "fixture-roundtrip",
+    "expected_profile_revision": 7,
+    "operation_id": "fixture-operation",
+    "decisions": [
+      {
+        "field": "full_name",
+        "value": "Pessoa Sintética",
+        "candidate_id": "candidate-1",
+        "offer_version": "offer-v1",
+        "decision": "accepted",
+        "origin_proof": {
+          "token": "p1.fixture-key.MtdZvQZNsngoRKzUnJat442P6vN8qhJTHJFvQX9Qp7c",
+          "checked_at": "2026-10-22T10:00:00Z",
+          "partial": false,
+          "issued_at": "2026-10-22T10:00:01Z",
+          "expires_at": "2026-10-22T10:05:01Z"
+        }
+      }
+    ]
+  },
+  "canonical_bytes_hex": "30303030303031363a6e75626f2d70726566696c6c2d6f726967696e2d763130303030303030663a666978747572652d7072657669657730303030303030613a312e302e302d72632e3230303030303030623a666978747572652d6b657930303030303030633a666978747572652d7573657230303030303030663a666978747572652d70726f66696c6530303030303030383a70686f6e652d763130303030303031303a63757273696e686f5f70726566696c6c30303030303030333a693a3330303030303030373a746578742d763130303030303030353a54312c543230303030303030393a706f6c6963792d763130303030303030373a72756c652d763130303030303031313a666978747572652d6f7065726174696f6e30303030303030623a63616e6469646174652d3130303030303030393a66756c6c5f6e616d6530303030303031333a733a506573736f612053696e74c3a97469636130303030303030643a63757273696e686f5f6e75626f30303030303030383a6f666665722d763130303030303031383a323032362d31302d32325431303a30303a30302e3030305a30303030303030333a623a3030303030303031383a323032362d31302d32325431303a30303a30312e3030305a30303030303031383a323032362d31302d32325431303a30353a30312e3030305a",
+  "mac_base64url": "MtdZvQZNsngoRKzUnJat442P6vN8qhJTHJFvQX9Qp7c"
+}
