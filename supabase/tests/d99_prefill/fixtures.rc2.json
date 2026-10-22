@@ -1,0 +1,1983 @@
+{
+  "contract_version": "1.0.0-rc.2",
+  "synthetic": true,
+  "cryptographically_valid": false,
+  "notice": "All data invented for contract review. p1.fixture.* tokens are invalid outside fixture validator. Five-minute timestamps are exampledata, NOT an approvedTTL. No source sampled, no real endpoint run.",
+  "admin": [
+    {
+      "id": "admin-aluno",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "aluno",
+        "compatible_is_nubo_student": true,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-ex_aluno",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "ex_aluno",
+        "compatible_is_nubo_student": true,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-processo_seletivo",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "processo_seletivo",
+        "compatible_is_nubo_student": false,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-aprovado_sem_matricula",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "aprovado_sem_matricula",
+        "compatible_is_nubo_student": false,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-rejeitado",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "rejeitado",
+        "compatible_is_nubo_student": false,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-indeterminada",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "indeterminada",
+        "compatible_is_nubo_student": null,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-not_found",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "not_found",
+        "official_situation": null,
+        "compatible_is_nubo_student": null,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": null,
+        "checked_at": null,
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": null,
+        "freshness": "unknown",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-ambiguous",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "ambiguous",
+        "official_situation": null,
+        "compatible_is_nubo_student": null,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": null,
+        "checked_at": null,
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": null,
+        "freshness": "unknown",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-invalid_phone",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "invalid_phone",
+        "official_situation": null,
+        "compatible_is_nubo_student": null,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": null,
+        "checked_at": null,
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": null,
+        "freshness": "unknown",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-not_checked",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "not_checked",
+        "official_situation": null,
+        "compatible_is_nubo_student": null,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": null,
+        "checked_at": null,
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": null,
+        "freshness": "unknown",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-error",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "error",
+        "official_situation": null,
+        "compatible_is_nubo_student": null,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": null,
+        "checked_at": null,
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": null,
+        "freshness": "unknown",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-phone-changed",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "not_checked",
+        "official_situation": null,
+        "compatible_is_nubo_student": null,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": null,
+        "checked_at": null,
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "unknown",
+        "reason": "phone_changed",
+        "last_success_summary": {
+          "official_situation": "aluno",
+          "compatible_is_nubo_student": true,
+          "checked_at": "2026-10-21T21:00:00Z",
+          "evidence_version": "fixture-e1",
+          "rule_version": "v1-fixture"
+        }
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-error-last-success",
+      "expect": "valid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "error",
+        "official_situation": null,
+        "compatible_is_nubo_student": null,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "stale",
+        "reason": null,
+        "last_success_summary": {
+          "official_situation": "aluno",
+          "compatible_is_nubo_student": true,
+          "checked_at": "2026-10-21T21:00:00Z",
+          "evidence_version": "fixture-e1",
+          "rule_version": "v1-fixture"
+        }
+      },
+      "schema_valid": true
+    },
+    {
+      "id": "admin-ambiguous-false",
+      "expect": "invalid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "ambiguous",
+        "official_situation": null,
+        "compatible_is_nubo_student": false,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": false
+    },
+    {
+      "id": "admin-leaked-source-id",
+      "expect": "invalid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "aluno",
+        "compatible_is_nubo_student": true,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null,
+        "source_id": "forbidden-fixture"
+      },
+      "schema_valid": false
+    },
+    {
+      "id": "admin-leaked-candidates",
+      "expect": "invalid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "aluno",
+        "compatible_is_nubo_student": true,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null,
+        "candidates": []
+      },
+      "schema_valid": false
+    },
+    {
+      "id": "admin-unique-missing-situation",
+      "expect": "invalid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": null,
+        "compatible_is_nubo_student": true,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": false
+    },
+    {
+      "id": "admin-unknown-enum",
+      "expect": "invalid",
+      "payload": {
+        "contract_version": "1.0.0-rc.2",
+        "resolution_state": "unique",
+        "official_situation": "cancelado",
+        "compatible_is_nubo_student": true,
+        "source_label": "Cursinho Nubo",
+        "rule_version": "v1-fixture",
+        "evidence_version": "fixture-e1",
+        "checked_at": "2026-10-21T21:00:00Z",
+        "last_attempt_at": "2026-10-21T21:00:00Z",
+        "last_success_at": "2026-10-21T21:00:00Z",
+        "freshness": "fresh",
+        "reason": null,
+        "last_success_summary": null
+      },
+      "schema_valid": false
+    }
+  ],
+  "streams": [
+    {
+      "id": "self-adult-T1",
+      "preconditions": "fake policy allows unique adult+T1 consent; no real authorization",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "matched",
+          "seq": 1,
+          "cursinho_situation": "nao_aprovado"
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "ready",
+          "seq": 2,
+          "verified_adult": true,
+          "candidates": [
+            {
+              "field": "full_name",
+              "tier": "T1",
+              "value": "Pessoa Sintética",
+              "partial": false,
+              "candidate_id": "fixture-full_name",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "social_name",
+              "tier": "T1",
+              "value": "Nome Sintético",
+              "partial": false,
+              "candidate_id": "fixture-social_name",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "birth_date",
+              "tier": "T1",
+              "value": "2000-01-01",
+              "partial": false,
+              "candidate_id": "fixture-birth_date",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "education",
+              "tier": "T1",
+              "value": "Ensino Médio Completo",
+              "partial": false,
+              "candidate_id": "fixture-education",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "school_type",
+              "tier": "T1",
+              "value": "Escola pública",
+              "partial": false,
+              "candidate_id": "fixture-school_type",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            }
+          ]
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-adult-T2",
+      "preconditions": "new explicit action/key and fake adult verification+T1/T2 consent+identity satisfied",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "matched",
+          "seq": 1,
+          "cursinho_situation": "nao_aprovado"
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "ready",
+          "seq": 2,
+          "verified_adult": true,
+          "candidates": [
+            {
+              "field": "full_name",
+              "tier": "T1",
+              "value": "Pessoa Sintética",
+              "partial": false,
+              "candidate_id": "fixture-full_name",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "social_name",
+              "tier": "T1",
+              "value": "Nome Sintético",
+              "partial": false,
+              "candidate_id": "fixture-social_name",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "birth_date",
+              "tier": "T1",
+              "value": "2000-01-01",
+              "partial": false,
+              "candidate_id": "fixture-birth_date",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "education",
+              "tier": "T1",
+              "value": "Ensino Médio Completo",
+              "partial": false,
+              "candidate_id": "fixture-education",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "school_type",
+              "tier": "T1",
+              "value": "Escola pública",
+              "partial": false,
+              "candidate_id": "fixture-school_type",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "cpf",
+              "tier": "T2",
+              "value": "123.456.789-09",
+              "partial": false,
+              "candidate_id": "fixture-cpf",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "race",
+              "tier": "T2",
+              "value": "Parda",
+              "partial": false,
+              "candidate_id": "fixture-race",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "gender",
+              "tier": "T2",
+              "value": "pessoa_nao_binaria",
+              "partial": false,
+              "candidate_id": "fixture-gender",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "family_count",
+              "tier": "T2",
+              "value": 3,
+              "partial": false,
+              "candidate_id": "fixture-family_count",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            }
+          ]
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-minor-T1",
+      "preconditions": "fake policy 12..17 and safe identity",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "matched",
+          "seq": 1,
+          "cursinho_situation": "aluno"
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "ready",
+          "seq": 2,
+          "verified_adult": false,
+          "candidates": [
+            {
+              "field": "full_name",
+              "tier": "T1",
+              "value": "Pessoa Sintética",
+              "partial": false,
+              "candidate_id": "fixture-full_name",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "social_name",
+              "tier": "T1",
+              "value": "Nome Sintético",
+              "partial": false,
+              "candidate_id": "fixture-social_name",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "birth_date",
+              "tier": "T1",
+              "value": "2000-01-01",
+              "partial": false,
+              "candidate_id": "fixture-birth_date",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "education",
+              "tier": "T1",
+              "value": "Ensino Médio Completo",
+              "partial": false,
+              "candidate_id": "fixture-education",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "school_type",
+              "tier": "T1",
+              "value": "Escola pública",
+              "partial": false,
+              "candidate_id": "fixture-school_type",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            }
+          ]
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-no-consent",
+      "expect": "valid",
+      "expected_adapter_calls": 0,
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 0,
+          "reason": "consent_required"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-ambiguous",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 1,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-not-found",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 1,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-under12",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 1,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-identity-unapproved",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 1,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-unknown-birth-without-safe-policy",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 1,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-cpf-shared",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 1,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-timeout",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 1,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-source-unavailable",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 1,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-dependent",
+      "expect": "valid",
+      "expected_adapter_calls": 0,
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 0,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-failure-after-matched",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "matched",
+          "seq": 1,
+          "cursinho_situation": "nao_aprovado"
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 2,
+          "reason": "manual_entry"
+        }
+      ],
+      "expected_client": "clear unaccepted candidates and provisional situation",
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-revoke-before-next-emission",
+      "expect": "valid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "matched",
+          "seq": 1,
+          "cursinho_situation": "nao_aprovado"
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 2,
+          "reason": "manual_entry"
+        }
+      ],
+      "expected_commit": "reject old proof",
+      "expected_client": "abort/clear unaccepted; no new sensitive emission after confirmed revocation",
+      "schema_valid": true,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-duplicate-terminal",
+      "expect": "invalid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "matched",
+          "seq": 1,
+          "cursinho_situation": "nao_aprovado"
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "ready",
+          "seq": 2,
+          "verified_adult": true,
+          "candidates": []
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "manual_required",
+          "seq": 2,
+          "reason": "manual_entry"
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": false
+    },
+    {
+      "id": "self-ready-without-matched",
+      "expect": "invalid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "ready",
+          "seq": 2,
+          "verified_adult": true,
+          "candidates": []
+        }
+      ],
+      "schema_valid": true,
+      "sequence_valid": false
+    },
+    {
+      "id": "self-T2-not-adult",
+      "expect": "invalid",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "matched",
+          "seq": 1,
+          "cursinho_situation": "nao_aprovado"
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "ready",
+          "seq": 2,
+          "verified_adult": false,
+          "candidates": [
+            {
+              "field": "full_name",
+              "tier": "T1",
+              "value": "Pessoa Sintética",
+              "partial": false,
+              "candidate_id": "fixture-full_name",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "social_name",
+              "tier": "T1",
+              "value": "Nome Sintético",
+              "partial": false,
+              "candidate_id": "fixture-social_name",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "birth_date",
+              "tier": "T1",
+              "value": "2000-01-01",
+              "partial": false,
+              "candidate_id": "fixture-birth_date",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "education",
+              "tier": "T1",
+              "value": "Ensino Médio Completo",
+              "partial": false,
+              "candidate_id": "fixture-education",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "school_type",
+              "tier": "T1",
+              "value": "Escola pública",
+              "partial": false,
+              "candidate_id": "fixture-school_type",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "cpf",
+              "tier": "T2",
+              "value": "123.456.789-09",
+              "partial": false,
+              "candidate_id": "fixture-cpf",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "race",
+              "tier": "T2",
+              "value": "Parda",
+              "partial": false,
+              "candidate_id": "fixture-race",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "gender",
+              "tier": "T2",
+              "value": "pessoa_nao_binaria",
+              "partial": false,
+              "candidate_id": "fixture-gender",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            },
+            {
+              "field": "family_count",
+              "tier": "T2",
+              "value": 3,
+              "partial": false,
+              "candidate_id": "fixture-family_count",
+              "source": "cursinho_nubo",
+              "checked_at": "2026-10-21T21:00:00Z",
+              "rule_version": "v1-fixture",
+              "offer_version": "offer-v1-fixture",
+              "origin_proof": {
+                "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "issued_at": "2026-10-21T21:00:00Z",
+                "expires_at": "2026-10-21T21:05:00Z",
+                "partial": false,
+                "checked_at": "2026-10-21T21:00:00Z"
+              }
+            }
+          ]
+        }
+      ],
+      "schema_valid": false,
+      "sequence_valid": true
+    },
+    {
+      "id": "self-EOF-no-terminal",
+      "expect": "transport_incomplete",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        },
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "matched",
+          "seq": 1,
+          "cursinho_situation": "nao_aprovado"
+        }
+      ],
+      "expected_client": "manual locally, discard provisional state; do not invent received terminal",
+      "schema_valid": true,
+      "sequence_valid": false
+    },
+    {
+      "id": "self-cancel",
+      "expect": "transport_aborted",
+      "events": [
+        {
+          "contract_version": "1.0.0-rc.2",
+          "operation_id": "fixture-op-1",
+          "event": "checking",
+          "seq": 0
+        }
+      ],
+      "expected_server": "propagate cancellation and cleanup; do not promise terminal delivered on disconnected socket",
+      "schema_valid": true,
+      "sequence_valid": false
+    }
+  ],
+  "behavior": [
+    {
+      "id": "phone-country55",
+      "input": "(55 country)+(11 DDD)+9xxxxxxxx",
+      "expected": "11-digit canonical; eligible only validDDD"
+    },
+    {
+      "id": "phone-DDD55",
+      "input": "55 DDD+9xxxxxxxx",
+      "expected": "preserve DDD55"
+    },
+    {
+      "id": "phone-truncated",
+      "input": "10-digit mobile-like",
+      "expected": "invalid_phone; adapter0"
+    },
+    {
+      "id": "phone-international",
+      "input": "+1...",
+      "expected": "invalid_phone; adapter0"
+    },
+    {
+      "id": "phone-source-duplicate",
+      "input": "two source accounts same normalized phone",
+      "expected": "ambiguous; nofirstrow"
+    },
+    {
+      "id": "phone-conecta-duplicate",
+      "input": "two Conecta holders same phone",
+      "expected": "ambiguous"
+    },
+    {
+      "id": "classification-active",
+      "input": "known account+active enrollment+active turma kindturma",
+      "expected": "aluno/true"
+    },
+    {
+      "id": "classification-ended",
+      "input": "all enrollments ended; no eligibleactive",
+      "expected": "ex_aluno/true candidate rule pendinghomologation"
+    },
+    {
+      "id": "classification-ineligible-active",
+      "input": "active enrollment but inactive/ineligible turma",
+      "expected": "indeterminada/null"
+    },
+    {
+      "id": "classification-unknown",
+      "input": "any relevant status outside versioneddictionary",
+      "expected": "indeterminada/null+aggregate alert"
+    },
+    {
+      "id": "classification-conflict",
+      "input": "rejected+waiting_list approved; noenrollment",
+      "expected": "indeterminada/null untilhomologation"
+    },
+    {
+      "id": "classification-former",
+      "input": "former_student true only",
+      "expected": "doesnotprove enrollment"
+    },
+    {
+      "id": "birth-formats",
+      "input": "2000-02-29;29/02/2000;31/02/2000;future;pre1930",
+      "expected": "ISO valid dates only; nofuture/pre1930"
+    },
+    {
+      "id": "name-partial",
+      "input": "singleterm name",
+      "expected": "partial true; humancompletion"
+    },
+    {
+      "id": "name-digit",
+      "input": "namewithdigit",
+      "expected": "discard"
+    },
+    {
+      "id": "school-no-exact",
+      "input": "escola particular com bolsa;ambas",
+      "expected": "discard; noquota inference"
+    },
+    {
+      "id": "cpf-invalid",
+      "input": "000.000.000-00;invalidDV;duplicate",
+      "expected": "discard; duplicate->manual self withoutPII"
+    },
+    {
+      "id": "unknown-vocabulary",
+      "input": "unknown race/education/gender",
+      "expected": "discard; neverapproximate"
+    },
+    {
+      "id": "scope-idempotency",
+      "input": "samekey changedconsent/text/phone/profile/tiers/policy/rule",
+      "expected": "neutral rejection; noolddata; newaction newkey"
+    },
+    {
+      "id": "proof-modify",
+      "input": "changefield/value/user/profile/operation/timestamps/rule/candidate",
+      "expected": "reject; noexternal provenance"
+    },
+    {
+      "id": "proof-revoked",
+      "input": "confirmed revoke before commit",
+      "expected": "reject; lockrevision linearization"
+    },
+    {
+      "id": "commit-failure",
+      "input": "failbetween profile/income/provenance",
+      "expected": "rollbackall; manualedits preserved"
+    },
+    {
+      "id": "commit-replay",
+      "input": "samecommit_id samepayload",
+      "expected": "samereceipt; noduplicates; changedpayload rejected"
+    },
+    {
+      "id": "merge-precedence",
+      "input": "touched > sameprofiledraft > confirmedConecta > external > empty",
+      "expected": "nullabsent do notclear; false/0 valid; editedsuggestion becomes userdeclared"
+    },
+    {
+      "id": "income-late",
+      "input": "late family_count with member_incomes/benefits/pension",
+      "expected": "no destructive resize or incomeinference"
+    },
+    {
+      "id": "stream-fragmentation",
+      "input": "splitUTF8/newlines at arbitrarypositions; residualflush; duplicate; stalegeneration",
+      "expected": "sameevents; dedupe exactduplicates; reject conflictingseq; finallyreleaseLock"
+    },
+    {
+      "id": "acl-matrix",
+      "input": "anon/common/partner/self/other/admin/backend",
+      "expected": "only proper guardedentrypoint; adminDTO noT1T2; partner noofficial"
+    }
+  ],
+  "commit": [
+    {
+      "id": "accepted-profile-income-atomic",
+      "schema_valid": true,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-full_name",
+            "value": "Pessoa Sintética",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          },
+          {
+            "field": "family_count",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-family_count",
+            "value": 3,
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "rejected-without-value",
+      "schema_valid": true,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "rejected",
+            "candidate_id": "fixture-full_name"
+          }
+        ]
+      }
+    },
+    {
+      "id": "user-declared",
+      "schema_valid": true,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "user_declared",
+            "value": "Pessoa Declarada"
+          }
+        ]
+      }
+    },
+    {
+      "id": "duplicate-field",
+      "schema_valid": true,
+      "semantic_valid": false,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-full_name",
+            "value": "Pessoa Sintética",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          },
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-full_name",
+            "value": "Pessoa Sintética",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "accepted-missing-proof",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-full_name",
+            "value": "Pessoa Sintética"
+          }
+        ]
+      }
+    },
+    {
+      "id": "accepted-missing-candidate",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "value": "Pessoa Sintética",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "accepted-missing-checked",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-full_name",
+            "value": "Pessoa Sintética",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "accepted-missing-partial",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-full_name",
+            "value": "Pessoa Sintética",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "rejected-value-forbidden",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "rejected",
+            "value": "Not retained"
+          }
+        ]
+      }
+    },
+    {
+      "id": "user-declared-proof-forbidden",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "user_declared",
+            "value": "Pessoa",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-destination",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "email",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-full_name",
+            "value": "Pessoa Sintética",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "family-count-not-integer",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "decisions": [
+          {
+            "field": "family_count",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-family_count",
+            "value": 2.5,
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "spoof-user",
+      "schema_valid": false,
+      "semantic_valid": true,
+      "payload": {
+        "commit_id": "fixture-commit-1",
+        "expected_profile_revision": 7,
+        "operation_id": "fixture-op-1",
+        "user_id": "other-user",
+        "decisions": [
+          {
+            "field": "full_name",
+            "offer_version": "offer-v1-fixture",
+            "decision": "accepted",
+            "candidate_id": "fixture-full_name",
+            "value": "Pessoa Sintética",
+            "origin_proof": {
+              "token": "p1.fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              "issued_at": "2026-10-21T21:00:00Z",
+              "expires_at": "2026-10-21T21:05:00Z",
+              "partial": false,
+              "checked_at": "2026-10-21T21:00:00Z"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "consent": [
+    {
+      "id": "grant-T1",
+      "schema_valid": true,
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "grant",
+        "requested_tiers": [
+          "T1"
+        ]
+      }
+    },
+    {
+      "id": "grant-T1-T2",
+      "schema_valid": true,
+      "authorization_precondition": "server-verified adult; new explicit action/key",
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "grant",
+        "requested_tiers": [
+          "T1",
+          "T2"
+        ]
+      }
+    },
+    {
+      "id": "decline",
+      "schema_valid": true,
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "decline",
+        "requested_tiers": []
+      }
+    },
+    {
+      "id": "revoke",
+      "schema_valid": true,
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "revoke",
+        "requested_tiers": []
+      }
+    },
+    {
+      "id": "grant-empty",
+      "schema_valid": false,
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "grant",
+        "requested_tiers": []
+      }
+    },
+    {
+      "id": "grant-T2-alone",
+      "schema_valid": false,
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "grant",
+        "requested_tiers": [
+          "T2"
+        ]
+      }
+    },
+    {
+      "id": "decline-with-T1",
+      "schema_valid": false,
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "decline",
+        "requested_tiers": [
+          "T1"
+        ]
+      }
+    },
+    {
+      "id": "spoof-consent-user",
+      "schema_valid": false,
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "grant",
+        "requested_tiers": [
+          "T1"
+        ],
+        "user_id": "other-user"
+      }
+    },
+    {
+      "id": "revoke-with-client-clock",
+      "schema_valid": false,
+      "payload": {
+        "purpose": "cursinho_prefill",
+        "text_version": "fixture-text-v1",
+        "policy_version": "fixture-policy-v1",
+        "expected_consent_revision": 3,
+        "action": "revoke",
+        "requested_tiers": [],
+        "revoked_at": "2026-10-21T21:00:00Z"
+      }
+    }
+  ],
+  "proof_and_commit_policy": [
+    {
+      "id": "revoked-before-commit",
+      "expected": "deny external acceptance; no writes"
+    },
+    {
+      "id": "changed-phone-or-profile",
+      "expected": "deny old proof/cache/replay; no lookup inside transaction"
+    },
+    {
+      "id": "changed-text-tiers-rule-policy",
+      "expected": "deny old scope even if MAC otherwise valid"
+    },
+    {
+      "id": "intermediate-write-failure",
+      "expected": "rollback profile+income+provenance+decisions as entire batch"
+    },
+    {
+      "id": "commit-replay",
+      "expected": "same commit_id+payload returns receipt; changed payload rejected"
+    }
+  ]
+}
+
