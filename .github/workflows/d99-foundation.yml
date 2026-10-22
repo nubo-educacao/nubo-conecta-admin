@@ -1,0 +1,31 @@
+name: D99 foundation
+on:
+  pull_request:
+    branches: [sprint-sprint-9.2]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/migrations.sha256'
+      - 'supabase/tests/d99_prefill/**'
+      - 'src/test/d99-prefill-sql.test.ts'
+      - '.github/workflows/d99-foundation.yml'
+permissions:
+  contents: read
+jobs:
+  contract-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm exec vitest run src/test/d99-prefill-sql.test.ts
+      - run: pnpm exec tsc -b
+      - run: pnpm exec eslint src/test/d99-prefill-sql.test.ts
+      - run: node scripts/migration-checksums.mjs
+      - run: node scripts/check-migration-versions.mjs
