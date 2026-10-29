@@ -7,6 +7,8 @@
  * (só staff: alunos logam no mesmo Supabase) e só então troca o token pela chave
  * do servidor, apenas para os caminhos que o admin realmente usa.
  */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { envDoProcesso, handleSnapsProxy, requestDoRewrite, type ProxyEnv } from './snapsProxy';
 
@@ -96,6 +98,15 @@ describe('lista de caminhos permitidos', () => {
     ['PATCH', `/public/projects/${PID}/support/cards/${CARD}/status`],
     ['DELETE', `/public/projects/${PID}/support/cards/${CARD}`],
     ['DELETE', `/cards/${CARD}`],
+    // NUB-RD-100 — snaps-client 0.2.0: edição, chat de suporte e custos.
+    ['PATCH', `/public/projects/${PID}/support/cards/${CARD}`],
+    ['POST', `/public/projects/${PID}/support/chats`],
+    ['POST', `/public/projects/${PID}/support/chats/${CARD}/messages`],
+    ['POST', `/public/projects/${PID}/support/chats/${CARD}/confirm`],
+    ['POST', `/public/projects/${PID}/support/chats/${CARD}/close`],
+    ['GET', `/public/projects/${PID}/costs/hours?start_date=2026-10-01&end_date=2026-10-31&limit=100&offset=0`],
+    ['GET', `/public/projects/${PID}/costs/llm?start_date=2026-10-01&end_date=2026-10-31`],
+    ['GET', `/public/projects/${PID}/costs/report?start_date=2026-10-01&end_date=2026-10-31`],
   ])('%s %s é repassado', async (metodo, caminho) => {
     const f = fetchFalso();
     const r = await handleSnapsProxy(pedido(caminho, { method: metodo }), ENV, f.impl);
@@ -113,6 +124,19 @@ describe('lista de caminhos permitidos', () => {
     ['GET', `/cards/${CARD}`],
     ['DELETE', `/cards/nao-e-uuid`],
     ['POST', `/public/projects/${PID}/roadmap`],
+    // Rotas novas presas ao projeto configurado e ao padrão exato.
+    ['PATCH', `/public/projects/${OUTRO_PID}/support/cards/${CARD}`],
+    ['PATCH', `/public/projects/${PID}/support/cards/nao-e-uuid`],
+    ['POST', `/public/projects/${OUTRO_PID}/support/chats`],
+    ['POST', `/public/projects/${OUTRO_PID}/support/chats/${CARD}/messages`],
+    ['POST', `/public/projects/${PID}/support/chats/nao-e-uuid/messages`],
+    ['POST', `/public/projects/${PID}/support/chats/${CARD}/delete`],
+    ['POST', `/public/projects/${PID}/support/chats/${CARD}/messages/extra`],
+    ['GET', `/public/projects/${PID}/support/chats/${CARD}/messages`],
+    ['GET', `/public/projects/${OUTRO_PID}/costs/hours`],
+    ['GET', `/public/projects/${PID}/costs/people`],
+    ['GET', `/public/projects/${PID}/costs`],
+    ['POST', `/public/projects/${PID}/costs/report`],
   ])('%s %s é recusado com 404 sem chamar o Snaps', async (metodo, caminho) => {
     const f = fetchFalso();
     const r = await handleSnapsProxy(pedido(caminho, { method: metodo }), ENV, f.impl);
@@ -154,6 +178,119 @@ describe('repasse', () => {
     const texto = await r.text();
     expect(texto).toBe('{"id":"c1"}');
     expect(JSON.stringify([...r.headers.entries()]) + texto).not.toContain(CHAVE);
+  });
+});
+
+describe('chat de suporte (NUB-RD-100)', () => {
+  const SESSAO = 'sessao-do-chat-sentinela';
+  const chat = (fim: string) => `/public/projects/${PID}/support/chats/${CARD}/${fim}`;
+  const headersDoUpstream = (f: ReturnType<typeof fetchFalso>) =>
+    new Headers(f.chamadas.find((c) => c.url.startsWith('https://snaps.example'))!.init.headers);
+
+  it.each(['messages', 'confirm', 'close'])('repassa X-Support-Session em %s', async (fim) => {
+    const f = fetchFalso();
+    await handleSnapsProxy(
+      pedido(chat(fim), { method: 'POST', body: '{}', headers: { 'X-Support-Session': SESSAO } }), ENV, f.impl,
+    );
+    expect(headersDoUpstream(f).get('X-Support-Session')).toBe(SESSAO);
+  });
+
+  it.each([
+    ['PATCH', `/public/projects/${PID}/support/cards/${CARD}`],
+    ['POST', `/public/projects/${PID}/cards`],
+    ['GET', `/public/projects/${PID}/costs/hours`],
+    ['GET', `/public/projects/${PID}/support`],
+  ])('não repassa X-Support-Session fora do chat (%s %s)', async (metodo, caminho) => {
+    const f = fetchFalso();
+    await handleSnapsProxy(
+      pedido(caminho, {
+        method: metodo, body: metodo === 'GET' ? undefined : '{}', headers: { 'X-Support-Session': SESSAO },
+      }),
+      ENV, f.impl,
+    );
+    expect(headersDoUpstream(f).get('X-Support-Session')).toBeNull();
+  });
+
+  it('nenhum outro cabeçalho do navegador chega ao Snaps no chat', async () => {
+    const f = fetchFalso();
+    await handleSnapsProxy(
+      pedido(chat('messages'), {
+        method: 'POST',
+        body: '{}',
+        headers: {
+          'Content-Type': 'application/json', 'X-Support-Session': SESSAO, Cookie: 'sb=1',
+          Authorization: 'Bearer x', 'X-Forwarded-For': '1.2.3.4', Origin: 'https://admin.example', 'X-Outro': 'y',
+        },
+      }),
+      ENV, f.impl,
+    );
+    expect([...headersDoUpstream(f).keys()].sort()).toEqual(['content-type', 'x-api-key', 'x-support-session']);
+  });
+
+  it('repassa o SSE sem acumular: o primeiro evento chega antes de o Snaps terminar', async () => {
+    let fechar!: () => void;
+    const evento = 'data: {"type":"token","content":"oi"}\n\n';
+    const corpo = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(new TextEncoder().encode(evento));
+        fechar = () => c.close();
+      },
+    });
+    const f = fetchFalso({
+      snaps: new Response(corpo, { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } }),
+    });
+    const r = await handleSnapsProxy(pedido(chat('messages'), { method: 'POST', body: '{}' }), ENV, f.impl);
+    expect(r.headers.get('Content-Type')).toBe('text/event-stream; charset=utf-8');
+    expect(r.headers.get('Cache-Control')).toBe('no-store');
+    const leitor = r.body!.getReader();
+    const primeiro = await leitor.read();
+    expect(new TextDecoder().decode(primeiro.value)).toBe(evento);
+    fechar();
+    expect((await leitor.read()).done).toBe(true);
+  });
+
+  it('o cancelamento do navegador aborta a requisição ao Snaps', async () => {
+    const f = fetchFalso();
+    const navegador = new AbortController();
+    await handleSnapsProxy(pedido(chat('messages'), { method: 'POST', body: '{}' }), ENV, f.impl, navegador.signal);
+    const sinal = f.chamadas.find((c) => c.url.startsWith('https://snaps.example'))!.init.signal!;
+    expect(sinal.aborted).toBe(false);
+    navegador.abort();
+    expect(sinal.aborted).toBe(true);
+  });
+
+  it('cancelar a resposta do proxy cancela o stream do Snaps', async () => {
+    const cancelado = vi.fn();
+    const corpo = new ReadableStream<Uint8Array>({
+      start(c) { c.enqueue(new TextEncoder().encode('data: {}\n\n')); },
+      cancel: cancelado,
+    });
+    const f = fetchFalso({ snaps: new Response(corpo, { headers: { 'Content-Type': 'text/event-stream' } }) });
+    const r = await handleSnapsProxy(pedido(chat('messages'), { method: 'POST', body: '{}' }), ENV, f.impl);
+    await r.body!.cancel();
+    expect(cancelado).toHaveBeenCalled();
+  });
+});
+
+describe('custos (NUB-RD-100)', () => {
+  it('o relatório PDF passa como binário, byte a byte, com Content-Type application/pdf', async () => {
+    const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xff, 0x00, 0xe2, 0x80, 0x0a]);
+    const f = fetchFalso({ snaps: new Response(pdf, { status: 200, headers: { 'Content-Type': 'application/pdf' } }) });
+    const r = await handleSnapsProxy(
+      pedido(`/public/projects/${PID}/costs/report?start_date=2026-10-01&end_date=2026-10-31`), ENV, f.impl,
+    );
+    expect(r.status).toBe(200);
+    expect(r.headers.get('Content-Type')).toBe('application/pdf');
+    expect(new Uint8Array(await r.arrayBuffer())).toEqual(pdf);
+  });
+});
+
+describe('duração da função na Vercel (NUB-RD-100)', () => {
+  it('maxDuration de api/snaps.ts cabe um turno do chat (120 s na API do Snaps) sem passar de 300 s', () => {
+    const vercel = JSON.parse(readFileSync(path.resolve(__dirname, '../../../vercel.json'), 'utf8'));
+    const max = vercel.functions?.['api/snaps.ts']?.maxDuration;
+    expect(max).toBeGreaterThan(120);
+    expect(max).toBeLessThanOrEqual(300);
   });
 });
 

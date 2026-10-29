@@ -13,7 +13,8 @@
 import { envDoProcesso, handleSnapsProxy, requestDoRewrite } from '../src/lib/server/snapsProxy.js';
 
 function proxy(request: Request): Promise<Response> {
-  return handleSnapsProxy(requestDoRewrite(request), envDoProcesso(process.env));
+  // O sinal é o do Request original: cancelar no navegador aborta a chamada ao Snaps.
+  return handleSnapsProxy(requestDoRewrite(request), envDoProcesso(process.env), fetch, request.signal);
 }
 
 export const GET = proxy;

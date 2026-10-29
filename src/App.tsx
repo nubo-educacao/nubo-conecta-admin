@@ -52,6 +52,7 @@ import Users from "./pages/Users";
 import Support from "./pages/Support";
 import Roadmap from "./pages/Roadmap";
 import Docs from "./pages/Docs";
+import Costs from "./pages/Costs";
 
 // Pages — Partner Portal Sandbox
 import PartnerPortalForms from "./pages/PartnerPortalForms";
@@ -131,6 +132,7 @@ const App = () => (
               <Route path="/governance/support" element={<Support />} />
               <Route path="/governance/roadmap" element={<Roadmap />} />
               <Route path="/governance/docs" element={<Docs />} />
+              <Route path="/governance/costs" element={<Costs />} />
               {/* Legacy redirects */}
               <Route path="/support" element={<Support />} />
               <Route path="/roadmap" element={<Roadmap />} />
