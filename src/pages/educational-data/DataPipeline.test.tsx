@@ -47,6 +47,7 @@ let prouniLogs: any[] = [];
 vi.mock("@/hooks/useEtlPipeline", () => ({
   useActivePrograms: () => ({ data: programs, isLoading: false }),
   useEtlLogs: (programId: string | null) => ({ data: programId === "prouni-2026-1" ? prouniLogs : [] }),
+  useGlobalEtlLogs: () => ({ data: [] }),
   useTriggerEtlStep: () => ({ mutate: triggerStep, isPending: false }),
   useUpdatePrevCycle: () => ({ mutate: updatePrevCycle }),
   useCloneCycle: () => ({ mutate: cloneCycle, isPending: false }),
@@ -103,6 +104,7 @@ describe("DataPipeline — tela de Importação (ETL)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Clonar do Ciclo Anterior/ }));
 
     expect(cloneCycle).toHaveBeenCalledWith({
+      programType: "prouni",
       sourceProgramId: "prouni-2025-2",
       targetProgramId: "prouni-2026-1",
     });

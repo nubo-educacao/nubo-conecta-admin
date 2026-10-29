@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchActivePrograms, fetchEtlLogs, triggerEtlStep, EtlStepType, fetchAllEtlLogs, rollbackEtlStep, updateProgramPrevCycle, triggerCloneCycle, stopEtlStep } from '@/services/etlPipelineService';
+import { fetchActivePrograms, fetchEtlLogs, fetchGlobalEtlLogs, Program, triggerEtlStep, EtlStepType, fetchAllEtlLogs, rollbackEtlStep, updateProgramPrevCycle, triggerCloneCycle, stopEtlStep } from '@/services/etlPipelineService';
 import { toast } from 'sonner';
 
 export function useActivePrograms() {
@@ -16,6 +16,14 @@ export function useEtlLogs(programId: string | null) {
     queryFn: () => fetchEtlLogs(programId!),
     enabled: !!programId,
     refetchInterval: 5000, // Auto-refresh while looking
+  });
+}
+
+export function useGlobalEtlLogs() {
+  return useQuery({
+    queryKey: ['etl-logs', null],
+    queryFn: fetchGlobalEtlLogs,
+    refetchInterval: 5000,
   });
 }
 
@@ -123,8 +131,15 @@ export function useCloneCycle() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ sourceProgramId, targetProgramId }: { sourceProgramId: string; targetProgramId: string }) =>
-      triggerCloneCycle(sourceProgramId, targetProgramId),
+    mutationFn: ({
+      programType,
+      sourceProgramId,
+      targetProgramId,
+    }: {
+      programType: Program['type'];
+      sourceProgramId: string;
+      targetProgramId: string;
+    }) => triggerCloneCycle(programType, sourceProgramId, targetProgramId),
     onSuccess: (data) => {
       toast.success('Ciclo clonado com sucesso!', {
         description: `${data.opp_cloned} oportunidades e ${data.vac_cloned} vagas clonadas.`,
