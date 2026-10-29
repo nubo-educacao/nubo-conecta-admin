@@ -62,6 +62,10 @@ jobs:
 
       - name: Start a clean local database and apply baseline plus forward migrations
         shell: bash
+        # ghcr.io devolveu toomanyrequests por mais de 40 min (29/10/2026); o ECR público
+        # da AWS espelha as mesmas imagens do Supabase.
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
         run: cd "$REPLAY_ROOT" && supabase db start
 
       - name: Stop local database
