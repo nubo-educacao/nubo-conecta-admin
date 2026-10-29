@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 export type EtlStepType =
   | 'prouni_base'
   | 'prouni_clone'
+  | 'sisu_clone'
   | 'sisu'
   | 'sisu_vacancies'
   | 'emec'
@@ -71,6 +72,23 @@ export async function fetchEtlLogs(programId: string): Promise<EtlRunLog[]> {
     .select('*')
     .eq('program_id', programId)
     // DESC so the most recent run per etl_type is found first by Array.find()
+    .order('started_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch ETL logs: ${error.message}`);
+  }
+
+  return data as EtlRunLog[];
+}
+
+/**
+ * Logs dos passos globais (e-MEC, Sincronização), gravados com program_id NULL.
+ */
+export async function fetchGlobalEtlLogs(): Promise<EtlRunLog[]> {
+  const { data, error } = await supabase
+    .from('etl_run_logs')
+    .select('*')
+    .is('program_id', null)
     .order('started_at', { ascending: false });
 
   if (error) {
@@ -270,10 +288,12 @@ export async function rollbackEtlStep(
  * Triggers the clone cycle RPC to copy opportunities and vacancies from one program to another
  */
 export async function triggerCloneCycle(
+  programType: Program['type'],
   sourceProgramId: string,
   targetProgramId: string
 ): Promise<{ status: string; opp_cloned: number; vac_cloned: number; errors: string | null }> {
-  const { data, error } = await supabase.rpc('etl_clone_prouni_cycle', {
+  const rpcName = programType === 'sisu' ? 'etl_clone_sisu_cycle' : 'etl_clone_prouni_cycle';
+  const { data, error } = await supabase.rpc(rpcName, {
     p_source_program_id: sourceProgramId,
     p_target_program_id: targetProgramId,
   });
