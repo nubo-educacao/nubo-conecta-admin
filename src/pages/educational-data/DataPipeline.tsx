@@ -12,6 +12,7 @@ import {
   useActivePrograms,
   useCloneCycle,
   useEtlLogs,
+  useGlobalEtlLogs,
   useStopEtlStep,
   useTriggerEtlStep,
   useUpdatePrevCycle,
@@ -149,7 +150,7 @@ export default function DataPipeline() {
 
   const { data: prouniLogs } = useEtlLogs(selectedProuniId || null);
   const { data: sisuLogs } = useEtlLogs(selectedSisuId || null);
-  const { data: globalLogs } = useEtlLogs(null);
+  const { data: globalLogs } = useGlobalEtlLogs();
 
   const { mutate: triggerStep, isPending } = useTriggerEtlStep();
   const { mutate: updatePrevCycle } = useUpdatePrevCycle();
@@ -171,6 +172,7 @@ export default function DataPipeline() {
   const prouniPrograms = programs?.filter((p) => p.type === "prouni") || [];
   const sisuPrograms = programs?.filter((p) => p.type === "sisu") || [];
   const selectedProuni = prouniPrograms.find((p) => p.id === selectedProuniId);
+  const selectedSisu = sisuPrograms.find((p) => p.id === selectedSisuId);
 
   const statusOf = (step: EtlStepType, logs: any[] | undefined) =>
     logs?.find((l) => l.etl_type === step)?.status ?? null;
@@ -179,12 +181,12 @@ export default function DataPipeline() {
     updatePrevCycle({ programId, prevProgramId: prevProgramId === NO_PREV_CYCLE ? null : prevProgramId });
   };
 
-  const handleClone = () => {
-    if (!selectedProuni?.prev_program_id) return;
+  const handleClone = (program: Program | undefined) => {
+    if (!program?.prev_program_id) return;
     if (
       confirm("Deseja clonar os dados do ciclo anterior para este ciclo? Todas as oportunidades e vagas serão copiadas.")
     ) {
-      cloneCycle({ sourceProgramId: selectedProuni.prev_program_id, targetProgramId: selectedProuni.id });
+      cloneCycle({ programType: program.type, sourceProgramId: program.prev_program_id, targetProgramId: program.id });
     }
   };
 
@@ -328,7 +330,7 @@ export default function DataPipeline() {
                     <Button
                       variant="outline"
                       className="w-full justify-between"
-                      onClick={handleClone}
+                      onClick={() => handleClone(selectedProuni)}
                       disabled={isCloning}
                     >
                       <span>{isCloning ? "Clonando..." : "Clonar do Ciclo Anterior"}</span>
@@ -369,10 +371,10 @@ export default function DataPipeline() {
 
             {selectedSisuId && (
               <div className="space-y-2">
-                <Label htmlFor="sisu-prev-cycle">Ciclo Anterior (Comparação Opcional)</Label>
+                <Label htmlFor="sisu-prev-cycle">Ciclo Anterior (Comparação / Herança)</Label>
                 <NativeSelect
                   id="sisu-prev-cycle"
-                  value={sisuPrograms.find((p) => p.id === selectedSisuId)?.prev_program_id || NO_PREV_CYCLE}
+                  value={selectedSisu?.prev_program_id || NO_PREV_CYCLE}
                   onChange={(v) => handlePrevCycleChange(selectedSisuId, v)}
                 >
                   <option value={NO_PREV_CYCLE}>Sem ciclo anterior (ocultar comparação)</option>
@@ -421,6 +423,25 @@ export default function DataPipeline() {
                     logs={sisuLogs}
                   />
                 </StepBox>
+
+                {selectedSisu?.prev_program_id && (
+                  <StepBox
+                    title="3. Herança (Clonagem)"
+                    source="Ciclo anterior selecionado acima"
+                    destination="opportunities + opportunities_sisu_vacancies"
+                    status={statusOf("sisu_clone", sisuLogs)}
+                  >
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                      onClick={() => handleClone(selectedSisu)}
+                      disabled={isCloning}
+                    >
+                      <span>{isCloning ? "Clonando..." : "Clonar do Ciclo Anterior"}</span>
+                      {isCloning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </StepBox>
+                )}
               </>
             )}
           </CardContent>
