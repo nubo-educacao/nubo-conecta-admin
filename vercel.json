@@ -2,6 +2,9 @@
   "git": {
     "deploymentEnabled": false
   },
+  "functions": {
+    "api/snaps.ts": { "maxDuration": 150 }
+  },
   "rewrites": [
     { "source": "/api/snaps/:path*", "destination": "/api/snaps?__snaps_path=:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
