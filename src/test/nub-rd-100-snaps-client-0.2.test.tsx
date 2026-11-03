@@ -1,4 +1,4 @@
-// NUB-RD-100 — governança do Snaps com o snaps-client 0.2.0.
+// NUB-RD-100 — governança do Snaps com o snaps-client 0.2.1.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -25,16 +25,16 @@ afterEach(cleanup);
 const BUNDLE = path.resolve(__dirname, "../../public/snaps/snaps-client.umd.js");
 
 describe("bundle do snaps-client", () => {
-  // SHA256 do manifest do artifact oficial snaps-client-0.2.0-67edd0e7 (run 40957512016).
-  it("é o UMD 0.2.0 oficial, byte a byte", () => {
+  // SHA256 do manifest do artifact oficial snaps-client-0.2.1-02b73b062d8ef46889e305ce5ec1f3dbebeeac48 (run 41617087052).
+  it("é o UMD 0.2.1 oficial, byte a byte", () => {
     const sha = createHash("sha256").update(readFileSync(BUNDLE)).digest("hex");
-    expect(sha).toBe("a058959c8d03ac6e4f1fb772f98d0725f3a882878ca7fd0badfe197873dc8797");
+    expect(sha).toBe("ff93d1cb2217cee487d020b16b04580e2c40aedf662d8b0cdc0f67c4e5e3b6eb");
   });
 
-  it("expõe SnapsClient.version === '0.2.0' e registra <snaps-costs-board>", () => {
+  it("expõe SnapsClient.version === '0.2.1' e registra <snaps-costs-board>", () => {
     (0, eval)(readFileSync(BUNDLE, "utf8"));
     const g = globalThis as unknown as { SnapsClient?: { version?: string } };
-    expect(g.SnapsClient?.version).toBe("0.2.0");
+    expect(g.SnapsClient?.version).toBe("0.2.1");
     expect(customElements.get("snaps-costs-board")).toBeDefined();
   });
 });
