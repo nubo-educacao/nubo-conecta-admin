@@ -1,0 +1,214 @@
+name: Supabase DEV migration plan
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Full commit SHA at the head of an open PR to main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: supabase-dev-migration-plan
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan DEV migrations (read-only)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Development
+    env:
+      DEV_PROJECT_REF: yfgciamhzjvarwgzosto
+      CANDIDATE_SHA_INPUT: ${{ inputs.candidate_sha }}
+      REPORT_DIR: ${{ runner.temp }}/supabase-dev-migration-plan
+      CANDIDATE_DIR: ${{ github.workspace }}/candidate
+
+    steps:
+      - name: Initialize report
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          if [[ "$CANDIDATE_SHA_INPUT" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            report_sha="${CANDIDATE_SHA_INPUT,,}"
+          else
+            report_sha="invalid input"
+          fi
+          {
+            echo "# Supabase DEV migration plan"
+            echo
+            echo "- Project ref: \`$DEV_PROJECT_REF\`"
+            echo "- Candidate SHA: \`$report_sha\`"
+            echo "- Preflight: in progress"
+            echo
+            echo "This report is read-only. No migration application is available in this workflow."
+          } > "$REPORT_DIR/report.md"
+
+      - name: Require the trusted main controller
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Preflight: FAIL - dispatch must use the protected main ref." >> "$REPORT_DIR/report.md"
+            exit 1
+          fi
+
+      - name: Check out the workflow controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+
+      - name: Validate candidate SHA and same-repository PR
+        id: candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$CANDIDATE_SHA_INPUT" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Preflight: FAIL - candidate_sha must be a full 40-character commit SHA." >> "$REPORT_DIR/report.md"
+            exit 1
+          fi
+          candidate_sha="${CANDIDATE_SHA_INPUT,,}"
+          prs_file="$REPORT_DIR/associated-prs.json"
+          pr_files="$REPORT_DIR/pr-files.json"
+
+          if ! gh api "repos/$GITHUB_REPOSITORY/commits/$candidate_sha/pulls?per_page=100" > "$prs_file"; then
+            echo "Preflight: FAIL - GitHub could not verify PR association for the candidate." >> "$REPORT_DIR/report.md"
+            exit 1
+          fi
+
+          if ! pr_number="$(jq -er \
+            --arg sha "$candidate_sha" \
+            --arg repo "$GITHUB_REPOSITORY" \
+            '[.[] | select(
+              .state == "open" and
+              .head.sha == $sha and
+              .head.repo.full_name == $repo and
+              .base.ref == "main" and
+              .head.ref != "main"
+            )] | if length == 1 then .[0].number else empty end' "$prs_file")"; then
+            echo "Preflight: FAIL - SHA must be the exact head of one open PR from this repository to main." >> "$REPORT_DIR/report.md"
+            exit 1
+          fi
+
+          if ! gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/pulls/$pr_number/files?per_page=100" \
+            | jq 'add' > "$pr_files"; then
+            echo "Preflight: FAIL - GitHub could not retrieve the candidate PR file list." >> "$REPORT_DIR/report.md"
+            exit 1
+          fi
+
+          echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Check out candidate content without running it
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ steps.candidate.outputs.candidate_sha }}
+          path: candidate
+          persist-credentials: false
+
+      - name: Verify candidate migrations and manifest
+        id: inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! node scripts/supabase-dev-migrations-plan.mjs inventory \
+            --candidate "$CANDIDATE_DIR" \
+            --sha "${{ steps.candidate.outputs.candidate_sha }}" \
+            --pr-number "${{ steps.candidate.outputs.pr_number }}" \
+            --pr-files "$REPORT_DIR/pr-files.json" \
+            --output "$REPORT_DIR/inventory.json"; then
+            echo "Preflight: FAIL - candidate migration integrity or PR contents did not pass validation." >> "$REPORT_DIR/report.md"
+            exit 1
+          fi
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb
+        with:
+          version: 2.98.2
+
+      - name: Read DEV migration ledger with verified TLS
+        id: remote-plan
+        shell: bash
+        env:
+          SUPABASE_DEV_READONLY_DB_URL: ${{ secrets.SUPABASE_DEV_READONLY_DB_URL }}
+          SUPABASE_DEV_CA_CERT: ${{ vars.SUPABASE_DEV_CA_CERT }}
+        run: |
+          set -euo pipefail
+          ledger_file="$REPORT_DIR/remote-ledger.json"
+          query_error="$REPORT_DIR/query-diagnostic.txt"
+          if ! node scripts/supabase-dev-migrations-plan.mjs run-ledger-query \
+            --output "$ledger_file" \
+            --ca-file "$REPORT_DIR/dev-ca.crt" \
+            2> "$query_error"; then
+            printf '\n- Preflight: **FAIL** - %s\n' "$(cat "$query_error")" >> "$REPORT_DIR/report.md"
+            exit 1
+          fi
+
+          if ! node scripts/supabase-dev-migrations-plan.mjs plan \
+            --inventory "$REPORT_DIR/inventory.json" \
+            --remote "$ledger_file" \
+            --output "$REPORT_DIR/report.md"; then
+            echo "Migration plan contains a divergence; see the report." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Revalidate PR head before finalizing report
+        id: revalidate-pr
+        if: steps.remote-plan.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.candidate.outputs.pr_number }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          pr_file="$REPORT_DIR/current-pr.json"
+          pr_error="$REPORT_DIR/pr-revalidation-error.txt"
+          if ! gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$pr_file" 2> "$pr_error"; then
+            node scripts/supabase-dev-migrations-plan.mjs fail-report \
+              --report "$REPORT_DIR/report.md" \
+              --reason "GitHub PR metadata could not be revalidated."
+            exit 1
+          fi
+
+          if ! node scripts/supabase-dev-migrations-plan.mjs confirm-pr \
+            --pr-json "$pr_file" \
+            --pr-number "$PR_NUMBER" \
+            --sha "$CANDIDATE_SHA" \
+            --report "$REPORT_DIR/report.md"; then
+            exit 1
+          fi
+
+      - name: Add workflow result to report
+        if: always()
+        shell: bash
+        env:
+          JOB_RESULT: ${{ job.status }}
+        run: |
+          {
+            echo
+            echo "- Workflow result: \`$JOB_RESULT\`"
+          } >> "$REPORT_DIR/report.md"
+          cat "$REPORT_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish planning report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: supabase-dev-migration-plan-${{ github.run_id }}
+          path: ${{ runner.temp }}/supabase-dev-migration-plan/report.md
+          if-no-files-found: error
+          retention-days: 14
