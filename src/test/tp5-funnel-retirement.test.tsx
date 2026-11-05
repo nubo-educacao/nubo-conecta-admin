@@ -46,6 +46,7 @@ vi.mock("@/pages/Users", () => ({ default: () => <div>Users</div> }));
 vi.mock("@/pages/Support", () => ({ default: () => <div>Support</div> }));
 vi.mock("@/pages/Roadmap", () => ({ default: () => <div>Roadmap</div> }));
 vi.mock("@/pages/Docs", () => ({ default: () => <div>Docs</div> }));
+vi.mock("@/pages/Costs", () => ({ default: () => <div>Costs</div> }));
 vi.mock("@/pages/PartnerPortalForms", () => ({ default: () => <div>PartnerPortalForms</div> }));
 vi.mock("@/pages/PartnerDashboard", () => ({ default: () => <div>PartnerDashboard</div> }));
 beforeEach(() => {
@@ -112,6 +113,14 @@ describe("TP-5 standalone funnel retirement", () => {
     render(<App />);
     expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("Você não tem permissão para acessar esta página.");
+  });
+  // NUB-RD-100: página Custos (<snaps-costs-board>) na Governança, como Suporte, Roadmap e Docs.
+  it("abre /governance/costs sem cair no 404", () => {
+    auth.permissions = ["Dashboard"];
+    window.history.replaceState({}, "", "/governance/costs");
+    render(<App />);
+    expect(screen.getByText("Costs")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "404" })).not.toBeInTheDocument();
   });
   it("o link da Sidebar (grupo Visão Geral aberto por padrão) aponta para a rota registrada", () => {
     auth.permissions = ["Dashboard"];

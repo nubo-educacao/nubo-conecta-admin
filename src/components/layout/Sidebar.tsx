@@ -30,6 +30,7 @@ import {
   Map,
   ShieldCheck,
   ScrollText,
+  Wallet,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -173,6 +174,7 @@ export default function Sidebar() {
         { to: "/governance/support", icon: Bug, label: "Suporte & Bugs", permission: "Dashboard" },
         { to: "/governance/roadmap", icon: Map, label: "Roadmap", permission: "Dashboard" },
         { to: "/governance/docs", icon: ScrollText, label: "Docs de Governança", permission: "Dashboard" },
+        { to: "/governance/costs", icon: Wallet, label: "Custos", permission: "Dashboard" },
       ],
     },
   ];

@@ -35,12 +35,21 @@ const PREFIXO = '/api/snaps';
 const ROTAS: Array<{ metodos: Metodo[]; padrao: RegExp }> = [
   { metodos: ['GET'], padrao: new RegExp(`^/public/projects/(${UUID})/(roadmap|docs|support|cards)$`) },
   { metodos: ['GET'], padrao: new RegExp(`^/public/projects/(${UUID})/docs/[A-Za-z0-9_-]+$`) },
-  { metodos: ['GET', 'DELETE'], padrao: new RegExp(`^/public/projects/(${UUID})/support/cards/${UUID}$`) },
+  // PATCH: edição de bug/sugestão em new-issues (snaps-client 0.2.0, NUB-SUP-79).
+  { metodos: ['GET', 'PATCH', 'DELETE'], padrao: new RegExp(`^/public/projects/(${UUID})/support/cards/${UUID}$`) },
   { metodos: ['POST'], padrao: new RegExp(`^/public/projects/(${UUID})/(cards|support/upload)$`) },
   { metodos: ['PATCH'], padrao: new RegExp(`^/public/projects/(${UUID})/support/cards/${UUID}/status$`) },
+  // Chat de suporte (0.2.0): criação da sessão, mensagem (SSE), confirmação e fechamento.
+  { metodos: ['POST'], padrao: new RegExp(`^/public/projects/(${UUID})/support/chats$`) },
+  { metodos: ['POST'], padrao: new RegExp(`^/public/projects/(${UUID})/support/chats/${UUID}/(messages|confirm|close)$`) },
+  // <snaps-costs-board> (0.2.0): horas, custo de IA e relatório PDF.
+  { metodos: ['GET'], padrao: new RegExp(`^/public/projects/(${UUID})/costs/(hours|llm|report)$`) },
   // `deleteCard` do snapsApiService usa a rota de cards fora de /public.
   { metodos: ['DELETE'], padrao: new RegExp(`^/cards/${UUID}$`) },
 ];
+
+/** Só as rotas de uma sessão de chat recebem o `X-Support-Session` do navegador. */
+const ROTA_DE_CHAT = new RegExp(`^/public/projects/${UUID}/support/chats/${UUID}/(messages|confirm|close)$`);
 
 function json(status: number, erro: string): Response {
   return new Response(JSON.stringify({ error: erro }), {
@@ -113,10 +122,16 @@ export function requestDoRewrite(req: Request): Request {
   } as RequestInit & { duplex: 'half' });
 }
 
+/**
+ * `sinal` é o do Request original do navegador: o de `requestDoRewrite` é novo
+ * e nunca aborta. Quando o navegador cancela (ex.: fecha o chat no meio do SSE),
+ * a requisição ao Snaps é abortada junto.
+ */
 export async function handleSnapsProxy(
   req: Request,
   env: ProxyEnv | null,
   f: typeof fetch = fetch,
+  sinal?: AbortSignal,
 ): Promise<Response> {
   if (!env) return json(503, 'proxy_nao_configurado');
 
@@ -137,15 +152,25 @@ export async function handleSnapsProxy(
   if (tipo) headers.set('Content-Type', tipo);
   const aceita = req.headers.get('accept');
   if (aceita) headers.set('Accept', aceita);
+  const sessaoDoChat = req.headers.get('x-support-session');
+  if (sessaoDoChat && ROTA_DE_CHAT.test(caminho)) headers.set('X-Support-Session', sessaoDoChat);
+
+  // Controller próprio: o sinal do runtime pode vir de outro realm, que o fetch recusa.
+  const corte = new AbortController();
+  if (sinal?.aborted) corte.abort();
+  sinal?.addEventListener('abort', () => corte.abort(), { once: true });
 
   const upstream = await f(`${env.snapsApiUrl}${caminho}${url.search}`, {
     method: metodo,
     headers,
     body: metodo === 'GET' ? undefined : await req.arrayBuffer(),
+    signal: corte.signal,
   });
 
   const saida = new Headers({ 'Cache-Control': 'no-store' });
   const tipoResposta = upstream.headers.get('content-type');
   if (tipoResposta) saida.set('Content-Type', tipoResposta);
+  // O corpo segue como stream, sem acumular: o SSE do chat chega evento a evento
+  // e o PDF do relatório passa como binário.
   return new Response(upstream.body, { status: upstream.status, headers: saida });
 }
