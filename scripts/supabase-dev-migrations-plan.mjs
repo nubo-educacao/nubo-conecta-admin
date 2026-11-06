@@ -5,6 +5,10 @@ import path from "node:path";
 import process from "node:process";
 
 const DEV_PROJECT_REF = "yfgciamhzjvarwgzosto";
+const DIRECT_DATABASE_HOST = `db.${DEV_PROJECT_REF}.supabase.co`;
+const SESSION_POOLER_HOST = "aws-1-sa-east-1.pooler.supabase.com";
+const DIRECT_DATABASE_USER = "dev_migrations_reader";
+const SESSION_POOLER_USER = `${DIRECT_DATABASE_USER}.${DEV_PROJECT_REF}`;
 const migrationNamePattern = /^(\d{14})_[a-z0-9][a-z0-9_]*\.sql$/;
 const ledgerQuery =
   "SELECT COALESCE(json_agg(json_build_object('version', version::text) ORDER BY version), '[]'::json)::text FROM supabase_migrations.schema_migrations";
@@ -215,10 +219,13 @@ function databaseConnection() {
   }
   if (
     !["postgres:", "postgresql:"].includes(target.protocol) ||
-    target.hostname !== `db.${DEV_PROJECT_REF}.supabase.co` ||
+    ![DIRECT_DATABASE_HOST, SESSION_POOLER_HOST].includes(target.hostname) ||
     target.port !== "5432" ||
     target.pathname !== "/postgres" ||
-    !username ||
+    (target.hostname === DIRECT_DATABASE_HOST &&
+      username !== DIRECT_DATABASE_USER) ||
+    (target.hostname === SESSION_POOLER_HOST &&
+      username !== SESSION_POOLER_USER) ||
     !password ||
     target.search ||
     target.hash ||
@@ -229,7 +236,7 @@ function databaseConnection() {
   ) {
     throw new SafeDiagnosticError(
       "destination",
-      "Connection must use the fixed DEV direct endpoint and contain no query or fragment parameters.",
+      "Connection must use an allowed DEV endpoint, its expected database role, and no query or fragment parameters.",
     );
   }
   return {
@@ -560,7 +567,7 @@ async function createPlan(options) {
     "# Supabase DEV migration plan",
     "",
     `- Project ref: \`${DEV_PROJECT_REF}\``,
-    "- Target confirmation: fixed direct DEV hostname; `verify-full` certificate and hostname validation succeeded.",
+    "- Target confirmation: host and project-specific user matched an allowlisted DEV endpoint; `verify-full` certificate and hostname validation succeeded.",
     ...caFingerprints.map(
       (fingerprint, index) =>
         `- Trusted CA certificate ${index + 1} SHA-256: \`${fingerprint}\``,
