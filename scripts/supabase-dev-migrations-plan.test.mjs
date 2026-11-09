@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import {
+  databaseConnection,
+  databaseQueryInvocation,
+} from "./supabase-dev-migrations-plan.mjs";
 
 const scriptPath = fileURLToPath(
   new URL("./supabase-dev-migrations-plan.mjs", import.meta.url),
@@ -34,6 +38,28 @@ function validateTarget(url) {
     output,
   };
 }
+
+test("keeps the database password out of CLI arguments and supplies it via environment", () => {
+  const url = databaseUrl({ host: directHost, user: directUser });
+  const connection = databaseConnection(url);
+  const invocation = databaseQueryInvocation(connection, "C:\\runner\\dev-ca.crt", {
+    PATH: process.env.PATH,
+    PGPASSWORD: "inherited-password",
+    PGHOST: "unexpected-host",
+    SUPABASE_DEV_READONLY_DB_URL: url,
+  });
+  const dbUrlIndex = invocation.args.indexOf("--db-url") + 1;
+  const cliUrl = invocation.args[dbUrlIndex];
+
+  assert.equal(connection.password, passwordMarker);
+  assert.equal(cliUrl.includes(passwordMarker), false);
+  assert.equal(invocation.args.some((arg) => arg.includes(passwordMarker)), false);
+  assert.equal(invocation.environment.PGPASSWORD, passwordMarker);
+  assert.equal(invocation.environment.PGHOST, undefined);
+  assert.equal(invocation.environment.SUPABASE_DEV_READONLY_DB_URL, undefined);
+  assert.match(cliUrl, /sslmode=verify-full/);
+  assert.match(cliUrl, /sslrootcert=/);
+});
 
 test("accepts the fixed DEV direct endpoint and direct-role username", () => {
   const result = validateTarget(

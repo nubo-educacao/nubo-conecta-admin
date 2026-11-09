@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { chmod, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 const DEV_PROJECT_REF = "yfgciamhzjvarwgzosto";
 const DIRECT_DATABASE_HOST = `db.${DEV_PROJECT_REF}.supabase.co`;
@@ -189,8 +190,9 @@ function required(options, key) {
   return value;
 }
 
-function databaseConnection() {
-  const connectionString = process.env.SUPABASE_DEV_READONLY_DB_URL;
+export function databaseConnection(
+  connectionString = process.env.SUPABASE_DEV_READONLY_DB_URL,
+) {
   if (!connectionString) {
     throw new SafeDiagnosticError(
       "configuration",
@@ -239,8 +241,11 @@ function databaseConnection() {
       "Connection must use an allowed DEV endpoint, its expected database role, and no query or fragment parameters.",
     );
   }
+  target.password = "";
   return {
     host: target.hostname,
+    username,
+    password,
     connectionString: target,
   };
 }
@@ -299,28 +304,20 @@ function validateTarget() {
   );
 }
 
-async function runLedgerQuery(options) {
-  const connection = databaseConnection();
-  const ca = certificateBundle();
-  const caFile = path.resolve(required(options, "ca-file"));
-  const outputFile = required(options, "output");
-  await writeFile(caFile, ca.pem, { encoding: "utf8", mode: 0o600 });
-  await chmod(caFile, 0o600);
-
+export function databaseQueryInvocation(connection, caFile, sourceEnvironment) {
   const secureConnectionString = new URL(connection.connectionString);
   secureConnectionString.searchParams.set("sslmode", "verify-full");
   secureConnectionString.searchParams.set("sslrootcert", caFile);
   const environment = Object.fromEntries(
-    Object.entries(process.env).filter(
+    Object.entries(sourceEnvironment).filter(
       ([key]) =>
         !key.toUpperCase().startsWith("PG") &&
         !key.toUpperCase().startsWith("SUPABASE_"),
     ),
   );
-
-  const result = spawnSync(
-    "supabase",
-    [
+  environment.PGPASSWORD = connection.password;
+  return {
+    args: [
       "--agent=no",
       "db",
       "query",
@@ -330,8 +327,29 @@ async function runLedgerQuery(options) {
       "json",
       ledgerQuery,
     ],
+    environment,
+  };
+}
+
+async function runLedgerQuery(options) {
+  const connection = databaseConnection();
+  const ca = certificateBundle();
+  const caFile = path.resolve(required(options, "ca-file"));
+  const outputFile = required(options, "output");
+  await writeFile(caFile, ca.pem, { encoding: "utf8", mode: 0o600 });
+  await chmod(caFile, 0o600);
+
+  const invocation = databaseQueryInvocation(
+    connection,
+    caFile,
+    process.env,
+  );
+
+  const result = spawnSync(
+    "supabase",
+    invocation.args,
     {
-      env: environment,
+      env: invocation.environment,
       encoding: "utf8",
       maxBuffer: 1024 * 1024,
       timeout: 30_000,
@@ -685,11 +703,16 @@ async function main() {
   throw new Error("Expected phase: inventory, validate-target, or plan.");
 }
 
-main().catch((error) => {
-  if (error instanceof SafeDiagnosticError) {
-    console.error(`[${error.category}] ${error.message}`);
-  } else {
-    console.error(error.message);
-  }
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url
+) {
+  main().catch((error) => {
+    if (error instanceof SafeDiagnosticError) {
+      console.error(`[${error.category}] ${error.message}`);
+    } else {
+      console.error(error.message);
+    }
+    process.exitCode = 1;
+  });
+}
